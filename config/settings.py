@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-@4(1-cbvg9$2@8kf!_zi#(-a%^el)$+mmw33@y)wf0mooyssxb
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 
 
 # Application definition
@@ -128,20 +128,29 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
-AUTH_USER_MODEL = 'users.User'
+AUTH_USER_MODEL = "users.User"
 
 REST_FRAMEWORK = {
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Police Automation System API',
-    'DESCRIPTION': 'L.A. Noire Project Backend Documentation',
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
+    "TITLE": "Police Automation System API",
+    "DESCRIPTION": "L.A. Noire Project Backend Documentation",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 AUTHENTICATION_BACKENDS = [
-    'users.backends.MultiIdentifierAuthBackend',
-    'django.contrib.auth.backends.ModelBackend',
+    "users.backends.MultiIdentifierAuthBackend",
+    "django.contrib.auth.backends.ModelBackend",
 ]
+
+SESSION_COOKIE_AGE = 60 * 60 * 24
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
