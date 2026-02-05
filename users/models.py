@@ -1,4 +1,4 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, Group
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -39,7 +39,19 @@ class User(AbstractUser):
         return list(self.groups.values_list("name", flat=True))
 
     def has_role(self, role_name: str) -> bool:
-        return self.groups.filter(name=role_name).exists()
+        return self.groups.filter(name__iexact=role_name).exists()
 
     def __str__(self):
         return self.username
+
+
+class RoleProfile(models.Model):
+    group = models.OneToOneField(Group, on_delete=models.CASCADE, related_name="profile")
+    description = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = _("Role Profile")
+        verbose_name_plural = _("Role Profiles")
+
+    def __str__(self):
+        return self.group.name

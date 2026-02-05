@@ -1,18 +1,17 @@
 from django.contrib import admin
 
-from .models import Case, CaseLog, CaseReview
-
-
-class CaseReviewInline(admin.TabularInline):
-    model = CaseReview
-    extra = 0
-    readonly_fields = ("created_at",)
-
-
-class CaseLogInline(admin.TabularInline):
-    model = CaseLog
-    extra = 0
-    readonly_fields = ("timestamp",)
+from .models import (
+    BoardItem,
+    BoardLink,
+    CaptainDecision,
+    Case,
+    CaseLog,
+    Complaint,
+    ComplaintReview,
+    DetectiveBoard,
+    InterrogationScore,
+    SuspectCaseProfile,
+)
 
 
 @admin.register(Case)
@@ -20,19 +19,21 @@ class CaseAdmin(admin.ModelAdmin):
     list_display = ("id", "title", "source_type", "status", "severity", "created_by", "created_at")
     list_filter = ("source_type", "status", "severity")
     search_fields = ("title", "description", "location")
-    autocomplete_fields = ("created_by", "approved_by", "complainants")
-    inlines = (CaseReviewInline, CaseLogInline)
+    autocomplete_fields = ("created_by", "approved_by", "complainants", "witnesses", "suspects")
 
 
-@admin.register(CaseReview)
-class CaseReviewAdmin(admin.ModelAdmin):
-    list_display = ("id", "case", "reviewer", "step", "decision", "created_at")
-    list_filter = ("step", "decision")
-    autocomplete_fields = ("case", "reviewer")
+@admin.register(Complaint)
+class ComplaintAdmin(admin.ModelAdmin):
+    list_display = ("id", "title", "submitter", "status", "invalid_attempt_count", "created_at")
+    list_filter = ("status",)
+    autocomplete_fields = ("case", "submitter", "complainants")
 
 
-@admin.register(CaseLog)
-class CaseLogAdmin(admin.ModelAdmin):
-    list_display = ("id", "case", "actor", "action", "timestamp")
-    search_fields = ("action", "description")
-    autocomplete_fields = ("case", "actor")
+admin.site.register(ComplaintReview)
+admin.site.register(CaseLog)
+admin.site.register(DetectiveBoard)
+admin.site.register(BoardItem)
+admin.site.register(BoardLink)
+admin.site.register(SuspectCaseProfile)
+admin.site.register(InterrogationScore)
+admin.site.register(CaptainDecision)

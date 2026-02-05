@@ -1,7 +1,8 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.admin import GroupAdmin, UserAdmin
+from django.contrib.auth.models import Group
 
-from .models import User
+from .models import RoleProfile, User
 
 
 @admin.register(User)
@@ -25,3 +26,18 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = UserAdmin.add_fieldsets + (
         ("Project Info", {"fields": ("national_id", "phone_number")}),
     )
+
+
+class RoleProfileInline(admin.StackedInline):
+    model = RoleProfile
+    can_delete = False
+    extra = 0
+
+
+admin.site.unregister(Group)
+
+
+@admin.register(Group)
+class CustomGroupAdmin(GroupAdmin):
+    inlines = (RoleProfileInline,)
+    search_fields = ("name",)
