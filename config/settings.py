@@ -140,3 +140,8 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
+
+AUTHENTICATION_BACKENDS = [
+    'users.backends.MultiIdentifierAuthBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
