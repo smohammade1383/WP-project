@@ -58,6 +58,10 @@ class VehicleEvidence(models.Model):
         if not self.license_plate and not self.serial_number:
             raise ValidationError("Either license_plate or serial_number must be set.")
 
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class IdentityDocumentEvidence(models.Model):
     evidence = models.OneToOneField(Evidence, on_delete=models.CASCADE, related_name="identity_document")

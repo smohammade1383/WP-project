@@ -18,6 +18,6 @@ class AggregatedStatsAPIView(APIView):
             "active_cases": Case.objects.exclude(status__in=[Case.Status.CLOSED, Case.Status.VOID]).count(),
             "solved_cases": Case.objects.filter(status=Case.Status.CLOSED).count(),
             "staff_count": User.objects.filter(is_staff=True).count(),
-            "wanted_count": SuspectCaseProfile.objects.filter(is_arrested=False).count(),
+            "wanted_count": SuspectCaseProfile.objects.filter(is_arrested=False).values("suspect_id").distinct().count(),
         }
         return Response(data)

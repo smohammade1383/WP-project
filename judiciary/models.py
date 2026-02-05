@@ -4,12 +4,20 @@ from django.db import models
 
 class Trial(models.Model):
     class Verdict(models.TextChoices):
+        PENDING = "pending", "Pending"
         INNOCENT = "innocent", "Innocent"
         GUILTY = "guilty", "Guilty"
 
-    case = models.OneToOneField("cases.Case", on_delete=models.CASCADE, related_name="trial")
+    case = models.ForeignKey("cases.Case", on_delete=models.CASCADE, related_name="trials")
+    defendant = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="defendant_trials",
+        null=True,
+        blank=True,
+    )
     judge = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
-    verdict = models.CharField(max_length=20, choices=Verdict.choices)
+    verdict = models.CharField(max_length=20, choices=Verdict.choices, default=Verdict.PENDING)
     verdict_note = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

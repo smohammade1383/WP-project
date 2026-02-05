@@ -3,7 +3,6 @@ INITIAL_ROLES = [
     "Chief",
     "Captain",
     "Sergeant",
-    "Sergent",
     "Detective",
     "Police Officer",
     "Patrol Officer",

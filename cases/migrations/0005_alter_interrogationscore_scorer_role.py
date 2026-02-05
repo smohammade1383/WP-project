@@ -17,7 +17,6 @@ class Migration(migrations.Migration):
                 choices=[
                     ("detective", "Detective"),
                     ("sergeant", "Sergeant"),
-                    ("sergent", "Sergent"),
                 ],
                 max_length=20,
             ),

@@ -60,6 +60,13 @@ class PaymentTransaction(models.Model):
         FINE = "fine", "Fine"
         REWARD = "reward", "Reward"
 
+    payer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="payment_transactions",
+        null=True,
+        blank=True,
+    )
     case = models.ForeignKey("cases.Case", on_delete=models.SET_NULL, null=True, blank=True)
     suspect_profile = models.ForeignKey(
         "cases.SuspectCaseProfile",
@@ -75,3 +82,7 @@ class PaymentTransaction(models.Model):
     return_url = models.URLField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     paid_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def requires_gateway(self):
+        return self.transaction_type != self.TransactionType.REWARD

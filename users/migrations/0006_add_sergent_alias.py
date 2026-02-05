@@ -1,16 +1,16 @@
 from django.db import migrations
 
 
-def create_sergent_role(apps, schema_editor):
+def ensure_sergeant_role(apps, schema_editor):
     Group = apps.get_model("auth", "Group")
     RoleProfile = apps.get_model("users", "RoleProfile")
-    group, _ = Group.objects.get_or_create(name="Sergent")
+    group, _ = Group.objects.get_or_create(name="Sergeant")
     RoleProfile.objects.get_or_create(group=group)
 
 
-def remove_sergent_role(apps, schema_editor):
+def remove_sergeant_role(apps, schema_editor):
     Group = apps.get_model("auth", "Group")
-    Group.objects.filter(name="Sergent").delete()
+    Group.objects.filter(name="Sergeant").delete()
 
 
 class Migration(migrations.Migration):
@@ -19,5 +19,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(create_sergent_role, remove_sergent_role),
+        migrations.RunPython(ensure_sergeant_role, remove_sergeant_role),
     ]

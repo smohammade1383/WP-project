@@ -244,7 +244,6 @@ class InterrogationScore(models.Model):
     class ScorerRole(models.TextChoices):
         DETECTIVE = "detective", _("Detective")
         SERGEANT = "sergeant", _("Sergeant")
-        SERGENT = "sergent", _("Sergent")
 
     suspect_profile = models.ForeignKey(SuspectCaseProfile, on_delete=models.CASCADE, related_name="scores")
     scorer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
@@ -272,3 +271,7 @@ class CaptainDecision(models.Model):
     def clean(self):
         if self.suspect_profile.case.severity == Case.Severity.CRITICAL and self.chief_confirmed is None:
             raise ValidationError("Chief confirmation is required for critical cases.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

@@ -7,7 +7,6 @@ class CanViewAggregatedStats(HasAnyRole):
         "Chief",
         "Captain",
         "Sergeant",
-        "Sergent",
         "Detective",
         "Police Officer",
         "Patrol Officer",
