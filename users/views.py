@@ -1,6 +1,8 @@
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import Group
 from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -21,6 +23,7 @@ class SignupAPIView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
 
 
+@extend_schema(tags=["Auth"], request=LoginSerializer, responses={200: OpenApiTypes.OBJECT})
 class LoginAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -40,6 +43,7 @@ class LoginAPIView(APIView):
         )
 
 
+@extend_schema(tags=["Auth"], request=None, responses={200: OpenApiTypes.OBJECT})
 class LogoutAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -68,6 +72,11 @@ class RoleRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
 
 
+@extend_schema(
+    tags=["RBAC"],
+    request=UserRoleUpdateSerializer,
+    responses={200: OpenApiTypes.OBJECT},
+)
 class UserRoleManagementAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
 
@@ -88,6 +97,7 @@ class UserRoleManagementAPIView(APIView):
         return Response({"detail": "Roles removed.", "roles": user.role_names})
 
 
+@extend_schema(tags=["RBAC"], request=None, responses={200: OpenApiTypes.OBJECT})
 class UserRoleListAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
 

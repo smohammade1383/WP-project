@@ -1,7 +1,61 @@
 from django.urls import path
 
-from .views import AggregatedStatsAPIView
+from .views import (
+    AggregatedStatsAPIView,
+    BoardItemListCreateAPIView,
+    BoardItemRetrieveUpdateDestroyAPIView,
+    BoardLinkDestroyAPIView,
+    BoardLinkListCreateAPIView,
+    CaptainDecisionCreateAPIView,
+    CaseBreakdownStatsAPIView,
+    CaseListCreateAPIView,
+    CaseRetrieveUpdateAPIView,
+    ComplaintAddComplainantsAPIView,
+    ComplaintCadetReviewAPIView,
+    ComplaintListCreateAPIView,
+    ComplaintOfficerReviewAPIView,
+    ComplaintRetrieveUpdateAPIView,
+    CrimeSceneCaseApproveAPIView,
+    CrimeSceneCaseCreateAPIView,
+    DetectiveBoardDetailAPIView,
+    DetectiveNotificationListAPIView,
+    InterrogationScoreCreateAPIView,
+    SergeantDecisionAPIView,
+    SevereTrackingListAPIView,
+    SuspectArrestAPIView,
+    SuspectNominationAPIView,
+    SuspectWantedUpdateAPIView,
+)
 
 urlpatterns = [
+    path("", CaseListCreateAPIView.as_view(), name="case-list-create"),
+    path("<int:pk>/", CaseRetrieveUpdateAPIView.as_view(), name="case-detail-update"),
+
+    path("complaints/", ComplaintListCreateAPIView.as_view(), name="complaint-list-create"),
+    path("complaints/<int:pk>/", ComplaintRetrieveUpdateAPIView.as_view(), name="complaint-detail-update"),
+    path("complaints/<int:complaint_id>/add-complainants/", ComplaintAddComplainantsAPIView.as_view(), name="complaint-add-complainants"),
+    path("complaints/<int:complaint_id>/cadet-review/", ComplaintCadetReviewAPIView.as_view(), name="complaint-cadet-review"),
+    path("complaints/<int:complaint_id>/officer-review/", ComplaintOfficerReviewAPIView.as_view(), name="complaint-officer-review"),
+
+    path("crime-scene-reports/", CrimeSceneCaseCreateAPIView.as_view(), name="crime-scene-create"),
+    path("<int:case_id>/crime-scene-approve/", CrimeSceneCaseApproveAPIView.as_view(), name="crime-scene-approve"),
+
+    path("<int:case_id>/board/", DetectiveBoardDetailAPIView.as_view(), name="detective-board"),
+    path("<int:case_id>/board/items/", BoardItemListCreateAPIView.as_view(), name="board-item-list-create"),
+    path("board/items/<int:pk>/", BoardItemRetrieveUpdateDestroyAPIView.as_view(), name="board-item-rud"),
+    path("<int:case_id>/board/links/", BoardLinkListCreateAPIView.as_view(), name="board-link-list-create"),
+    path("board/links/<int:pk>/", BoardLinkDestroyAPIView.as_view(), name="board-link-delete"),
+
+    path("<int:case_id>/suspects/nominate/", SuspectNominationAPIView.as_view(), name="suspects-nominate"),
+    path("<int:case_id>/suspects/sergeant-decision/", SergeantDecisionAPIView.as_view(), name="sergeant-decision"),
+    path("suspect-profiles/<int:profile_id>/arrest/", SuspectArrestAPIView.as_view(), name="suspect-arrest"),
+    path("suspect-profiles/<int:profile_id>/score/", InterrogationScoreCreateAPIView.as_view(), name="suspect-score"),
+    path("suspect-profiles/<int:profile_id>/captain-decision/", CaptainDecisionCreateAPIView.as_view(), name="captain-decision"),
+    path("suspect-profiles/<int:profile_id>/wanted/", SuspectWantedUpdateAPIView.as_view(), name="suspect-wanted-update"),
+
+    path("notifications/detective/", DetectiveNotificationListAPIView.as_view(), name="detective-notifications"),
+    path("wanted/severe-tracking/", SevereTrackingListAPIView.as_view(), name="severe-tracking-list"),
+
     path("stats/aggregated/", AggregatedStatsAPIView.as_view(), name="aggregated-stats"),
+    path("stats/breakdown/", CaseBreakdownStatsAPIView.as_view(), name="case-breakdown-stats"),
 ]
