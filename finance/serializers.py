@@ -90,6 +90,29 @@ class PaymentInitiateSerializer(serializers.Serializer):
 
 
 class PaymentCallbackSerializer(serializers.Serializer):
-    gateway_reference = serializers.CharField(max_length=100)
-    status = serializers.ChoiceField(choices=[("paid", "paid"), ("failed", "failed")])
+    transaction_id = serializers.IntegerField(required=False)
+    gateway_reference = serializers.CharField(max_length=100, required=False)
+    status = serializers.CharField()
     payload = serializers.JSONField(required=False)
+
+    def validate(self, attrs):
+        transaction_id = attrs.get("transaction_id")
+        gateway_reference = attrs.get("gateway_reference")
+        if not transaction_id and not gateway_reference:
+            raise serializers.ValidationError(
+                {"detail": "Either transaction_id or gateway_reference is required."}
+            )
+
+        raw_status = str(attrs["status"]).strip().lower()
+        paid_codes = {"1", "paid", "ok", "success", "true"}
+        failed_codes = {"0", "failed", "fail", "nok", "false"}
+
+        if raw_status in paid_codes:
+            attrs["normalized_status"] = "paid"
+        elif raw_status in failed_codes:
+            attrs["normalized_status"] = "failed"
+        else:
+            raise serializers.ValidationError(
+                {"status": "Unsupported callback status code."}
+            )
+        return attrs

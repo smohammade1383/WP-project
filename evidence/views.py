@@ -45,6 +45,10 @@ def is_police_staff(user):
     return has_any_role(user, *POLICE_ROLES)
 
 
+def is_admin(user):
+    return bool(user and user.is_authenticated and (user.is_superuser or has_any_role(user, "Administrator")))
+
+
 def can_submit_evidence(user, case_obj):
     if is_police_staff(user):
         return True
@@ -235,3 +239,9 @@ class EvidenceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
 
         update_evidence_details(evidence, validated, request.FILES)
         return Response(EvidenceSerializer(evidence, context={"request": request}).data)
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not (instance.created_by_id == user.id or is_admin(user)):
+            raise PermissionDenied("Only the evidence owner or an administrator can delete this evidence.")
+        instance.delete()

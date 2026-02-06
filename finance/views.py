@@ -245,15 +245,23 @@ class PaymentCallbackAPIView(APIView):
         serializer = PaymentCallbackSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        tx = get_object_or_404(PaymentTransaction, gateway_reference=serializer.validated_data["gateway_reference"])
-        callback_status = serializer.validated_data["status"]
+        tx = None
+        if serializer.validated_data.get("transaction_id"):
+            tx = get_object_or_404(PaymentTransaction, id=serializer.validated_data["transaction_id"])
+        elif serializer.validated_data.get("gateway_reference"):
+            tx = get_object_or_404(
+                PaymentTransaction,
+                gateway_reference=serializer.validated_data["gateway_reference"],
+            )
+
+        callback_status = serializer.validated_data["normalized_status"]
         payload = serializer.validated_data.get("payload", {})
 
         tx.callback_payload = payload
         if callback_status == "paid":
             tx.status = PaymentTransaction.Status.PAID
             tx.paid_at = timezone.now()
-        else:
+        elif tx.status != PaymentTransaction.Status.PAID:
             tx.status = PaymentTransaction.Status.FAILED
             tx.paid_at = None
         tx.save(update_fields=["status", "paid_at", "callback_payload"])

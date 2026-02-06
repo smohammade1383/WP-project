@@ -81,6 +81,20 @@ def can_access_case(user, case_obj):
     )
 
 
+def can_list_cases(user):
+    return has_any_role(
+        user,
+        *POLICE_ROLES,
+        "Judge",
+        "Coroner",
+        "Basic User",
+        "Complainant",
+        "Witness",
+        "Suspect",
+        "Criminal",
+    )
+
+
 def case_queryset_for_user(user):
     base = Case.objects.all().prefetch_related("complainants", "witnesses", "suspects")
     if is_police_staff(user) or has_any_role(user, "Judge", "Coroner"):
@@ -136,6 +150,11 @@ class CaseListCreateAPIView(generics.ListCreateAPIView):
     def get_queryset(self):
         return case_queryset_for_user(self.request.user)
 
+    def list(self, request, *args, **kwargs):
+        if not can_list_cases(request.user):
+            raise PermissionDenied("You do not have permission to list cases.")
+        return super().list(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         user = self.request.user
         if not is_police_staff(user):
@@ -189,6 +208,12 @@ class ComplaintRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
         user = self.request.user
         if not (is_police_staff(user) or complaint.submitter_id == user.id):
             raise PermissionDenied("Only the submitter or police roles can edit this complaint.")
+        if complaint.submitter_id == user.id and complaint.status in {
+            Complaint.Status.APPROVED,
+            Complaint.Status.REJECTED,
+            Complaint.Status.VOID,
+        }:
+            raise ValidationError({"detail": "Finalized complaints cannot be edited by submitter."})
         updated = serializer.save()
         if complaint.submitter_id == user.id and complaint.status in {Complaint.Status.RETURNED, Complaint.Status.SUBMITTED}:
             updated.status = Complaint.Status.SUBMITTED
@@ -231,6 +256,12 @@ class ComplaintCadetReviewAPIView(APIView):
             raise PermissionDenied("Only cadet-level roles can perform this review.")
 
         complaint = get_object_or_404(Complaint, id=complaint_id)
+        if complaint.status in {
+            Complaint.Status.APPROVED,
+            Complaint.Status.REJECTED,
+            Complaint.Status.VOID,
+        }:
+            raise ValidationError({"detail": "This complaint is finalized and cannot be reviewed."})
         serializer = ComplaintDecisionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         decision = serializer.validated_data["decision"]
@@ -295,6 +326,12 @@ class ComplaintOfficerReviewAPIView(APIView):
             raise PermissionDenied("Only officer+ roles can perform this review.")
 
         complaint = get_object_or_404(Complaint, id=complaint_id)
+        if complaint.status in {
+            Complaint.Status.APPROVED,
+            Complaint.Status.REJECTED,
+            Complaint.Status.VOID,
+        }:
+            raise ValidationError({"detail": "This complaint is finalized and cannot be reviewed."})
         serializer = ComplaintDecisionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         decision = serializer.validated_data["decision"]
@@ -773,7 +810,9 @@ class AggregatedStatsAPIView(APIView):
             "total_cases": Case.objects.count(),
             "active_cases": Case.objects.exclude(status__in=[Case.Status.CLOSED, Case.Status.VOID]).count(),
             "solved_cases": Case.objects.filter(status=Case.Status.CLOSED).count(),
-            "staff_count": User.objects.filter(is_staff=True).count(),
+            "staff_count": User.objects.filter(
+                Q(is_superuser=True) | Q(groups__name__in=POLICE_ROLES)
+            ).distinct().count(),
             "wanted_count": SuspectCaseProfile.objects.filter(
                 is_arrested=False
             ).exclude(case__status__in=[Case.Status.CLOSED, Case.Status.VOID]).count(),

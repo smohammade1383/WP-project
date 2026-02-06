@@ -37,6 +37,8 @@ class TrialCreateAPIView(APIView):
             raise ValidationError({"case": "This case already has a trial record."})
         if case_obj.status in {Case.Status.VOID, Case.Status.CLOSED}:
             raise ValidationError({"case": "Cannot trial a void/closed case."})
+        if case_obj.status != Case.Status.IN_COURT:
+            raise ValidationError({"case": "Case must be in IN_COURT status before trial."})
 
         trial = serializer.save(judge=request.user)
         case_obj.status = Case.Status.CLOSED
