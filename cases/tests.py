@@ -197,3 +197,146 @@ class CaseFlowAPITests(APITestCase):
         self.assertEqual(resp.data[0]["case"], case_high.id)
         self.assertTrue(resp.data[0]["severe_tracking"])
         self.assertGreater(resp.data[0]["ranking_score"], resp.data[1]["ranking_score"])
+
+    def test_cadet_return_without_message_is_rejected(self):
+        citizen = self._create_user("citizen4")
+        cadet = self._create_user("cadet3", roles=["Cadet"])
+
+        self.client.force_authenticate(citizen)
+        create_resp = self.client.post(
+            reverse("complaint-list-create"),
+            {
+                "title": "Incomplete complaint",
+                "description": "Desc",
+                "location": "District 10",
+                "incident_datetime": timezone.now().isoformat(),
+            },
+            format="json",
+        )
+        complaint_id = create_resp.data["id"]
+
+        self.client.force_authenticate(cadet)
+        review_resp = self.client.post(
+            reverse("complaint-cadet-review", kwargs={"complaint_id": complaint_id}),
+            {"decision": "returned", "message": ""},
+            format="json",
+        )
+        self.assertEqual(review_resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_case_create_endpoint_for_police_works(self):
+        officer = self._create_user("officer5", roles=["Police Officer"])
+        self.client.force_authenticate(officer)
+
+        resp = self.client.post(
+            reverse("case-list-create"),
+            {
+                "title": "Direct case",
+                "description": "Created by officer",
+                "location": "Zone D",
+                "incident_datetime": timezone.now().isoformat(),
+                "source_type": Case.SourceType.CRIME_SCENE,
+                "severity": Case.Severity.LEVEL_2,
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["created_by"]["id"], officer.id)
+
+    def test_critical_case_requires_chief_followup_after_captain_decision(self):
+        captain = self._create_user("captain2", roles=["Captain"])
+        chief = self._create_user("chief1", roles=["Chief"])
+        detective = self._create_user("detective2", roles=["Detective"])
+        suspect = self._create_user("suspect3")
+
+        critical_case = Case.objects.create(
+            title="Critical pursuit",
+            description="Critical details",
+            location="South",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.ARRESTED,
+            severity=Case.Severity.CRITICAL,
+            created_by=detective,
+        )
+        profile = SuspectCaseProfile.objects.create(case=critical_case, suspect=suspect, is_arrested=True)
+
+        self.client.force_authenticate(captain)
+        captain_resp = self.client.post(
+            reverse("captain-decision", kwargs={"profile_id": profile.id}),
+            {"is_confirmed": True, "summary": "send to chief"},
+            format="json",
+        )
+        self.assertEqual(captain_resp.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(captain_resp.data["chief_confirmed"])
+
+        critical_case.refresh_from_db()
+        self.assertEqual(critical_case.status, Case.Status.ARRESTED)
+
+        decision_id = captain_resp.data["id"]
+        self.client.force_authenticate(chief)
+        chief_resp = self.client.post(
+            reverse("chief-decision", kwargs={"decision_id": decision_id}),
+            {"chief_confirmed": True, "summary": "approved by chief"},
+            format="json",
+        )
+        self.assertEqual(chief_resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(chief_resp.data["chief_confirmed"])
+
+        critical_case.refresh_from_db()
+        self.assertEqual(critical_case.status, Case.Status.IN_COURT)
+
+    def test_board_link_must_connect_items_from_same_board(self):
+        detective = self._create_user("detective3", roles=["Detective"])
+        officer = self._create_user("officer6", roles=["Police Officer"])
+
+        case_a = Case.objects.create(
+            title="Case A",
+            description="A",
+            location="A",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.OPEN,
+            severity=Case.Severity.LEVEL_2,
+            created_by=officer,
+        )
+        case_b = Case.objects.create(
+            title="Case B",
+            description="B",
+            location="B",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.OPEN,
+            severity=Case.Severity.LEVEL_2,
+            created_by=officer,
+        )
+
+        self.client.force_authenticate(detective)
+        item_a1 = self.client.post(
+            reverse("board-item-list-create", kwargs={"case_id": case_a.id}),
+            {"item_type": "note", "note_text": "a1", "position_x": 10, "position_y": 10},
+            format="json",
+        ).data["id"]
+        item_a2 = self.client.post(
+            reverse("board-item-list-create", kwargs={"case_id": case_a.id}),
+            {"item_type": "note", "note_text": "a2", "position_x": 20, "position_y": 20},
+            format="json",
+        ).data["id"]
+        item_b1 = self.client.post(
+            reverse("board-item-list-create", kwargs={"case_id": case_b.id}),
+            {"item_type": "note", "note_text": "b1", "position_x": 30, "position_y": 30},
+            format="json",
+        ).data["id"]
+
+        ok_resp = self.client.post(
+            reverse("board-link-list-create", kwargs={"case_id": case_a.id}),
+            {"from_item": item_a1, "to_item": item_a2, "description": "valid"},
+            format="json",
+        )
+        self.assertEqual(ok_resp.status_code, status.HTTP_201_CREATED)
+
+        bad_resp = self.client.post(
+            reverse("board-link-list-create", kwargs={"case_id": case_a.id}),
+            {"from_item": item_a1, "to_item": item_b1, "description": "invalid"},
+            format="json",
+        )
+        self.assertEqual(bad_resp.status_code, status.HTTP_400_BAD_REQUEST)

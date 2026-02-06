@@ -72,10 +72,11 @@ class CaseSerializer(serializers.ModelSerializer):
         read_only_fields = ("status", "created_by", "approved_by", "created_at", "updated_at")
 
     def create(self, validated_data):
+        creator = validated_data.pop("created_by", self.context["request"].user)
         complainants = validated_data.pop("complainant_ids", [])
         witnesses = validated_data.pop("witness_ids", [])
         suspects = validated_data.pop("suspect_ids", [])
-        case = Case.objects.create(created_by=self.context["request"].user, **validated_data)
+        case = Case.objects.create(created_by=creator, **validated_data)
         if complainants:
             case.complainants.set(complainants)
         if witnesses:
@@ -160,6 +161,11 @@ class ComplaintDecisionSerializer(serializers.Serializer):
     decision = serializers.ChoiceField(choices=ComplaintReview.Decision.choices)
     message = serializers.CharField(required=False, allow_blank=True)
 
+    def validate(self, attrs):
+        if attrs["decision"] == ComplaintReview.Decision.RETURNED and not attrs.get("message", "").strip():
+            raise serializers.ValidationError({"message": "Returned decision must include a message."})
+        return attrs
+
 
 class AddComplainantsSerializer(serializers.Serializer):
     complainant_ids = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
@@ -207,12 +213,39 @@ class BoardItemSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("board",)
 
+    def validate(self, attrs):
+        item_type = attrs.get("item_type", getattr(self.instance, "item_type", None))
+        note_text = attrs.get("note_text", getattr(self.instance, "note_text", ""))
+        evidence = attrs.get("evidence", getattr(self.instance, "evidence", None))
+        user = attrs.get("user", getattr(self.instance, "user", None))
+
+        if item_type == BoardItem.ItemType.NOTE and not (note_text or "").strip():
+            raise serializers.ValidationError({"note_text": "This field is required for note items."})
+        if item_type == BoardItem.ItemType.EVIDENCE and not evidence:
+            raise serializers.ValidationError({"evidence": "This field is required for evidence items."})
+        if item_type in {BoardItem.ItemType.WITNESS, BoardItem.ItemType.SUSPECT} and not user:
+            raise serializers.ValidationError({"user": "This field is required for witness/suspect items."})
+        return attrs
+
 
 class BoardLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = BoardLink
         fields = ("id", "board", "from_item", "to_item", "description")
         read_only_fields = ("board",)
+
+    def validate(self, attrs):
+        from_item = attrs.get("from_item", getattr(self.instance, "from_item", None))
+        to_item = attrs.get("to_item", getattr(self.instance, "to_item", None))
+        board = attrs.get("board", self.context.get("board", getattr(self.instance, "board", None)))
+
+        if from_item and to_item and from_item.id == to_item.id:
+            raise serializers.ValidationError("from_item and to_item cannot be the same.")
+        if board and from_item and from_item.board_id != board.id:
+            raise serializers.ValidationError("from_item must belong to the same board.")
+        if board and to_item and to_item.board_id != board.id:
+            raise serializers.ValidationError("to_item must belong to the same board.")
+        return attrs
 
 
 class DetectiveBoardSerializer(serializers.ModelSerializer):
@@ -293,7 +326,11 @@ class CaptainDecisionSerializer(serializers.ModelSerializer):
 
 class CaptainDecisionCreateSerializer(serializers.Serializer):
     is_confirmed = serializers.BooleanField()
-    chief_confirmed = serializers.BooleanField(required=False, allow_null=True)
+    summary = serializers.CharField(required=False, allow_blank=True)
+
+
+class ChiefDecisionSerializer(serializers.Serializer):
+    chief_confirmed = serializers.BooleanField()
     summary = serializers.CharField(required=False, allow_blank=True)
 
 

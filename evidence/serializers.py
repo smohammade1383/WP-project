@@ -6,14 +6,7 @@ from rest_framework import serializers
 from cases.models import Case
 
 from .models import (
-    BioMedicalEvidence,
-    BioMedicalImage,
     Evidence,
-    IdentityDocumentEvidence,
-    IdentityDocumentField,
-    TranscriptionEvidence,
-    TranscriptionMedia,
-    VehicleEvidence,
 )
 
 User = get_user_model()
@@ -111,11 +104,10 @@ class EvidencePartialUpdateSerializer(EvidenceWriteSerializer):
     case = serializers.PrimaryKeyRelatedField(queryset=Case.objects.all(), required=False)
     title = serializers.CharField(max_length=200, required=False)
     description = serializers.CharField(required=False)
-    type = serializers.ChoiceField(choices=Evidence.Type.choices, required=False)
 
     def validate(self, attrs):
         evidence = self.context.get("evidence")
-        evidence_type = attrs.get("type", evidence.type)
+        evidence_type = evidence.type
 
         if evidence_type == Evidence.Type.VEHICLE:
             license_plate = attrs.get("license_plate")

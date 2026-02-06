@@ -1,9 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -30,6 +29,7 @@ from .serializers import (
     CaptainDecisionCreateSerializer,
     CaptainDecisionSerializer,
     CaseSerializer,
+    ChiefDecisionSerializer,
     ComplaintDecisionSerializer,
     ComplaintReviewSerializer,
     ComplaintSerializer,
@@ -155,10 +155,9 @@ class CaseRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
         return case_queryset_for_user(self.request.user)
 
     def perform_update(self, serializer):
-        case_obj = self.get_object()
         user = self.request.user
-        if not (is_police_staff(user) or case_obj.created_by_id == user.id):
-            raise PermissionDenied("You cannot modify this case.")
+        if not is_police_staff(user):
+            raise PermissionDenied("Only police roles can modify cases.")
         serializer.save()
 
 
@@ -487,7 +486,7 @@ class BoardLinkListCreateAPIView(APIView):
         if not has_any_role(request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can manage board links.")
         board = ensure_board_for_case(case_obj, request.user)
-        serializer = BoardLinkSerializer(data=request.data)
+        serializer = BoardLinkSerializer(data=request.data, context={"board": board})
         serializer.is_valid(raise_exception=True)
         serializer.save(board=board)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -640,29 +639,64 @@ class CaptainDecisionCreateAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         is_confirmed = serializer.validated_data["is_confirmed"]
-        chief_confirmed = serializer.validated_data.get("chief_confirmed")
         summary = serializer.validated_data.get("summary", "")
-
-        if profile.case.severity == Case.Severity.CRITICAL and chief_confirmed is None:
-            raise ValidationError({"chief_confirmed": "Critical cases require chief confirmation."})
 
         decision = CaptainDecision.objects.create(
             suspect_profile=profile,
             captain=request.user,
-            chief=request.user if has_any_role(request.user, "Chief") else None,
             is_confirmed=is_confirmed,
-            chief_confirmed=chief_confirmed,
             summary=summary,
         )
 
         case_obj = profile.case
-        if is_confirmed and (case_obj.severity != Case.Severity.CRITICAL or chief_confirmed):
+        if is_confirmed and case_obj.severity != Case.Severity.CRITICAL:
             case_obj.status = Case.Status.IN_COURT
+        elif is_confirmed and case_obj.severity == Case.Severity.CRITICAL:
+            case_obj.status = Case.Status.ARRESTED
         else:
             case_obj.status = Case.Status.OPEN
         case_obj.save(update_fields=["status", "updated_at"])
 
         return Response(CaptainDecisionSerializer(decision).data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    tags=["Interrogation"],
+    summary="Chief confirmation for critical-case captain decision",
+    request=ChiefDecisionSerializer,
+    responses={200: CaptainDecisionSerializer},
+)
+class ChiefDecisionAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, decision_id):
+        if not has_any_role(request.user, "Chief", "Administrator"):
+            raise PermissionDenied("Only chief role can submit this decision.")
+
+        decision = get_object_or_404(CaptainDecision.objects.select_related("suspect_profile__case"), id=decision_id)
+        profile = decision.suspect_profile
+        case_obj = profile.case
+
+        if case_obj.severity != Case.Severity.CRITICAL:
+            raise ValidationError({"decision_id": "Chief confirmation is only for critical cases."})
+
+        serializer = ChiefDecisionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        decision.chief = request.user
+        decision.chief_confirmed = serializer.validated_data["chief_confirmed"]
+        note = serializer.validated_data.get("summary", "")
+        if note:
+            decision.summary = f"{decision.summary}\nChief note: {note}".strip()
+        decision.save(update_fields=["chief", "chief_confirmed", "summary"])
+
+        if decision.is_confirmed and decision.chief_confirmed:
+            case_obj.status = Case.Status.IN_COURT
+        else:
+            case_obj.status = Case.Status.OPEN
+        case_obj.save(update_fields=["status", "updated_at"])
+
+        return Response(CaptainDecisionSerializer(decision).data)
 
 
 @extend_schema(
@@ -693,7 +727,7 @@ class SuspectWantedUpdateAPIView(APIView):
 
 @extend_schema(tags=["Wanted"], summary="List severe tracking suspects", responses={200: SuspectCaseProfileSerializer(many=True)})
 class SevereTrackingListAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         profiles = list(SuspectCaseProfile.objects.select_related("suspect", "case").all())
@@ -732,7 +766,7 @@ class DetectiveNotificationListAPIView(APIView):
 
 @extend_schema(tags=["Stats"], summary="Aggregated case statistics", responses={200: OpenApiTypes.OBJECT})
 class AggregatedStatsAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated, CanViewAggregatedStats]
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         data = {
@@ -740,7 +774,9 @@ class AggregatedStatsAPIView(APIView):
             "active_cases": Case.objects.exclude(status__in=[Case.Status.CLOSED, Case.Status.VOID]).count(),
             "solved_cases": Case.objects.filter(status=Case.Status.CLOSED).count(),
             "staff_count": User.objects.filter(is_staff=True).count(),
-            "wanted_count": SuspectCaseProfile.objects.filter(is_arrested=False).count(),
+            "wanted_count": SuspectCaseProfile.objects.filter(
+                is_arrested=False
+            ).exclude(case__status__in=[Case.Status.CLOSED, Case.Status.VOID]).count(),
         }
         return Response(data)
 

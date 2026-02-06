@@ -10,6 +10,7 @@ from .views import (
     CaseBreakdownStatsAPIView,
     CaseListCreateAPIView,
     CaseRetrieveUpdateAPIView,
+    ChiefDecisionAPIView,
     ComplaintAddComplainantsAPIView,
     ComplaintCadetReviewAPIView,
     ComplaintListCreateAPIView,
@@ -51,6 +52,7 @@ urlpatterns = [
     path("suspect-profiles/<int:profile_id>/arrest/", SuspectArrestAPIView.as_view(), name="suspect-arrest"),
     path("suspect-profiles/<int:profile_id>/score/", InterrogationScoreCreateAPIView.as_view(), name="suspect-score"),
     path("suspect-profiles/<int:profile_id>/captain-decision/", CaptainDecisionCreateAPIView.as_view(), name="captain-decision"),
+    path("captain-decisions/<int:decision_id>/chief-decision/", ChiefDecisionAPIView.as_view(), name="chief-decision"),
     path("suspect-profiles/<int:profile_id>/wanted/", SuspectWantedUpdateAPIView.as_view(), name="suspect-wanted-update"),
 
     path("notifications/detective/", DetectiveNotificationListAPIView.as_view(), name="detective-notifications"),
