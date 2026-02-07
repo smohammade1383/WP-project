@@ -188,12 +188,28 @@ class BoardItem(models.Model):
     width = models.FloatField(default=300)
     height = models.FloatField(default=160)
 
+    def clean(self):
+        if self.item_type == self.ItemType.NOTE and not self.note_text.strip():
+            raise ValidationError("note_text is required for note items.")
+        if self.item_type == self.ItemType.EVIDENCE and not self.evidence_id:
+            raise ValidationError("evidence is required for evidence items.")
+        if self.item_type in {self.ItemType.WITNESS, self.ItemType.SUSPECT} and not self.user_id:
+            raise ValidationError("user is required for witness/suspect items.")
+
 
 class BoardLink(models.Model):
     board = models.ForeignKey(DetectiveBoard, on_delete=models.CASCADE, related_name="links")
     from_item = models.ForeignKey(BoardItem, on_delete=models.CASCADE, related_name="out_links")
     to_item = models.ForeignKey(BoardItem, on_delete=models.CASCADE, related_name="in_links")
     description = models.TextField(blank=True)
+
+    def clean(self):
+        if self.from_item_id and self.to_item_id and self.from_item_id == self.to_item_id:
+            raise ValidationError("from_item and to_item cannot be the same.")
+        if self.from_item_id and self.board_id and self.from_item.board_id != self.board_id:
+            raise ValidationError("from_item must belong to the same board.")
+        if self.to_item_id and self.board_id and self.to_item.board_id != self.board_id:
+            raise ValidationError("to_item must belong to the same board.")
 
 
 class SuspectCaseProfile(models.Model):
@@ -217,17 +233,26 @@ class SuspectCaseProfile(models.Model):
 
     @property
     def is_severe_tracking(self):
-        return (not self.is_arrested) and self.wanted_days > 30
+        return (
+            (not self.is_arrested)
+            and self.case.status not in {Case.Status.CLOSED, Case.Status.VOID}
+            and self.wanted_days > 30
+        )
 
     @property
     def ranking_score(self):
-        profiles = (
-            self.suspect.case_profiles.select_related("case")
-            .all()
-        )
+        profiles = self.suspect.case_profiles.select_related("case").all()
         if not profiles:
             return 0
-        max_days = max(max((timezone.now() - profile.wanted_since).days, 0) for profile in profiles)
+        open_profiles = [
+            profile
+            for profile in profiles
+            if (not profile.is_arrested) and profile.case.status not in {Case.Status.CLOSED, Case.Status.VOID}
+        ]
+        if open_profiles:
+            max_days = max(max((timezone.now() - profile.wanted_since).days, 0) for profile in open_profiles)
+        else:
+            max_days = 0
         max_degree = max(profile.case.severity for profile in profiles)
         return max_days * max_degree
 
@@ -269,9 +294,5 @@ class CaptainDecision(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
-        if self.suspect_profile.case.severity == Case.Severity.CRITICAL and self.chief_confirmed is None:
-            raise ValidationError("Chief confirmation is required for critical cases.")
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
+        if self.chief_id and self.chief_confirmed is None:
+            raise ValidationError("chief_confirmed must be provided when chief is set.")
