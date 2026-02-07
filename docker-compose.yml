@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: wp_project
+      POSTGRES_USER: wp_project
+      POSTGRES_PASSWORD: wp_project
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wp_project -d wp_project"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DEBUG: "1"
+      SECRET_KEY: django-insecure-change-me
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+      DB_ENGINE: postgres
+      DB_NAME: wp_project
+      DB_USER: wp_project
+      DB_PASSWORD: wp_project
+      DB_HOST: db
+      DB_PORT: "5432"
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+
+volumes:
+  postgres_data:
