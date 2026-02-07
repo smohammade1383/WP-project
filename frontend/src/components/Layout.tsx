@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 
 const Layout = () => {
   return (
@@ -6,7 +6,10 @@ const Layout = () => {
       <header className="app-header">
         <nav>
           <h1>وکیل پلاس</h1>
-          {/* Navigation will be added here */}
+          <div className="nav-links">
+            <Link to="/">خانه</Link>
+            <Link to="/demo">نمایش کامپوننت‌ها</Link>
+          </div>
         </nav>
       </header>
       
@@ -15,7 +18,7 @@ const Layout = () => {
       </main>
       
       <footer className="app-footer">
-        <p>&copy; 2026 وکیل پلاس</p>
+        <p>&copy; 2026 وکیل پلاس • سیستم مدیریت پرونده‌های حقوقی</p>
       </footer>
     </div>
   );
