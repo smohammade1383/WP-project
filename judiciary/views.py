@@ -17,8 +17,8 @@ def has_any_role(user, *roles):
         return False
     if user.is_superuser:
         return True
-    expected = {role.lower() for role in roles}
-    return any(role.lower() in expected for role in user.role_names)
+    expected = set(roles)
+    return any(role in expected for role in user.role_names)
 
 
 @extend_schema(tags=["Judiciary"], summary="Create trial and verdict", request=TrialSerializer, responses={201: TrialSerializer})
@@ -33,16 +33,20 @@ class TrialCreateAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         case_obj = serializer.validated_data["case"]
-        if hasattr(case_obj, "trial"):
-            raise ValidationError({"case": "This case already has a trial record."})
+        defendant = serializer.validated_data.get("defendant")
+        if defendant and not case_obj.suspect_profiles.filter(suspect_id=defendant.id).exists():
+            raise ValidationError({"defendant": "Defendant must be one of the case suspects."})
+        if defendant and Trial.objects.filter(case=case_obj, defendant=defendant).exists():
+            raise ValidationError({"defendant": "This defendant already has a trial for this case."})
         if case_obj.status in {Case.Status.VOID, Case.Status.CLOSED}:
             raise ValidationError({"case": "Cannot trial a void/closed case."})
         if case_obj.status != Case.Status.IN_COURT:
             raise ValidationError({"case": "Case must be in IN_COURT status before trial."})
 
         trial = serializer.save(judge=request.user)
-        case_obj.status = Case.Status.CLOSED
-        case_obj.save(update_fields=["status", "updated_at"])
+        if trial.verdict == Trial.Verdict.GUILTY:
+            case_obj.status = Case.Status.CLOSED
+            case_obj.save(update_fields=["status", "updated_at"])
         return Response(TrialSerializer(trial).data, status=status.HTTP_201_CREATED)
 
 
@@ -103,9 +107,8 @@ class CaseComprehensiveReportAPIView(APIView):
                 }
             )
 
-        trial_payload = None
-        if hasattr(case_obj, "trial"):
-            trial_payload = TrialSerializer(case_obj.trial).data
+        trials = case_obj.trials.all()
+        trial_payload = TrialSerializer(trials, many=True).data
 
         response = {
             "case": {
@@ -126,6 +129,6 @@ class CaseComprehensiveReportAPIView(APIView):
             "complaints": complaint_data,
             "evidence": evidence_data,
             "suspect_profiles": suspect_data,
-            "trial": trial_payload,
+            "trials": trial_payload,
         }
         return Response(response)

@@ -1,6 +1,4 @@
 from rest_framework.permissions import BasePermission
-from django.db.models import Q
-
 
 class HasAnyRole(BasePermission):
     required_roles = ()
@@ -10,10 +8,7 @@ class HasAnyRole(BasePermission):
             return False
         if request.user.is_superuser:
             return True
-        role_query = Q()
-        for role_name in self.required_roles:
-            role_query |= Q(name__iexact=role_name)
-        return request.user.groups.filter(role_query).exists()
+        return request.user.groups.filter(name__in=self.required_roles).exists()
 
 
 class IsAdministrator(HasAnyRole):

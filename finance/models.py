@@ -45,7 +45,7 @@ class RewardReport(models.Model):
             if not self.unique_code:
                 self.unique_code = secrets.token_hex(8).upper()
             if self.suspect_profile:
-                self.reward_amount = self.suspect_profile.reward_amount
+                self.reward_amount = self.suspect_profile.ranking_score * 20_000_000
         super().save(*args, **kwargs)
 
 

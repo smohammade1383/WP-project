@@ -15,6 +15,7 @@ class TrialSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "case",
+            "defendant",
             "judge",
             "verdict",
             "verdict_note",

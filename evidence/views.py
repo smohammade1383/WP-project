@@ -6,7 +6,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
-from cases.models import Case, CaseLog
+from cases.models import Case
 from .models import (
     BioMedicalEvidence,
     BioMedicalImage,
@@ -24,7 +24,6 @@ POLICE_ROLES = {
     "Chief",
     "Captain",
     "Sergeant",
-    "Sergent",
     "Detective",
     "Police Officer",
     "Patrol Officer",
@@ -37,8 +36,8 @@ def has_any_role(user, *roles):
         return False
     if user.is_superuser:
         return True
-    expected = {role.lower() for role in roles}
-    return any(role.lower() in expected for role in user.role_names)
+    expected = set(roles)
+    return any(role in expected for role in user.role_names)
 
 
 def is_police_staff(user):
@@ -183,13 +182,6 @@ class EvidenceListCreateAPIView(generics.ListCreateAPIView):
             created_by=request.user,
         )
         create_evidence_details(evidence, validated, request.FILES)
-
-        CaseLog.objects.create(
-            case=case_obj,
-            actor=request.user,
-            action="new_evidence",
-            description=f"Evidence #{evidence.id} added.",
-        )
 
         return Response(EvidenceSerializer(evidence, context={"request": request}).data, status=status.HTTP_201_CREATED)
 

@@ -39,7 +39,7 @@ class User(AbstractUser):
         return list(self.groups.values_list("name", flat=True))
 
     def has_role(self, role_name: str) -> bool:
-        return self.groups.filter(name__iexact=role_name).exists()
+        return self.groups.filter(name=role_name).exists()
 
     def __str__(self):
         return self.username

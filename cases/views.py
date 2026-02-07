@@ -49,7 +49,6 @@ POLICE_ROLES = {
     "Chief",
     "Captain",
     "Sergeant",
-    "Sergent",
     "Detective",
     "Police Officer",
     "Patrol Officer",
@@ -62,8 +61,8 @@ def has_any_role(user, *roles):
         return False
     if user.is_superuser:
         return True
-    expected = {role.lower() for role in roles}
-    return any(role.lower() in expected for role in user.role_names)
+    expected = set(roles)
+    return any(role in expected for role in user.role_names)
 
 
 def is_police_staff(user):
@@ -318,7 +317,6 @@ class ComplaintOfficerReviewAPIView(APIView):
             "Police Officer",
             "Patrol Officer",
             "Sergeant",
-            "Sergent",
             "Captain",
             "Chief",
             "Administrator",
@@ -388,7 +386,6 @@ class CrimeSceneCaseCreateAPIView(APIView):
             "Patrol Officer",
             "Detective",
             "Sergeant",
-            "Sergent",
             "Captain",
             "Chief",
             "Administrator",
@@ -427,7 +424,6 @@ class CrimeSceneCaseApproveAPIView(APIView):
             "Police Officer",
             "Patrol Officer",
             "Sergeant",
-            "Sergent",
             "Captain",
             "Chief",
             "Administrator",
@@ -583,7 +579,7 @@ class SergeantDecisionAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, case_id):
-        if not has_any_role(request.user, "Sergeant", "Sergent", "Administrator"):
+        if not has_any_role(request.user, "Sergeant", "Administrator"):
             raise PermissionDenied("Only sergeant role can confirm or reject.")
 
         case_obj = get_object_or_404(Case, id=case_id)
@@ -620,7 +616,7 @@ class SuspectArrestAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, profile_id):
-        if not has_any_role(request.user, "Police Officer", "Patrol Officer", "Sergeant", "Sergent", "Administrator"):
+        if not has_any_role(request.user, "Police Officer", "Patrol Officer", "Sergeant", "Administrator"):
             raise PermissionDenied("Only police roles can register arrests.")
 
         profile = get_object_or_404(SuspectCaseProfile, id=profile_id)
@@ -649,8 +645,8 @@ class InterrogationScoreCreateAPIView(APIView):
         scorer_role = serializer.validated_data["scorer_role"]
         if scorer_role == InterrogationScore.ScorerRole.DETECTIVE and not has_any_role(request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detectives can submit detective score.")
-        if scorer_role in {InterrogationScore.ScorerRole.SERGEANT, InterrogationScore.ScorerRole.SERGENT} and not has_any_role(
-            request.user, "Sergeant", "Sergent", "Administrator"
+        if scorer_role == InterrogationScore.ScorerRole.SERGEANT and not has_any_role(
+            request.user, "Sergeant", "Administrator"
         ):
             raise PermissionDenied("Only sergeant can submit sergeant score.")
 
@@ -815,7 +811,7 @@ class AggregatedStatsAPIView(APIView):
             ).distinct().count(),
             "wanted_count": SuspectCaseProfile.objects.filter(
                 is_arrested=False
-            ).exclude(case__status__in=[Case.Status.CLOSED, Case.Status.VOID]).count(),
+            ).exclude(case__status__in=[Case.Status.CLOSED, Case.Status.VOID]).values("suspect_id").distinct().count(),
         }
         return Response(data)
 

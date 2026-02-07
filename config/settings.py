@@ -37,8 +37,8 @@ INSTALLED_APPS = [
     'drf_spectacular',
 
     # Local apps
-    'users',
-    'cases',
+    'users.apps.UsersConfig',
+    'cases.apps.CasesConfig',
     'evidence',
     'people',
     'judiciary',

@@ -4,7 +4,7 @@ from django.db import IntegrityError
 from rest_framework import serializers
 
 from .constants import DEFAULT_SIGNUP_ROLE
-from .models import RoleProfile, User
+from .models import User
 
 
 class SignupSerializer(serializers.ModelSerializer):
@@ -32,7 +32,6 @@ class SignupSerializer(serializers.ModelSerializer):
             )
 
         default_group, _ = Group.objects.get_or_create(name=DEFAULT_SIGNUP_ROLE)
-        RoleProfile.objects.get_or_create(group=default_group)
         user.groups.add(default_group)
         return user
 
@@ -90,9 +89,10 @@ class RoleSerializer(serializers.ModelSerializer):
         permissions = validated_data.pop("permissions", [])
         group = Group.objects.create(**validated_data)
         group.permissions.set(permissions)
-        profile, _ = RoleProfile.objects.get_or_create(group=group)
-        profile.description = profile_data.get("description", "")
-        profile.save(update_fields=["description"])
+        profile = getattr(group, "profile", None)
+        if profile is not None:
+            profile.description = profile_data.get("description", "")
+            profile.save(update_fields=["description"])
         return group
 
     def update(self, instance, validated_data):
@@ -104,9 +104,10 @@ class RoleSerializer(serializers.ModelSerializer):
         if permissions is not None:
             instance.permissions.set(permissions)
         if profile_data:
-            profile, _ = RoleProfile.objects.get_or_create(group=instance)
-            profile.description = profile_data.get("description", "")
-            profile.save(update_fields=["description"])
+            profile = getattr(instance, "profile", None)
+            if profile is not None:
+                profile.description = profile_data.get("description", "")
+                profile.save(update_fields=["description"])
         return instance
 
 

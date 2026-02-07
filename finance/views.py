@@ -26,7 +26,6 @@ POLICE_ROLES = {
     "Chief",
     "Captain",
     "Sergeant",
-    "Sergent",
     "Detective",
     "Police Officer",
     "Patrol Officer",
@@ -39,8 +38,8 @@ def has_any_role(user, *roles):
         return False
     if user.is_superuser:
         return True
-    expected = {role.lower() for role in roles}
-    return any(role.lower() in expected for role in user.role_names)
+    expected = set(roles)
+    return any(role in expected for role in user.role_names)
 
 
 def is_police_staff(user):
@@ -79,7 +78,6 @@ class RewardOfficerReviewAPIView(APIView):
             "Police Officer",
             "Patrol Officer",
             "Sergeant",
-            "Sergent",
             "Captain",
             "Chief",
             "Administrator",
@@ -216,6 +214,7 @@ class PaymentInitiateAPIView(APIView):
         tx = PaymentTransaction.objects.create(
             case=suspect_profile.case,
             suspect_profile=suspect_profile,
+            payer=suspect_profile.suspect,
             amount=data["amount"],
             transaction_type=data["transaction_type"],
             gateway_reference=f"SIM-{uuid.uuid4().hex[:16].upper()}",
