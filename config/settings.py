@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'drf_spectacular',
+    'corsheaders',
 
     # Local apps
     'users.apps.UsersConfig',
@@ -47,6 +48,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -162,4 +164,12 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 SESSION_COOKIE_AGE = 60 * 60 * 24
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+CORS_ALLOW_CREDENTIALS = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False

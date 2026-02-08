@@ -32,6 +32,22 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
+      - /app/__pycache__
+      - /app/*/__pycache__
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - web
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    stdin_open: true
+    tty: true
 
 volumes:
   postgres_data:
