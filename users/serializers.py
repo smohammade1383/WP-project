@@ -28,7 +28,7 @@ class SignupSerializer(serializers.ModelSerializer):
             user = User.objects.create_user(password=password, **validated_data)
         except IntegrityError:
             raise serializers.ValidationError(
-                {"detail": "A user with one of the unique fields already exists."}
+                {"detail": "کاربری با این مشخصات قبلاً ثبت‌نام کرده است"}
             )
 
         default_group, _ = Group.objects.get_or_create(name=DEFAULT_SIGNUP_ROLE)
@@ -48,7 +48,7 @@ class LoginSerializer(serializers.Serializer):
             password=attrs["password"],
         )
         if not user:
-            raise serializers.ValidationError({"detail": "Invalid credentials."})
+            raise serializers.ValidationError({"detail": "نام کاربری یا رمز عبور نامعتبر است"})
         attrs["user"] = user
         return attrs
 

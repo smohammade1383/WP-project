@@ -5,6 +5,7 @@
 
 const TOKEN_KEY = 'auth_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
+const USER_DATA_KEY = 'user_data';
 
 export const authService = {
   /**
@@ -50,17 +51,40 @@ export const authService = {
   },
 
   /**
+   * Store user data
+   */
+  setUserData(user: any): void {
+    localStorage.setItem(USER_DATA_KEY, JSON.stringify(user));
+  },
+
+  /**
+   * Get user data
+   */
+  getUserData(): any | null {
+    const data = localStorage.getItem(USER_DATA_KEY);
+    return data ? JSON.parse(data) : null;
+  },
+
+  /**
+   * Remove user data
+   */
+  removeUserData(): void {
+    localStorage.removeItem(USER_DATA_KEY);
+  },
+
+  /**
    * Clear all authentication data
    */
   clearAuth(): void {
     this.removeToken();
     this.removeRefreshToken();
+    this.removeUserData();
   },
 
   /**
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    return !!this.getUserData();
   },
 };

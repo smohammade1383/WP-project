@@ -35,7 +35,7 @@ class LoginAPIView(APIView):
 
         return Response(
             {
-                "detail": "Login successful.",
+                "detail": "ورود با موفقیت انجام شد",
                 "session_expires_at": request.session.get_expiry_date().isoformat(),
                 "user": ProfileSerializer(user).data,
             },
@@ -49,7 +49,7 @@ class LogoutAPIView(APIView):
 
     def post(self, request):
         logout(request)
-        return Response({"detail": "Logged out successfully."}, status=status.HTTP_200_OK)
+        return Response({"detail": "با موفقیت خارج شدید"}, status=status.HTTP_200_OK)
 
 
 class ProfileAPIView(generics.RetrieveUpdateAPIView):

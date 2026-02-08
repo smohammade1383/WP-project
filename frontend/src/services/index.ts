@@ -5,6 +5,8 @@
 
 export { api, default as apiClient } from './api.client';
 export { authService } from './auth.service';
+export { authApi } from './auth.api';
+export type { LoginCredentials, RegisterData, User, LoginResponse } from './auth.api';
 export { ErrorHandler } from './error.handler';
 export type { ApiError } from './error.handler';
 export { statsApi } from './stats.api';
