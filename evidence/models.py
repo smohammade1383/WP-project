@@ -38,6 +38,7 @@ class TranscriptionMedia(models.Model):
 class BioMedicalEvidence(models.Model):
     evidence = models.OneToOneField(Evidence, on_delete=models.CASCADE, related_name="bio_medical")
     result_followup = models.TextField(blank=True)
+    lab_result = models.TextField(blank=True)
 
 
 class BioMedicalImage(models.Model):

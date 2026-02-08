@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from .models import (
     BoardItem,
     BoardLink,
+    BoardConnection,
     Case,
     CaseLog,
     CaptainDecision,
@@ -25,6 +26,7 @@ from .serializers import (
     AddComplainantsSerializer,
     BoardItemSerializer,
     BoardLinkSerializer,
+    BoardConnectionSerializer,
     BreakdownStatsSerializer,
     CaptainDecisionCreateSerializer,
     CaptainDecisionSerializer,
@@ -335,6 +337,14 @@ class ComplaintOfficerReviewAPIView(APIView):
         decision = serializer.validated_data["decision"]
         message = serializer.validated_data.get("message", "")
 
+        if (
+            decision == ComplaintReview.Decision.APPROVED
+            and complaint.case
+            and complaint.case.severity == Case.Severity.CRITICAL
+            and not has_any_role(request.user, "Chief", "Administrator")
+        ):
+            raise PermissionDenied("Only chief can approve critical complaints.")
+
         review = ComplaintReview(
             complaint=complaint,
             reviewer=request.user,
@@ -352,8 +362,9 @@ class ComplaintOfficerReviewAPIView(APIView):
             case_obj.approved_by = request.user
             case_obj.save(update_fields=["status", "approved_by", "updated_at"])
         elif decision == ComplaintReview.Decision.RETURNED:
-            complaint.register_invalid_attempt()
-            case_obj.status = Case.Status.VOID if complaint.status == Complaint.Status.VOID else Case.Status.NEEDS_COMPLAINANT_UPDATE
+            complaint.status = Complaint.Status.RETURNED
+            complaint.save(update_fields=["status", "updated_at"])
+            case_obj.status = Case.Status.PENDING_CADET
             case_obj.save(update_fields=["status", "updated_at"])
         else:
             complaint.status = Complaint.Status.REJECTED
@@ -431,6 +442,8 @@ class CrimeSceneCaseApproveAPIView(APIView):
             raise PermissionDenied("Only officer+ roles can approve a crime-scene case.")
 
         case_obj = get_object_or_404(Case, id=case_id, source_type=Case.SourceType.CRIME_SCENE)
+        if case_obj.severity == Case.Severity.CRITICAL and not has_any_role(request.user, "Chief", "Administrator"):
+            raise PermissionDenied("Only chief can approve critical crime-scene cases.")
         case_obj.status = Case.Status.OPEN
         case_obj.approved_by = request.user
         case_obj.save(update_fields=["status", "approved_by", "updated_at"])
@@ -534,6 +547,39 @@ class BoardLinkDestroyAPIView(generics.DestroyAPIView):
     def perform_destroy(self, instance):
         if not has_any_role(self.request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can delete board links.")
+        instance.delete()
+
+
+@extend_schema_view(
+    get=extend_schema(tags=["Board"], summary="List board connections", responses={200: BoardConnectionSerializer(many=True)}),
+    post=extend_schema(tags=["Board"], summary="Create board connection", request=BoardConnectionSerializer, responses={201: BoardConnectionSerializer}),
+)
+class BoardConnectionListCreateAPIView(generics.ListCreateAPIView):
+    serializer_class = BoardConnectionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return BoardConnection.objects.select_related("board", "from_evidence", "to_evidence").filter(
+            board__case_id=self.kwargs["case_id"]
+        )
+
+    def perform_create(self, serializer):
+        if not has_any_role(self.request.user, "Detective", "Administrator"):
+            raise PermissionDenied("Only detective role can manage board connections.")
+        case_obj = get_object_or_404(Case, id=self.kwargs["case_id"])
+        board = ensure_board_for_case(case_obj, self.request.user)
+        serializer.save(board=board)
+
+
+@extend_schema(tags=["Board"], summary="Delete board connection")
+class BoardConnectionDestroyAPIView(generics.DestroyAPIView):
+    queryset = BoardConnection.objects.select_related("board", "board__case")
+    serializer_class = BoardConnectionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_destroy(self, instance):
+        if not has_any_role(self.request.user, "Detective", "Administrator"):
+            raise PermissionDenied("Only detective role can delete board connections.")
         instance.delete()
 
 
@@ -664,10 +710,15 @@ class CaptainDecisionCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, profile_id):
-        if not has_any_role(request.user, "Captain", "Administrator"):
-            raise PermissionDenied("Only captain role can submit this decision.")
-
         profile = get_object_or_404(SuspectCaseProfile, id=profile_id)
+        case_obj = profile.case
+        if case_obj.severity == Case.Severity.CRITICAL:
+            if not has_any_role(request.user, "Captain", "Chief", "Administrator"):
+                raise PermissionDenied("Only captain/chief roles can submit this decision for critical cases.")
+        else:
+            if not has_any_role(request.user, "Captain", "Administrator"):
+                raise PermissionDenied("Only captain role can submit this decision.")
+
         serializer = CaptainDecisionCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -681,8 +732,12 @@ class CaptainDecisionCreateAPIView(APIView):
             summary=summary,
         )
 
-        case_obj = profile.case
-        if is_confirmed and case_obj.severity != Case.Severity.CRITICAL:
+        if case_obj.severity == Case.Severity.CRITICAL and has_any_role(request.user, "Chief", "Administrator"):
+            decision.chief = request.user
+            decision.chief_confirmed = is_confirmed
+            decision.save(update_fields=["chief", "chief_confirmed"])
+            case_obj.status = Case.Status.IN_COURT if is_confirmed else Case.Status.OPEN
+        elif is_confirmed and case_obj.severity != Case.Severity.CRITICAL:
             case_obj.status = Case.Status.IN_COURT
         elif is_confirmed and case_obj.severity == Case.Severity.CRITICAL:
             case_obj.status = Case.Status.ARRESTED

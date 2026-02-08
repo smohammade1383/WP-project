@@ -1,12 +1,20 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import permissions
+from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from cases.models import Case, SuspectCaseProfile
-from .serializers import AggregatedStatsSerializer, WantedPersonSerializer
+from .models import CitizenTip
+from .serializers import (
+    AggregatedStatsSerializer,
+    CitizenTipDetectiveReviewSerializer,
+    CitizenTipOfficerReviewSerializer,
+    CitizenTipSerializer,
+    WantedPersonSerializer,
+)
 
 User = get_user_model()
 
@@ -20,6 +28,15 @@ POLICE_ROLES = {
     "Patrol Officer",
     "Cadet",
 }
+
+
+def has_any_role(user, *roles):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    expected = set(roles)
+    return any(role in expected for role in user.role_names)
 
 
 def _refresh_severe_tracking(profiles):
@@ -91,3 +108,78 @@ class AggregatedStatsAPIView(APIView):
             ).exclude(case__status__in=[Case.Status.CLOSED, Case.Status.VOID]).values("suspect_id").distinct().count(),
         }
         return Response(data)
+
+
+@extend_schema_view(
+    get=extend_schema(tags=["People"], summary="List citizen tips", responses={200: CitizenTipSerializer(many=True)}),
+    post=extend_schema(tags=["People"], summary="Submit citizen tip", request=CitizenTipSerializer, responses={201: CitizenTipSerializer}),
+)
+class CitizenTipListCreateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if has_any_role(request.user, "Detective", "Police Officer", "Patrol Officer", "Sergeant", "Captain", "Chief", "Administrator"):
+            tips = CitizenTip.objects.all().select_related("reporter", "case", "suspect_profile")
+        else:
+            tips = CitizenTip.objects.filter(reporter=request.user).select_related("reporter", "case", "suspect_profile")
+        return Response(CitizenTipSerializer(tips, many=True).data)
+
+    def post(self, request):
+        serializer = CitizenTipSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        tip = serializer.save(reporter=request.user, status=CitizenTip.Status.OFFICER_REVIEW)
+        return Response(CitizenTipSerializer(tip).data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    tags=["People"],
+    summary="Officer reviews citizen tip",
+    request=CitizenTipOfficerReviewSerializer,
+    responses={200: CitizenTipSerializer},
+)
+class CitizenTipOfficerReviewAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, tip_id):
+        if not has_any_role(
+            request.user,
+            "Police Officer",
+            "Patrol Officer",
+            "Sergeant",
+            "Captain",
+            "Chief",
+            "Administrator",
+        ):
+            return Response({"detail": "Only officer+ roles can review citizen tips."}, status=403)
+
+        tip = get_object_or_404(CitizenTip, id=tip_id)
+        serializer = CitizenTipOfficerReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        approved = serializer.validated_data["approved"]
+        tip.officer_reviewer = request.user
+        tip.status = CitizenTip.Status.DETECTIVE_REVIEW if approved else CitizenTip.Status.OFFICER_REVIEW
+        tip.save(update_fields=["officer_reviewer", "status"])
+        return Response(CitizenTipSerializer(tip).data)
+
+
+@extend_schema(
+    tags=["People"],
+    summary="Detective reviews citizen tip",
+    request=CitizenTipDetectiveReviewSerializer,
+    responses={200: CitizenTipSerializer},
+)
+class CitizenTipDetectiveReviewAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, tip_id):
+        if not has_any_role(request.user, "Detective", "Administrator"):
+            return Response({"detail": "Only detective role can review citizen tips."}, status=403)
+
+        tip = get_object_or_404(CitizenTip, id=tip_id)
+        serializer = CitizenTipDetectiveReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        approved = serializer.validated_data["approved"]
+        tip.detective_reviewer = request.user
+        tip.status = CitizenTip.Status.APPROVED if approved else CitizenTip.Status.OFFICER_REVIEW
+        tip.save(update_fields=["detective_reviewer", "status"])
+        return Response(CitizenTipSerializer(tip).data)

@@ -3,9 +3,11 @@ from django.contrib import admin
 from .models import (
     BoardItem,
     BoardLink,
+    BoardConnection,
     CaptainDecision,
     Case,
     CaseLog,
+    Notification,
     Complaint,
     ComplaintReview,
     DetectiveBoard,
@@ -34,6 +36,8 @@ admin.site.register(CaseLog)
 admin.site.register(DetectiveBoard)
 admin.site.register(BoardItem)
 admin.site.register(BoardLink)
+admin.site.register(BoardConnection)
 admin.site.register(SuspectCaseProfile)
 admin.site.register(InterrogationScore)
 admin.site.register(CaptainDecision)
+admin.site.register(Notification)

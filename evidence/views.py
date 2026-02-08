@@ -48,13 +48,17 @@ def is_admin(user):
     return bool(user and user.is_authenticated and (user.is_superuser or has_any_role(user, "Administrator")))
 
 
+def can_set_lab_result(user):
+    return bool(user and user.is_authenticated and (user.is_superuser or has_any_role(user, "Coroner", "Administrator")))
+
+
 def can_submit_evidence(user, case_obj):
     if is_police_staff(user):
         return True
     return case_obj.created_by_id == user.id or case_obj.complainants.filter(id=user.id).exists()
 
 
-def create_evidence_details(evidence, validated_data, files):
+def create_evidence_details(evidence, validated_data, files, user):
     if evidence.type == Evidence.Type.TRANSCRIPTION:
         transcription = TranscriptionEvidence.objects.create(
             evidence=evidence,
@@ -64,9 +68,12 @@ def create_evidence_details(evidence, validated_data, files):
             TranscriptionMedia.objects.create(transcription=transcription, media_file=media_file)
 
     elif evidence.type == Evidence.Type.BIO_MEDICAL:
+        if "lab_result" in validated_data and not can_set_lab_result(user):
+            raise PermissionDenied("Only coroner roles can set lab_result.")
         bio = BioMedicalEvidence.objects.create(
             evidence=evidence,
             result_followup=validated_data.get("result_followup", ""),
+            lab_result=validated_data.get("lab_result", ""),
         )
         for image_file in files.getlist("images"):
             BioMedicalImage.objects.create(bio_medical=bio, image_file=image_file)
@@ -94,7 +101,7 @@ def create_evidence_details(evidence, validated_data, files):
             IdentityDocumentField.objects.create(identity_document=identity, key=key, value=value)
 
 
-def update_evidence_details(evidence, validated_data, files):
+def update_evidence_details(evidence, validated_data, files, user):
     if evidence.type == Evidence.Type.TRANSCRIPTION and hasattr(evidence, "transcription"):
         transcription = evidence.transcription
         if "transcript_text" in validated_data:
@@ -107,7 +114,11 @@ def update_evidence_details(evidence, validated_data, files):
         bio = evidence.bio_medical
         if "result_followup" in validated_data:
             bio.result_followup = validated_data["result_followup"]
-            bio.save(update_fields=["result_followup"])
+        if "lab_result" in validated_data:
+            if not can_set_lab_result(user):
+                raise PermissionDenied("Only coroner roles can set lab_result.")
+            bio.lab_result = validated_data["lab_result"]
+        bio.save(update_fields=["result_followup", "lab_result"])
         for image_file in files.getlist("images"):
             BioMedicalImage.objects.create(bio_medical=bio, image_file=image_file)
 
@@ -181,7 +192,7 @@ class EvidenceListCreateAPIView(generics.ListCreateAPIView):
             type=validated["type"],
             created_by=request.user,
         )
-        create_evidence_details(evidence, validated, request.FILES)
+        create_evidence_details(evidence, validated, request.FILES, request.user)
 
         return Response(EvidenceSerializer(evidence, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
@@ -229,7 +240,7 @@ class EvidenceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
         if changed_fields:
             evidence.save(update_fields=changed_fields)
 
-        update_evidence_details(evidence, validated, request.FILES)
+        update_evidence_details(evidence, validated, request.FILES, request.user)
         return Response(EvidenceSerializer(evidence, context={"request": request}).data)
 
     def perform_destroy(self, instance):

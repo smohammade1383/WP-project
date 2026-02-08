@@ -3,6 +3,8 @@ from rest_framework import serializers
 
 from cases.models import SuspectCaseProfile
 
+from .models import CitizenTip
+
 User = get_user_model()
 
 
@@ -49,3 +51,28 @@ class AggregatedStatsSerializer(serializers.Serializer):
     solved_cases = serializers.IntegerField()
     staff_count = serializers.IntegerField()
     wanted_count = serializers.IntegerField()
+
+
+class CitizenTipSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CitizenTip
+        fields = (
+            "id",
+            "reporter",
+            "case",
+            "suspect_profile",
+            "description",
+            "status",
+            "officer_reviewer",
+            "detective_reviewer",
+            "created_at",
+        )
+        read_only_fields = ("id", "reporter", "status", "officer_reviewer", "detective_reviewer", "created_at")
+
+
+class CitizenTipOfficerReviewSerializer(serializers.Serializer):
+    approved = serializers.BooleanField()
+
+
+class CitizenTipDetectiveReviewSerializer(serializers.Serializer):
+    approved = serializers.BooleanField()

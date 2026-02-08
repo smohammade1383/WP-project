@@ -12,3 +12,7 @@ class CanViewAggregatedStats(HasAnyRole):
         "Patrol Officer",
         "Cadet",
     )
+
+
+class IsCoroner(HasAnyRole):
+    required_roles = ("Coroner", "Administrator")

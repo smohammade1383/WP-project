@@ -165,6 +165,24 @@ class CaseLog(models.Model):
         ordering = ["timestamp"]
 
 
+class Notification(models.Model):
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="notifications", null=True, blank=True)
+    evidence = models.ForeignKey(
+        "evidence.Evidence",
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class DetectiveBoard(models.Model):
     case = models.OneToOneField(Case, on_delete=models.CASCADE, related_name="board")
     detective = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
@@ -211,6 +229,29 @@ class BoardLink(models.Model):
         if self.to_item_id and self.board_id and self.to_item.board_id != self.board_id:
             raise ValidationError("to_item must belong to the same board.")
 
+
+class BoardConnection(models.Model):
+    board = models.ForeignKey(DetectiveBoard, on_delete=models.CASCADE, related_name="connections")
+    from_evidence = models.ForeignKey(
+        "evidence.Evidence",
+        on_delete=models.CASCADE,
+        related_name="board_connections_from",
+    )
+    to_evidence = models.ForeignKey(
+        "evidence.Evidence",
+        on_delete=models.CASCADE,
+        related_name="board_connections_to",
+    )
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if self.from_evidence_id and self.to_evidence_id and self.from_evidence_id == self.to_evidence_id:
+            raise ValidationError("from_evidence and to_evidence cannot be the same.")
+        if self.board_id and self.from_evidence_id and self.from_evidence.case_id != self.board.case_id:
+            raise ValidationError("from_evidence must belong to the same case as the board.")
+        if self.board_id and self.to_evidence_id and self.to_evidence.case_id != self.board.case_id:
+            raise ValidationError("to_evidence must belong to the same case as the board.")
 
 class SuspectCaseProfile(models.Model):
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="suspect_profiles")

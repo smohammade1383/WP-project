@@ -6,6 +6,8 @@ from .views import (
     BoardItemRetrieveUpdateDestroyAPIView,
     BoardLinkDestroyAPIView,
     BoardLinkListCreateAPIView,
+    BoardConnectionDestroyAPIView,
+    BoardConnectionListCreateAPIView,
     CaptainDecisionCreateAPIView,
     CaseBreakdownStatsAPIView,
     CaseListCreateAPIView,
@@ -46,6 +48,8 @@ urlpatterns = [
     path("board/items/<int:pk>/", BoardItemRetrieveUpdateDestroyAPIView.as_view(), name="board-item-rud"),
     path("<int:case_id>/board/links/", BoardLinkListCreateAPIView.as_view(), name="board-link-list-create"),
     path("board/links/<int:pk>/", BoardLinkDestroyAPIView.as_view(), name="board-link-delete"),
+    path("<int:case_id>/board/connections/", BoardConnectionListCreateAPIView.as_view(), name="board-connection-list-create"),
+    path("board/connections/<int:pk>/", BoardConnectionDestroyAPIView.as_view(), name="board-connection-delete"),
 
     path("<int:case_id>/suspects/nominate/", SuspectNominationAPIView.as_view(), name="suspects-nominate"),
     path("<int:case_id>/suspects/sergeant-decision/", SergeantDecisionAPIView.as_view(), name="sergeant-decision"),

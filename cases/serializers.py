@@ -4,6 +4,7 @@ from rest_framework import serializers
 from .models import (
     BoardItem,
     BoardLink,
+    BoardConnection,
     CaptainDecision,
     Case,
     Complaint,
@@ -251,10 +252,34 @@ class BoardLinkSerializer(serializers.ModelSerializer):
 class DetectiveBoardSerializer(serializers.ModelSerializer):
     items = BoardItemSerializer(many=True, read_only=True)
     links = BoardLinkSerializer(many=True, read_only=True)
+    connections = serializers.SerializerMethodField()
 
     class Meta:
         model = DetectiveBoard
-        fields = ("id", "case", "detective", "created_at", "items", "links")
+        fields = ("id", "case", "detective", "created_at", "items", "links", "connections")
+
+    def get_connections(self, obj):
+        return BoardConnectionSerializer(obj.connections.all(), many=True).data
+
+
+class BoardConnectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BoardConnection
+        fields = ("id", "board", "from_evidence", "to_evidence", "description", "created_at")
+        read_only_fields = ("id", "board", "created_at")
+
+    def validate(self, attrs):
+        board = attrs.get("board", self.context.get("board", getattr(self.instance, "board", None)))
+        from_evidence = attrs.get("from_evidence", getattr(self.instance, "from_evidence", None))
+        to_evidence = attrs.get("to_evidence", getattr(self.instance, "to_evidence", None))
+
+        if from_evidence and to_evidence and from_evidence.id == to_evidence.id:
+            raise serializers.ValidationError("from_evidence and to_evidence cannot be the same.")
+        if board and from_evidence and from_evidence.case_id != board.case_id:
+            raise serializers.ValidationError("from_evidence must belong to the same case as the board.")
+        if board and to_evidence and to_evidence.case_id != board.case_id:
+            raise serializers.ValidationError("to_evidence must belong to the same case as the board.")
+        return attrs
 
 
 class SuspectCaseProfileSerializer(serializers.ModelSerializer):
