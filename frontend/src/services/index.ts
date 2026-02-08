@@ -7,3 +7,5 @@ export { api, default as apiClient } from './api.client';
 export { authService } from './auth.service';
 export { ErrorHandler } from './error.handler';
 export type { ApiError } from './error.handler';
+export { statsApi } from './stats.api';
+export type { AggregatedStats } from './stats.api';
