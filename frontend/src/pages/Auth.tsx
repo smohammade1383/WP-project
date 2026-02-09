@@ -137,6 +137,10 @@ const Auth = () => {
     }
 
     try {
+      setLoading(true);
+      await authApi.register(signupData);
+      navigate('/dashboard');
+    } catch (err: any) {
       let errorMessage = 'خطا در ثبت‌نام. لطفاً اطلاعات خود را بررسی کنید';
       
       if (err.detail) {
