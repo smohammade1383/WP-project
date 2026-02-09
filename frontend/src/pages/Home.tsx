@@ -28,7 +28,7 @@ const Home = () => {
   return (
     <div className="home-page">
       <div className="hero-section">
-        <h2>سامانه مدیریت پلیس</h2>
+        <h2>سامانه من</h2>
         <p className="subtitle">سیستم جامع مدیریت پرونده‌های پلیسی و قضایی</p>
         <p className="description">
           سامانه‌ای کامل برای مدیریت پرونده‌های جنایی، شواهد، مظنونین و فرآیندهای قضایی

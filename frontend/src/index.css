@@ -8,23 +8,23 @@
   font-weight: 400;
 
   /* Color Scheme */
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: #0f172a;
+  background-color: #f6f8fb;
 
   /* CSS Custom Properties for Theming */
-  --color-primary: #646cff;
-  --color-primary-hover: #535bf2;
-  --color-secondary: #1a1a1a;
-  --color-text: rgba(255, 255, 255, 0.87);
-  --color-text-secondary: rgba(255, 255, 255, 0.6);
-  --color-border: rgba(255, 255, 255, 0.1);
-  --color-background: #242424;
-  --color-surface: #1a1a1a;
-  --color-error: #ef4444;
-  --color-warning: #f59e0b;
-  --color-success: #10b981;
-  --color-info: #3b82f6;
+  --color-primary: #3b82f6;
+  --color-primary-hover: #1d4ed8;
+  --color-secondary: #ffffff;
+  --color-text: #0f172a;
+  --color-text-secondary: #475569;
+  --color-border: rgba(15, 23, 42, 0.08);
+  --color-background: #f6f8fb;
+  --color-surface: #ffffff;
+  --color-error: #dc2626;
+  --color-warning: #d97706;
+  --color-success: #16a34a;
+  --color-info: #2563eb;
 
   /* Spacing System */
   --spacing-xs: 0.25rem;
@@ -85,7 +85,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   direction: rtl;
-  background: linear-gradient(180deg, #1a1a1a 0%, #242424 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #4f46e5 50%, #3b82f6 75%, #06b6d4 100%);
+  background-attachment: fixed;
   overflow-x: hidden;
 }
 
