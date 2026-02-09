@@ -163,7 +163,13 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
+# Session Configuration
 SESSION_COOKIE_AGE = 60 * 60 * 24
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_HTTPONLY = False  # Set to False for debugging (True in production)
+SESSION_COOKIE_SAMESITE = 'Lax'  # Lax allows same-site POST requests
+SESSION_COOKIE_DOMAIN = None  # Default domain handling
 
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
@@ -172,4 +178,15 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# CSRF Configuration
+CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_HTTPONLY = False  # Must be False so JavaScript can read it
+CSRF_COOKIE_SAMESITE = 'Lax'  # Lax allows same-site POST requests
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+# Allow CSRF for development
+CSRF_COOKIE_DOMAIN = None
+CSRF_USE_SESSIONS = False  # Use cookie-based CSRF tokens

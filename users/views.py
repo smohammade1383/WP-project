@@ -1,5 +1,6 @@
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import Group
+from django.middleware.csrf import get_token
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
@@ -9,6 +10,7 @@ from rest_framework.views import APIView
 
 from .permissions import IsAdministrator
 from .serializers import (
+    ChangePasswordSerializer,
     LoginSerializer,
     ProfileSerializer,
     RoleSerializer,
@@ -16,6 +18,21 @@ from .serializers import (
     UserRoleUpdateSerializer,
 )
 from .models import User
+
+
+class CSRFTokenAPIView(APIView):
+    """
+    Get CSRF token for making state-changing requests
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        # This will set the CSRF cookie
+        csrf_token = get_token(request)
+        return Response({
+            "detail": "CSRF cookie set",
+            "csrftoken": csrf_token,
+        }, status=status.HTTP_200_OK)
 
 
 class SignupAPIView(generics.CreateAPIView):
@@ -32,6 +49,14 @@ class LoginAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
         login(request, user)
+        
+        # Debug logging
+        print("=" * 50)
+        print("Login successful:")
+        print(f"User: {user.username}")
+        print(f"Session key: {request.session.session_key}")
+        print(f"Session cookie will be set: sessionid={request.session.session_key}")
+        print("=" * 50)
 
         return Response(
             {
@@ -58,6 +83,30 @@ class ProfileAPIView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+    
+    def update(self, request, *args, **kwargs):
+        # Debug logging
+        print("=" * 50)
+        print("Profile Update Request Debug:")
+        print(f"User authenticated: {request.user.is_authenticated}")
+        print(f"User: {request.user}")
+        print(f"Cookies: {request.COOKIES}")
+        print(f"CSRF Token from cookie: {request.COOKIES.get('csrftoken')}")
+        print(f"CSRF Token from header: {request.META.get('HTTP_X_CSRFTOKEN')}")
+        print(f"Session key: {request.session.session_key}")
+        print("=" * 50)
+        return super().update(request, *args, **kwargs)
+
+
+@extend_schema(tags=["Auth"], request=ChangePasswordSerializer, responses={200: OpenApiTypes.OBJECT})
+class ChangePasswordAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "رمز عبور با موفقیت تغییر کرد"}, status=status.HTTP_200_OK)
 
 
 class RoleListCreateAPIView(generics.ListCreateAPIView):

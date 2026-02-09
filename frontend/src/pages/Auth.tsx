@@ -148,9 +148,14 @@ const Auth = () => {
         if (typeof err.detail === 'string') {
           errorMessage = err.detail.trim().replace(/^\.+|\.+$/g, '');
         } else if (typeof err.detail === 'object') {
-          // Extract first error from object
-          const firstError = Object.values(err.detail)[0];
-          errorMessage = Array.isArray(firstError) ? firstError[0] : String(firstError);
+          // Set field-specific errors
+          const fieldErrors: Record<string, string> = {};
+          for (const [field, messages] of Object.entries(err.detail)) {
+            const message = Array.isArray(messages) ? messages[0] : String(messages);
+            fieldErrors[field] = message;
+          }
+          setValidationErrors(fieldErrors);
+          errorMessage = 'لطفاً خطاهای فرم را بررسی کنید';
         }
       } else if (err.message) {
         errorMessage = err.message;

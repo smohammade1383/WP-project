@@ -20,6 +20,7 @@ export interface User {
   first_name: string;
   last_name: string;
   role_names: string[];
+  is_active: boolean;
 }
 
 export interface LoginResponse {
@@ -81,5 +82,28 @@ export const authApi = {
    */
   async getCurrentUser(): Promise<User> {
     return api.get<User>('/users/auth/profile/');
+  },
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(data: Partial<User>): Promise<User> {
+    const response = await api.patch<User>('/users/auth/profile/', data);
+    
+    // Update stored user data
+    authService.setUserData(response);
+    
+    return response;
+  },
+
+  /**
+   * Change password
+   */
+  async changePassword(data: {
+    old_password: string;
+    new_password: string;
+    confirm_password: string;
+  }): Promise<{ detail: string }> {
+    return api.post('/users/auth/change-password/', data);
   },
 };

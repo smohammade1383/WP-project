@@ -24,6 +24,21 @@ class SignupSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password")
+        
+        # Check for existing users with better error messages
+        errors = {}
+        if User.objects.filter(username=validated_data.get('username')).exists():
+            errors['username'] = 'این نام کاربری قبلاً استفاده شده است'
+        if User.objects.filter(email=validated_data.get('email')).exists():
+            errors['email'] = 'این ایمیل قبلاً ثبت شده است'
+        if User.objects.filter(phone_number=validated_data.get('phone_number')).exists():
+            errors['phone_number'] = 'این شماره تلفن قبلاً ثبت شده است'
+        if User.objects.filter(national_id=validated_data.get('national_id')).exists():
+            errors['national_id'] = 'این کد ملی قبلاً ثبت شده است'
+        
+        if errors:
+            raise serializers.ValidationError(errors)
+        
         try:
             user = User.objects.create_user(password=password, **validated_data)
         except IntegrityError:
@@ -67,8 +82,44 @@ class ProfileSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "role_names",
+            "is_active",
         )
-        read_only_fields = ("id", "username", "national_id", "role_names")
+        read_only_fields = ("id", "username", "national_id", "role_names", "is_active")
+
+    def validate_email(self, value):
+        user = self.context['request'].user
+        if User.objects.exclude(pk=user.pk).filter(email=value).exists():
+            raise serializers.ValidationError("این ایمیل قبلاً استفاده شده است")
+        return value
+
+    def validate_phone_number(self, value):
+        user = self.context['request'].user
+        if User.objects.exclude(pk=user.pk).filter(phone_number=value).exists():
+            raise serializers.ValidationError("این شماره تلفن قبلاً استفاده شده است")
+        return value
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True, min_length=8)
+    confirm_password = serializers.CharField(required=True, write_only=True)
+
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("رمز عبور فعلی اشتباه است")
+        return value
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({"confirm_password": "رمز عبور جدید و تکرار آن یکسان نیستند"})
+        return attrs
+
+    def save(self):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        return user
 
 
 class RoleSerializer(serializers.ModelSerializer):
