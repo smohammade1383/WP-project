@@ -5,6 +5,11 @@ export interface ApiError {
   status?: number;
   statusText?: string;
   data?: any;
+  detail?: any;  // Preserve detail from response
+  response?: {   // Preserve full response for detailed error handling
+    status: number;
+    data: any;
+  };
 }
 
 /**
@@ -25,6 +30,11 @@ export class ErrorHandler {
         status,
         statusText,
         data,
+        detail: data?.detail,
+        response: {
+          status,
+          data,
+        },
       };
     } else if (error.request) {
       // Request was made but no response received

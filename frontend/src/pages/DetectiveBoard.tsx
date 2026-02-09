@@ -45,6 +45,11 @@ const DetectiveBoard = () => {
         boardApi.getBoardItems(parseInt(caseId)),
         boardApi.getBoardLinks(parseInt(caseId)),
       ]);
+      console.log('=== Board Data Loaded ===');
+      console.log('Items:', itemsData);
+      console.log('Items count:', itemsData.length);
+      console.log('Links:', linksData);
+      console.log('=======================');
       setItems(itemsData);
       setLinks(linksData);
     } catch (err: any) {
@@ -81,7 +86,39 @@ const DetectiveBoard = () => {
       setNewNoteText('');
       setShowAddMenu(false);
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'خطا در ایجاد آیتم');
+      console.error('=== Error Details ===');
+      console.error('Full error:', err);
+      console.error('Error response:', err.response);
+      console.error('Error data:', err.data);
+      console.error('Error detail:', err.detail);
+      console.error('Error status:', err.status);
+      console.error('Request data:', newItem);
+      console.error('===================');
+      
+      // The error is transformed by ErrorHandler, so access data from the ApiError object
+      const errorData = err.data || err.response?.data;
+      let errorMsg = 'خطا در ایجاد آیتم';
+      
+      if (errorData) {
+        if (typeof errorData === 'string') {
+          errorMsg = errorData;
+        } else if (errorData.detail) {
+          errorMsg = errorData.detail;
+        } else {
+          // Show all validation errors
+          const errors = Object.entries(errorData)
+            .map(([field, messages]) => {
+              if (Array.isArray(messages)) {
+                return `${field}: ${messages.join(', ')}`;
+              }
+              return `${field}: ${messages}`;
+            })
+            .join('\n');
+          errorMsg = errors || JSON.stringify(errorData, null, 2);
+        }
+      }
+      
+      alert(`خطا: ${errorMsg}`);
     }
   };
 
@@ -279,17 +316,22 @@ const DetectiveBoard = () => {
                 </button>
               </div>
               
-              <button onClick={() => handleAddItem('evidence')} className="btn btn-sm btn-secondary">
-                🔍 افزودن مدرک
-              </button>
-              
-              <button onClick={() => handleAddItem('witness')} className="btn btn-sm btn-secondary">
-                👤 افزودن شاهد
-              </button>
-              
-              <button onClick={() => handleAddItem('suspect')} className="btn btn-sm btn-secondary">
-                🔴 افزودن مظنون
-              </button>
+              <div className="disabled-options">
+                <p style={{ fontSize: '0.9rem', color: '#666', margin: '10px 0' }}>
+                  ⚠️ برای افزودن مدرک، شاهد یا مظنون، ابتدا باید آن‌ها را انتخاب کنید. این قابلیت به زودی اضافه می‌شود.
+                </p>
+                <button disabled className="btn btn-sm btn-secondary" style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                  🔍 افزودن مدرک (به زودی)
+                </button>
+                
+                <button disabled className="btn btn-sm btn-secondary" style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                  👤 افزودن شاهد (به زودی)
+                </button>
+                
+                <button disabled className="btn btn-sm btn-secondary" style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                  🔴 افزودن مظنون (به زودی)
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -316,17 +358,21 @@ const DetectiveBoard = () => {
               onDeleteLink={handleDeleteLink}
             />
             
-            {items.map((item) => (
-              <BoardItem
-                key={item.id}
-                item={item}
-                onUpdate={handleUpdateItemPosition}
-                onDelete={handleDeleteItem}
-                onSelect={handleSelectItem}
-                isSelected={item.id === selectedItemId}
-                scale={scale}
-              />
-            ))}
+            {console.log('Rendering items:', items.length, items)}
+            {items.map((item) => {
+              console.log('Rendering item:', item.id, item);
+              return (
+                <BoardItem
+                  key={item.id}
+                  item={item}
+                  onUpdate={handleUpdateItemPosition}
+                  onDelete={handleDeleteItem}
+                  onSelect={handleSelectItem}
+                  isSelected={item.id === selectedItemId}
+                  scale={scale}
+                />
+              );
+            })}
 
             {items.length === 0 && !loading && (
               <div className="empty-board">

@@ -484,11 +484,27 @@ class BoardItemListCreateAPIView(APIView):
         return Response(BoardItemSerializer(board.items.all(), many=True).data)
 
     def post(self, request, case_id):
+        print("=" * 60)
+        print("BoardItem Create Request Debug:")
+        print(f"User: {request.user} (authenticated: {request.user.is_authenticated})")
+        print(f"User roles: {getattr(request.user, 'role_names', [])}")
+        print(f"Case ID: {case_id}")
+        print(f"Request data: {request.data}")
+        print("=" * 60)
+        
         case_obj = get_object_or_404(Case, id=case_id)
         if not has_any_role(request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can manage board items.")
         board = ensure_board_for_case(case_obj, request.user)
+        
+        print(f"Board: {board.id}")
+        
         serializer = BoardItemSerializer(data=request.data)
+        if not serializer.is_valid():
+            print("VALIDATION ERRORS:")
+            print(serializer.errors)
+            print("=" * 60)
+        
         serializer.is_valid(raise_exception=True)
         serializer.save(board=board)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
