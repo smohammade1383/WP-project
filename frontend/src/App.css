@@ -7,12 +7,13 @@
 
 /* Header */
 .app-header {
-  background-color: var(--color-surface);
-  padding: var(--spacing-md) var(--spacing-lg);
-  box-shadow: var(--shadow-sm);
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #646cff 100%);
+  padding: var(--spacing-lg) var(--spacing-lg);
+  box-shadow: 0 4px 20px rgba(100, 108, 255, 0.3);
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 .app-header nav {
@@ -35,43 +36,73 @@
 .nav-links a {
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-md);
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  color: #ffffff !important;
+  font-weight: 500;
+  border: 1px solid transparent;
 }
 
 .nav-links a:hover {
-  background-color: rgba(100, 108, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #ffffff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
 }
 
 .user-name {
-  color: var(--color-primary);
+  color: #ffffff;
   font-weight: 600;
   padding: var(--spacing-sm) var(--spacing-md);
-  border-right: 1px solid var(--color-border);
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
   padding-right: var(--spacing-md);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.user-name::before {
+  content: "👤";
 }
 
 .logout-button {
-  background-color: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
+  background-color: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #ffffff;
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s;
   font-family: inherit;
   font-size: inherit;
+  font-weight: 500;
 }
 
 .logout-button:hover {
-  background-color: rgba(239, 68, 68, 0.1);
-  border-color: #ef4444;
-  color: #ef4444;
+  background-color: #ef4444;
+  border-color: #dc2626;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: clamp(1.2rem, 3vw, 1.5rem);
-  color: var(--color-text);
+  font-size: clamp(1.3rem, 3vw, 1.7rem);
+  color: #ffffff !important;
+  font-weight: 700;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.app-header h1::before {
+  content: "🛡️";
+  font-size: 1.5em;
+  filter: drop-shadow(2px 2px 6px rgba(0, 0, 0, 0.5));
 }
 
 /* Main Content */
@@ -81,20 +112,33 @@
   max-width: var(--breakpoint-xl);
   margin: 0 auto;
   padding: var(--spacing-lg);
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Footer */
 .app-footer {
-  background-color: var(--color-surface);
-  padding: var(--spacing-lg);
+  background: linear-gradient(135deg, #1a1a1a 0%, #242424 100%);
+  padding: var(--spacing-xl) var(--spacing-lg);
   text-align: center;
   color: var(--color-text-secondary);
-  border-top: 1px solid var(--color-border);
+  border-top: 2px solid rgba(100, 108, 255, 0.2);
+  box-shadow: 0 -4px 20px rgba(100, 108, 255, 0.1);
 }
 
 .app-footer p {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 /* Home Page */
