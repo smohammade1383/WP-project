@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { peopleApi, type WantedPerson } from '../services';
 import './MostWanted.css';
 
@@ -42,13 +41,17 @@ const getDisplayName = (person: WantedPerson['suspect']) => {
 };
 
 const MostWanted = () => {
-  const navigate = useNavigate();
   const [wanted, setWanted] = useState<WantedPerson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [severity, setSeverity] = useState<number | 'all'>('all');
   const [minDays, setMinDays] = useState('');
+  const [selectedSuspectId, setSelectedSuspectId] = useState<number | null>(null);
+  const [detail, setDetail] = useState<WantedPerson | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  const isModalOpen = selectedSuspectId !== null;
 
   useEffect(() => {
     const fetchWanted = async () => {
@@ -85,6 +88,38 @@ const MostWanted = () => {
       return matchesQuery && matchesSeverity && matchesDays;
     });
   }, [wanted, query, severity, minDays]);
+
+  useEffect(() => {
+    if (!isModalOpen || selectedSuspectId === null) return;
+
+    const fetchDetail = async () => {
+      try {
+        setDetailLoading(true);
+        setDetailError('');
+        const result = await peopleApi.getWantedDetail(selectedSuspectId);
+        setDetail(result);
+      } catch (err: any) {
+        setDetailError(err.message || 'خطا در دریافت اطلاعات مظنون');
+      } finally {
+        setDetailLoading(false);
+      }
+    };
+
+    fetchDetail();
+  }, [isModalOpen, selectedSuspectId]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedSuspectId(null);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isModalOpen]);
 
   return (
     <div className="most-wanted-page">
@@ -205,7 +240,7 @@ const MostWanted = () => {
                 <div className="wanted-actions">
                   <button
                     className="wanted-detail-btn"
-                    onClick={() => navigate(`/most-wanted/${item.suspect.id}`)}
+                    onClick={() => setSelectedSuspectId(item.suspect.id)}
                   >
                     مشاهده جزئیات
                   </button>
@@ -213,6 +248,100 @@ const MostWanted = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {isModalOpen && (
+        <div className="wanted-modal-overlay" onClick={() => setSelectedSuspectId(null)}>
+          <div
+            className="wanted-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="wanted-modal-header">
+              <h2>جزئیات مظنون تحت پیگیری شدید</h2>
+              <button
+                className="modal-close-btn"
+                onClick={() => setSelectedSuspectId(null)}
+                aria-label="بستن"
+              >
+                ×
+              </button>
+            </div>
+
+            {detailLoading ? (
+              <div className="wanted-modal-body">
+                <div className="modal-skeleton" />
+              </div>
+            ) : detailError ? (
+              <div className="wanted-modal-body">
+                <div className="wanted-error">
+                  <h3>خطا</h3>
+                  <p>{detailError}</p>
+                </div>
+              </div>
+            ) : detail ? (
+              <div className="wanted-modal-body">
+                <div className="modal-content">
+                  <div className="modal-photo">
+                    {detail.public_photo ? (
+                      <img src={detail.public_photo} alt={getDisplayName(detail.suspect)} />
+                    ) : (
+                      <div className="photo-placeholder">
+                        {getDisplayName(detail.suspect).slice(0, 1)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="modal-info">
+                    <div className="modal-title">
+                      <div>
+                        <h3>{getDisplayName(detail.suspect)}</h3>
+                        <p className="modal-subtitle">@{detail.suspect.username}</p>
+                      </div>
+                      <span className={`severity-tag ${severityClass(detail.case_severity)}`}>
+                        {severityLabel(detail.case_severity)}
+                      </span>
+                    </div>
+                    <p className="modal-details">
+                      {detail.public_details || 'جزئیات عمومی ثبت نشده است.'}
+                    </p>
+                    <div className="modal-grid">
+                      <div>
+                        <span>کد ملی</span>
+                        <strong>{detail.suspect.national_id}</strong>
+                      </div>
+                      <div>
+                        <span>پرونده مرتبط</span>
+                        <strong>#{detail.case_id}</strong>
+                      </div>
+                      <div>
+                        <span>روزهای تعقیب</span>
+                        <strong>{formatNumber(detail.wanted_days)}</strong>
+                      </div>
+                      <div>
+                        <span>امتیاز تعقیب</span>
+                        <strong>{formatNumber(detail.ranking_score)}</strong>
+                      </div>
+                      <div>
+                        <span>پاداش (ریال)</span>
+                        <strong>{formatNumber(detail.reward_amount)}</strong>
+                      </div>
+                      <div>
+                        <span>وضعیت</span>
+                        <strong>{detail.severe_tracking ? 'تحت پیگیری شدید' : 'عادی'}</strong>
+                      </div>
+                    </div>
+                    <div className="modal-actions">
+                      <button className="wanted-detail-btn" onClick={() => setSelectedSuspectId(null)}>
+                        بازگشت
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
     </div>

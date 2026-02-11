@@ -333,3 +333,146 @@
     justify-content: flex-start;
   }
 }
+
+.wanted-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 9999;
+}
+
+.wanted-modal {
+  background: white;
+  border-radius: 18px;
+  width: min(960px, 100%);
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.wanted-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f8fafc;
+}
+
+.wanted-modal-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #1f2937;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.wanted-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.modal-content {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1.5rem;
+}
+
+.modal-photo {
+  background: #f3f4f6;
+  border-radius: 14px;
+  overflow: hidden;
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.modal-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.modal-title h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.modal-subtitle {
+  margin: 0.25rem 0 0;
+  color: #6b7280;
+}
+
+.modal-details {
+  color: #4b5563;
+  line-height: 1.7;
+  margin: 1rem 0;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.9rem;
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.modal-grid span {
+  display: block;
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 0.3rem;
+}
+
+.modal-grid strong {
+  color: #111827;
+}
+
+.modal-actions {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modal-skeleton {
+  height: 240px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+  background-size: 200% 200%;
+  animation: shimmer 1.5s infinite;
+}
+
+@media (max-width: 768px) {
+  .wanted-modal-body {
+    padding: 1rem;
+  }
+
+  .modal-content {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-photo {
+    height: 200px;
+  }
+}
