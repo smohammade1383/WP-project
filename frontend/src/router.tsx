@@ -20,6 +20,9 @@ import AdminPanel from './pages/AdminPanel';
 import Users from './pages/Users';
 import MyCases from './pages/MyCases';
 import PlaceholderPage from './pages/PlaceholderPage';
+import CitizenComplaints from './pages/CitizenComplaints';
+import CitizenComplaintNew from './pages/CitizenComplaintNew';
+import CitizenRewards from './pages/CitizenRewards';
 
 export const router = createBrowserRouter([
   {
@@ -104,33 +107,15 @@ export const router = createBrowserRouter([
       },
       {
         path: 'citizen/complaints',
-        element: (
-          <PlaceholderPage
-            icon="📝"
-            title="پیگیری شکایات"
-            description="مشاهده وضعیت شکایات ثبت شده"
-          />
-        ),
+        element: <CitizenComplaints />,
       },
       {
         path: 'citizen/complaints/new',
-        element: (
-          <PlaceholderPage
-            icon="➕"
-            title="ثبت شکایت جدید"
-            description="فرم ثبت شکایت جدید شهروندان"
-          />
-        ),
+        element: <CitizenComplaintNew />,
       },
       {
         path: 'citizen/rewards',
-        element: (
-          <PlaceholderPage
-            icon="🎁"
-            title="وضعیت پاداش‌ها"
-            description="پیگیری گزارش‌های مردمی و پاداش‌ها"
-          />
-        ),
+        element: <CitizenRewards />,
       },
       {
         path: 'cadet/complaints',

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { authService, peopleApi, type WantedPerson } from '../services';
+import { authService, peopleApi, rewardsApi, type WantedPerson } from '../services';
 import './MostWanted.css';
 
 const severityLabel = (level: number) => {
@@ -181,7 +181,7 @@ const MostWanted = () => {
     try {
       setReportLoading(true);
       setReportError('');
-      await peopleApi.submitTip({
+      await rewardsApi.create({
         case: reportTarget.case_id,
         suspect_profile: reportTarget.id,
         description,

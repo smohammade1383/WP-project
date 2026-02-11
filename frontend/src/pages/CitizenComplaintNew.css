@@ -1,0 +1,96 @@
+.citizen-new-complaint-page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 2rem;
+  direction: rtl;
+  text-align: right;
+}
+
+.citizen-new-complaint-header h1 {
+  margin: 0 0 0.45rem;
+  color: #111827;
+}
+
+.citizen-new-complaint-header p {
+  margin: 0 0 1rem;
+  color: #4b5563;
+}
+
+.new-complaint-feedback {
+  border-radius: 12px;
+  padding: 0.75rem 0.95rem;
+  margin-bottom: 1rem;
+}
+
+.new-complaint-feedback.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.new-complaint-feedback.success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #166534;
+}
+
+.new-complaint-form {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.new-complaint-form label {
+  font-size: 0.86rem;
+  color: #374151;
+  font-weight: 700;
+}
+
+.new-complaint-form input,
+.new-complaint-form textarea {
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  font-family: inherit;
+}
+
+.new-complaint-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.secondary-btn,
+.primary-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary-btn {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .citizen-new-complaint-page {
+    padding: 1rem;
+  }
+
+  .new-complaint-actions {
+    flex-direction: column;
+  }
+}

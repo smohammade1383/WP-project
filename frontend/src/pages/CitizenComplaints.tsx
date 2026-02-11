@@ -1,0 +1,326 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authService, complaintsApi, type Complaint } from '../services';
+import './CitizenComplaints.css';
+
+type EditFormState = {
+  title: string;
+  description: string;
+  location: string;
+  incident_datetime: string;
+};
+
+const statusLabelMap: Record<string, string> = {
+  submitted: 'در صف بررسی',
+  returned: 'نیاز به اصلاح',
+  approved: 'تایید شده',
+  rejected: 'رد شده',
+  void: 'باطل شده',
+};
+
+const statusClassMap: Record<string, string> = {
+  submitted: 'status-submitted',
+  returned: 'status-returned',
+  approved: 'status-approved',
+  rejected: 'status-rejected',
+  void: 'status-void',
+};
+
+const toLocalDateTime = (iso: string): string => {
+  const date = new Date(iso);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  const hours = `${date.getHours()}`.padStart(2, '0');
+  const minutes = `${date.getMinutes()}`.padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const toIsoString = (localDateTime: string): string => {
+  return new Date(localDateTime).toISOString();
+};
+
+const formatDate = (value: string): string => {
+  return new Date(value).toLocaleString('fa-IR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+  return fallback;
+};
+
+const CitizenComplaints = () => {
+  const navigate = useNavigate();
+  const currentUser = authService.getUserData();
+  const [items, setItems] = useState<Complaint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const [editingItem, setEditingItem] = useState<Complaint | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState<EditFormState>({
+    title: '',
+    description: '',
+    location: '',
+    incident_datetime: '',
+  });
+
+  const loadComplaints = async () => {
+    try {
+      setLoading(true);
+      const data = await complaintsApi.listMine();
+      setItems(data);
+      setError('');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'خطا در دریافت لیست شکایات'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadComplaints();
+  }, []);
+
+  const sortedItems = useMemo(() => {
+    return [...items].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [items]);
+
+  const isSubmitter = (item: Complaint): boolean => {
+    return Boolean(currentUser?.id && item.submitter?.id === currentUser.id);
+  };
+
+  const canEdit = (item: Complaint): boolean => {
+    if (!isSubmitter(item)) return false;
+    if (item.status !== 'returned') return false;
+    return item.invalid_attempt_count < 3;
+  };
+
+  const openEdit = (item: Complaint) => {
+    setEditingItem(item);
+    setEditForm({
+      title: item.title,
+      description: item.description,
+      location: item.location,
+      incident_datetime: toLocalDateTime(item.incident_datetime),
+    });
+    setError('');
+    setSuccess('');
+  };
+
+  const closeEdit = () => {
+    setEditingItem(null);
+  };
+
+  const submitEdit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingItem) return;
+
+    if (!editForm.title.trim() || !editForm.description.trim() || !editForm.location.trim()) {
+      setError('تمام فیلدهای فرم ویرایش الزامی هستند.');
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+      setError('');
+      await complaintsApi.update(editingItem.id, {
+        title: editForm.title.trim(),
+        description: editForm.description.trim(),
+        location: editForm.location.trim(),
+        incident_datetime: toIsoString(editForm.incident_datetime),
+      });
+      setSuccess('شکایت با موفقیت اصلاح و دوباره ارسال شد.');
+      closeEdit();
+      await loadComplaints();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'ویرایش شکایت با خطا مواجه شد.'));
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const reasonText = (item: Complaint): string => {
+    const message = item.latest_review_message?.trim();
+    if (message) return message;
+    if (item.status === 'returned') return 'شکایت نیاز به تکمیل اطلاعات دارد.';
+    if (item.status === 'rejected') return 'شکایت رد شده است.';
+    return '-';
+  };
+
+  return (
+    <div className="citizen-complaints-page">
+      <div className="citizen-complaints-header">
+        <div>
+          <h1>پیگیری شکایات</h1>
+          <p>وضعیت شکایات ثبت‌شده خود را مشاهده و در صورت نیاز اصلاح کنید.</p>
+        </div>
+        <button
+          type="button"
+          className="new-complaint-btn"
+          onClick={() => navigate('/citizen/complaints/new')}
+        >
+          ثبت شکایت جدید
+        </button>
+      </div>
+
+      {(error || success) && (
+        <div className={`citizen-feedback ${error ? 'error' : 'success'}`}>
+          {error || success}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="citizen-loading">در حال بارگذاری شکایات...</div>
+      ) : sortedItems.length === 0 ? (
+        <div className="citizen-empty">
+          <h3>هنوز شکایتی ثبت نکرده‌اید.</h3>
+          <p>برای شروع، دکمه «ثبت شکایت جدید» را بزنید.</p>
+        </div>
+      ) : (
+        <div className="complaints-grid">
+          {sortedItems.map((item) => (
+            <article key={item.id} className="complaint-card">
+              <div className="complaint-card-header">
+                <h3>{item.title}</h3>
+                <span className={`status-badge ${statusClassMap[item.status] || ''}`}>
+                  {statusLabelMap[item.status] || item.status}
+                </span>
+              </div>
+
+              <p className="complaint-description">{item.description}</p>
+
+              <div className="complaint-meta">
+                <div>
+                  <span>مکان</span>
+                  <strong>{item.location}</strong>
+                </div>
+                <div>
+                  <span>زمان وقوع</span>
+                  <strong>{formatDate(item.incident_datetime)}</strong>
+                </div>
+                <div>
+                  <span>تعداد برگشت</span>
+                  <strong>{item.invalid_attempt_count} / 3</strong>
+                </div>
+                <div>
+                  <span>کد پرونده</span>
+                  <strong>{item.case ? `#${item.case}` : 'تشکیل نشده'}</strong>
+                </div>
+              </div>
+
+              {(item.status === 'returned' || item.status === 'rejected') && (
+                <div className="complaint-reason">
+                  <span>علت:</span>
+                  <p>{reasonText(item)}</p>
+                </div>
+              )}
+
+              <div className="complaint-actions">
+                {canEdit(item) ? (
+                  <button type="button" className="edit-btn" onClick={() => openEdit(item)}>
+                    ویرایش و ارسال مجدد
+                  </button>
+                ) : (
+                  <span className="read-only-note">
+                    {item.status === 'returned'
+                      ? 'فقط ثبت‌کننده اصلی امکان اصلاح دارد.'
+                      : 'این شکایت قابل ویرایش نیست.'}
+                  </span>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {editingItem && (
+        <div className="edit-modal-overlay" onClick={closeEdit}>
+          <div className="edit-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="edit-modal-header">
+              <h3>ویرایش شکایت</h3>
+              <button type="button" onClick={closeEdit} aria-label="بستن">
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={submitEdit} className="edit-form">
+              <label htmlFor="edit-title">عنوان</label>
+              <input
+                id="edit-title"
+                type="text"
+                value={editForm.title}
+                onChange={(event) =>
+                  setEditForm((prev) => ({ ...prev, title: event.target.value }))
+                }
+                disabled={savingEdit}
+                required
+              />
+
+              <label htmlFor="edit-description">شرح شکایت</label>
+              <textarea
+                id="edit-description"
+                rows={5}
+                value={editForm.description}
+                onChange={(event) =>
+                  setEditForm((prev) => ({ ...prev, description: event.target.value }))
+                }
+                disabled={savingEdit}
+                required
+              />
+
+              <label htmlFor="edit-location">مکان</label>
+              <input
+                id="edit-location"
+                type="text"
+                value={editForm.location}
+                onChange={(event) =>
+                  setEditForm((prev) => ({ ...prev, location: event.target.value }))
+                }
+                disabled={savingEdit}
+                required
+              />
+
+              <label htmlFor="edit-incident-datetime">زمان وقوع</label>
+              <input
+                id="edit-incident-datetime"
+                type="datetime-local"
+                value={editForm.incident_datetime}
+                onChange={(event) =>
+                  setEditForm((prev) => ({ ...prev, incident_datetime: event.target.value }))
+                }
+                disabled={savingEdit}
+                required
+              />
+
+              <div className="edit-form-actions">
+                <button type="button" className="cancel-btn" onClick={closeEdit} disabled={savingEdit}>
+                  انصراف
+                </button>
+                <button type="submit" className="save-btn" disabled={savingEdit}>
+                  {savingEdit ? 'در حال ارسال...' : 'ثبت اصلاحات'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CitizenComplaints;

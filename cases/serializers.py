@@ -107,6 +107,8 @@ class CaseSerializer(serializers.ModelSerializer):
 class ComplaintSerializer(serializers.ModelSerializer):
     submitter = UserBriefSerializer(read_only=True)
     complainants = UserBriefSerializer(many=True, read_only=True)
+    latest_review_decision = serializers.SerializerMethodField(read_only=True)
+    latest_review_message = serializers.SerializerMethodField(read_only=True)
     complainant_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=User.objects.all(),
@@ -126,6 +128,8 @@ class ComplaintSerializer(serializers.ModelSerializer):
             "incident_datetime",
             "status",
             "invalid_attempt_count",
+            "latest_review_decision",
+            "latest_review_message",
             "complainants",
             "complainant_ids",
             "created_at",
@@ -147,6 +151,22 @@ class ComplaintSerializer(serializers.ModelSerializer):
         initial_complainants.update(complainants)
         complaint.complainants.set(initial_complainants)
         return complaint
+
+    def _latest_review(self, obj):
+        prefetched = getattr(obj, "_prefetched_objects_cache", {}).get("reviews")
+        if prefetched is not None:
+            if not prefetched:
+                return None
+            return max(prefetched, key=lambda review: review.created_at)
+        return obj.reviews.order_by("-created_at").first()
+
+    def get_latest_review_decision(self, obj):
+        review = self._latest_review(obj)
+        return review.decision if review else None
+
+    def get_latest_review_message(self, obj):
+        review = self._latest_review(obj)
+        return review.message if review and review.message else ""
 
 
 class ComplaintReviewSerializer(serializers.ModelSerializer):
