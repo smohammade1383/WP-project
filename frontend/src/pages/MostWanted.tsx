@@ -1,19 +1,210 @@
+import { useEffect, useMemo, useState } from 'react';
+import { peopleApi, type WantedPerson } from '../services';
+import './MostWanted.css';
+
+const severityLabel = (level: number) => {
+  switch (level) {
+    case 4:
+      return 'بحرانی';
+    case 3:
+      return 'سطح ۱';
+    case 2:
+      return 'سطح ۲';
+    case 1:
+      return 'سطح ۳';
+    default:
+      return 'نامشخص';
+  }
+};
+
+const severityClass = (level: number) => {
+  switch (level) {
+    case 4:
+      return 'critical';
+    case 3:
+      return 'level-1';
+    case 2:
+      return 'level-2';
+    case 1:
+      return 'level-3';
+    default:
+      return 'unknown';
+  }
+};
+
+const formatNumber = (value: number) => value.toLocaleString('fa-IR');
+
+const getDisplayName = (person: WantedPerson['suspect']) => {
+  if (person.full_name && person.full_name.trim()) return person.full_name;
+  const fallback = `${person.first_name || ''} ${person.last_name || ''}`.trim();
+  return fallback || person.username;
+};
+
 const MostWanted = () => {
+  const [wanted, setWanted] = useState<WantedPerson[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [severity, setSeverity] = useState<number | 'all'>('all');
+  const [minDays, setMinDays] = useState('');
+
+  useEffect(() => {
+    const fetchWanted = async () => {
+      try {
+        setLoading(true);
+        const data = await peopleApi.getWantedList();
+        setWanted(data);
+        setError('');
+      } catch (err: any) {
+        setError(err.message || 'خطا در دریافت لیست افراد تحت پیگیری شدید');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWanted();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    const minDaysValue = minDays ? Number(minDays) : 0;
+
+    return wanted.filter((item) => {
+      const name = getDisplayName(item.suspect).toLowerCase();
+      const matchesQuery =
+        !term ||
+        name.includes(term) ||
+        item.suspect.national_id.includes(term) ||
+        item.suspect.username.toLowerCase().includes(term);
+
+      const matchesSeverity = severity === 'all' || item.case_severity === severity;
+      const matchesDays = minDaysValue === 0 || item.wanted_days >= minDaysValue;
+
+      return matchesQuery && matchesSeverity && matchesDays;
+    });
+  }, [wanted, query, severity, minDays]);
+
   return (
-    <div style={{ padding: '2rem', direction: 'rtl', textAlign: 'right' }}>
-      <h1>⚠️ تحت پیگیری شدید</h1>
-      <p>مظنونان و مجرمان تحت تعقیب</p>
-      <div style={{ 
-        background: 'white', 
-        padding: '2rem', 
-        borderRadius: '8px', 
-        marginTop: '2rem',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        border: '2px solid #e74c3c'
-      }}>
-        <h3>این صفحه در حال توسعه است</h3>
-        <p>لیست مجرمان و مظنونان با سطح خطر بالا در اینجا نمایش داده خواهد شد.</p>
+    <div className="most-wanted-page">
+      <div className="most-wanted-header">
+        <div>
+          <h1>⚠️ تحت پیگیری شدید</h1>
+          <p>لیست مظنونان و مجرمان تحت تعقیب با جزئیات کامل</p>
+        </div>
+        <div className="wanted-count">
+          <span>تعداد کل</span>
+          <strong>{formatNumber(wanted.length)}</strong>
+        </div>
       </div>
+
+      <div className="most-wanted-filters">
+        <div className="filter-group">
+          <label htmlFor="wanted-search">جستجو</label>
+          <input
+            id="wanted-search"
+            type="text"
+            placeholder="نام، کد ملی یا نام کاربری"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+        <div className="filter-group">
+          <label htmlFor="wanted-severity">شدت جرم</label>
+          <select
+            id="wanted-severity"
+            value={severity}
+            onChange={(event) =>
+              setSeverity(event.target.value === 'all' ? 'all' : Number(event.target.value))
+            }
+          >
+            <option value="all">همه</option>
+            <option value="4">بحرانی</option>
+            <option value="3">سطح ۱</option>
+            <option value="2">سطح ۲</option>
+            <option value="1">سطح ۳</option>
+          </select>
+        </div>
+        <div className="filter-group">
+          <label htmlFor="wanted-days">حداقل روز تعقیب</label>
+          <input
+            id="wanted-days"
+            type="number"
+            min="0"
+            placeholder="مثلاً 30"
+            value={minDays}
+            onChange={(event) => setMinDays(event.target.value)}
+          />
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="wanted-grid">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="wanted-card skeleton">
+              <div className="wanted-photo skeleton-block" />
+              <div className="wanted-body">
+                <div className="skeleton-line" />
+                <div className="skeleton-line short" />
+                <div className="skeleton-line" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="wanted-error">
+          <h3>خطا</h3>
+          <p>{error}</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="wanted-empty">
+          <div className="empty-icon">🔍</div>
+          <h2>موردی یافت نشد</h2>
+          <p>با فیلترهای فعلی هیچ فردی در لیست وجود ندارد.</p>
+        </div>
+      ) : (
+        <div className="wanted-grid">
+          {filtered.map((item) => (
+            <div key={item.id} className={`wanted-card ${severityClass(item.case_severity)}`}>
+              <div className="wanted-photo">
+                {item.public_photo ? (
+                  <img src={item.public_photo} alt={getDisplayName(item.suspect)} />
+                ) : (
+                  <div className="photo-placeholder">
+                    {getDisplayName(item.suspect).slice(0, 1)}
+                  </div>
+                )}
+              </div>
+              <div className="wanted-body">
+                <div className="wanted-title">
+                  <h3>{getDisplayName(item.suspect)}</h3>
+                  <span className={`severity-tag ${severityClass(item.case_severity)}`}>
+                    {severityLabel(item.case_severity)}
+                  </span>
+                </div>
+                <p className="wanted-details">{item.public_details || 'جزئیات عمومی ثبت نشده است.'}</p>
+                <div className="wanted-meta">
+                  <div>
+                    <span>روزهای تعقیب</span>
+                    <strong>{formatNumber(item.wanted_days)}</strong>
+                  </div>
+                  <div>
+                    <span>امتیاز تعقیب</span>
+                    <strong>{formatNumber(item.ranking_score)}</strong>
+                  </div>
+                  <div>
+                    <span>مبلغ پاداش (ریال)</span>
+                    <strong>{formatNumber(item.reward_amount)}</strong>
+                  </div>
+                </div>
+                <div className="wanted-footer">
+                  <span>کد ملی: {item.suspect.national_id}</span>
+                  <span>پرونده #{item.case_id}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

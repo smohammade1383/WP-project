@@ -11,3 +11,5 @@ export { ErrorHandler } from './error.handler';
 export type { ApiError } from './error.handler';
 export { statsApi } from './stats.api';
 export type { AggregatedStats } from './stats.api';
+export { peopleApi } from './people.api';
+export type { PublicPerson, WantedPerson } from './people.api';
