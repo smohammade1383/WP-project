@@ -8,6 +8,7 @@ import DetectiveBoard from './pages/DetectiveBoard';
 import Cases from './pages/Cases';
 import Complaints from './pages/Complaints';
 import MostWanted from './pages/MostWanted';
+import MostWantedDetail from './pages/MostWantedDetail';
 import Evidence from './pages/Evidence';
 import Reports from './pages/Reports';
 import Profile from './pages/Profile';
@@ -55,6 +56,10 @@ export const router = createBrowserRouter([
       {
         path: 'most-wanted',
         element: <MostWanted />,
+      },
+      {
+        path: 'most-wanted/:suspectId',
+        element: <MostWantedDetail />,
       },
       {
         path: 'evidence',

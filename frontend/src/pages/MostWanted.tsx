@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { peopleApi, type WantedPerson } from '../services';
 import './MostWanted.css';
 
@@ -41,6 +42,7 @@ const getDisplayName = (person: WantedPerson['suspect']) => {
 };
 
 const MostWanted = () => {
+  const navigate = useNavigate();
   const [wanted, setWanted] = useState<WantedPerson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -163,7 +165,7 @@ const MostWanted = () => {
         </div>
       ) : (
         <div className="wanted-grid">
-          {filtered.map((item) => (
+              {filtered.map((item) => (
             <div key={item.id} className={`wanted-card ${severityClass(item.case_severity)}`}>
               <div className="wanted-photo">
                 {item.public_photo ? (
@@ -199,6 +201,14 @@ const MostWanted = () => {
                 <div className="wanted-footer">
                   <span>کد ملی: {item.suspect.national_id}</span>
                   <span>پرونده #{item.case_id}</span>
+                </div>
+                <div className="wanted-actions">
+                  <button
+                    className="wanted-detail-btn"
+                    onClick={() => navigate(`/most-wanted/${item.suspect.id}`)}
+                  >
+                    مشاهده جزئیات
+                  </button>
                 </div>
               </div>
             </div>

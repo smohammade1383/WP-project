@@ -208,6 +208,28 @@
   color: #6b7280;
 }
 
+.wanted-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.wanted-detail-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wanted-detail-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
 .wanted-card.critical {
   border-color: rgba(239, 68, 68, 0.4);
 }
@@ -305,5 +327,9 @@
 
   .wanted-footer {
     flex-direction: column;
+  }
+
+  .wanted-actions {
+    justify-content: flex-start;
   }
 }
