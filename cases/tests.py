@@ -86,7 +86,7 @@ class CaseFlowAPITests(APITestCase):
             format="json",
         )
         self.assertEqual(cadet_resp.status_code, status.HTTP_200_OK)
-        case_id = cadet_resp.data["complaint"]["case"]
+        self.assertIsNone(cadet_resp.data["complaint"]["case"])
 
         self.client.force_authenticate(officer)
         officer_resp = self.client.post(
@@ -95,6 +95,7 @@ class CaseFlowAPITests(APITestCase):
             format="json",
         )
         self.assertEqual(officer_resp.status_code, status.HTTP_200_OK)
+        case_id = officer_resp.data["case"]["id"]
 
         case_obj = Case.objects.get(id=case_id)
         complaint = Complaint.objects.get(id=complaint_id)

@@ -14,7 +14,13 @@ export type { AggregatedStats } from './stats.api';
 export { peopleApi } from './people.api';
 export type { PublicPerson, WantedPerson } from './people.api';
 export { complaintsApi } from './complaints.api';
-export type { Complaint, ComplaintStatus } from './complaints.api';
+export type {
+  Complaint,
+  ComplaintStatus,
+  ComplaintDecision,
+  ComplaintDecisionRequest,
+  ComplaintDecisionResponse,
+} from './complaints.api';
 export { rewardsApi } from './rewards.api';
 export type { RewardReport, RewardReportStatus } from './rewards.api';
 export { usersApi } from './users.api';

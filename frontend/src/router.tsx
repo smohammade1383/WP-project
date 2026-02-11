@@ -23,6 +23,7 @@ import PlaceholderPage from './pages/PlaceholderPage';
 import CitizenComplaints from './pages/CitizenComplaints';
 import CitizenComplaintNew from './pages/CitizenComplaintNew';
 import CitizenRewards from './pages/CitizenRewards';
+import CadetComplaintsInbox from './pages/CadetComplaintsInbox';
 
 export const router = createBrowserRouter([
   {
@@ -119,13 +120,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'cadet/complaints',
-        element: (
-          <PlaceholderPage
-            icon="📥"
-            title="شکایات دریافتی"
-            description="بررسی شکایات جدید شهروندان"
-          />
-        ),
+        element: <CadetComplaintsInbox />,
       },
       {
         path: 'officer/complaints',

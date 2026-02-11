@@ -291,9 +291,11 @@ class ComplaintCadetReviewAPIView(APIView):
                 complaint.case.status = Case.Status.VOID
                 complaint.case.save(update_fields=["status", "updated_at"])
         else:
-            case_obj = ensure_case_from_complaint(complaint)
-            case_obj.status = Case.Status.PENDING_OFFICER
-            case_obj.save(update_fields=["status", "updated_at"])
+            # Cadet approval only advances the complaint to officer review.
+            # Case creation must happen only after officer approval.
+            if complaint.case_id:
+                complaint.case.status = Case.Status.PENDING_OFFICER
+                complaint.case.save(update_fields=["status", "updated_at"])
 
         return Response(
             {
@@ -354,8 +356,9 @@ class ComplaintOfficerReviewAPIView(APIView):
         )
         review.save()
 
-        case_obj = ensure_case_from_complaint(complaint)
+        case_obj = complaint.case
         if decision == ComplaintReview.Decision.APPROVED:
+            case_obj = ensure_case_from_complaint(complaint)
             complaint.status = Complaint.Status.APPROVED
             complaint.save(update_fields=["status", "updated_at"])
             case_obj.status = Case.Status.OPEN
@@ -364,17 +367,19 @@ class ComplaintOfficerReviewAPIView(APIView):
         elif decision == ComplaintReview.Decision.RETURNED:
             complaint.status = Complaint.Status.RETURNED
             complaint.save(update_fields=["status", "updated_at"])
-            case_obj.status = Case.Status.PENDING_CADET
-            case_obj.save(update_fields=["status", "updated_at"])
+            if case_obj:
+                case_obj.status = Case.Status.PENDING_CADET
+                case_obj.save(update_fields=["status", "updated_at"])
         else:
             complaint.status = Complaint.Status.REJECTED
             complaint.save(update_fields=["status", "updated_at"])
-            case_obj.status = Case.Status.VOID
-            case_obj.save(update_fields=["status", "updated_at"])
+            if case_obj:
+                case_obj.status = Case.Status.VOID
+                case_obj.save(update_fields=["status", "updated_at"])
 
         return Response(
             {
-                "case": CaseSerializer(case_obj, context={"request": request}).data,
+                "case": CaseSerializer(case_obj, context={"request": request}).data if case_obj else None,
                 "complaint": ComplaintSerializer(complaint, context={"request": request}).data,
                 "review": ComplaintReviewSerializer(review).data,
             }
