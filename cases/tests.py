@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from cases.models import Case, Complaint, SuspectCaseProfile
+from cases.models import Case, Complaint, CrimeSceneWitness, SecondaryComplainant, SuspectCaseProfile
 from users.models import User
 
 
@@ -102,6 +102,76 @@ class CaseFlowAPITests(APITestCase):
         self.assertEqual(case_obj.status, Case.Status.OPEN)
         self.assertEqual(case_obj.approved_by_id, officer.id)
         self.assertEqual(complaint.status, Complaint.Status.APPROVED)
+
+    def test_secondary_complainant_request_and_cadet_verification(self):
+        citizen = self._create_user("citizen_secondary_1")
+        secondary_user = self._create_user("citizen_secondary_2")
+        cadet = self._create_user("cadet_secondary", roles=["Cadet"])
+
+        self.client.force_authenticate(citizen)
+        create_resp = self.client.post(
+            reverse("complaint-list-create"),
+            {
+                "title": "Complaint with secondary",
+                "description": "Need additional complainant",
+                "location": "Block S",
+                "incident_datetime": timezone.now().isoformat(),
+            },
+            format="json",
+        )
+        complaint_id = create_resp.data["id"]
+
+        request_resp = self.client.post(
+            reverse("complaint-secondary-complainants-request", kwargs={"complaint_id": complaint_id}),
+            {"complainant_ids": [secondary_user.id]},
+            format="json",
+        )
+        self.assertEqual(request_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(request_resp.data[0]["status"], SecondaryComplainant.Status.PENDING)
+
+        self.client.force_authenticate(cadet)
+        list_resp = self.client.get(
+            reverse("complaint-secondary-complainants", kwargs={"complaint_id": complaint_id})
+        )
+        self.assertEqual(list_resp.status_code, status.HTTP_200_OK)
+        entry_id = list_resp.data[0]["id"]
+
+        approve_resp = self.client.post(
+            reverse(
+                "complaint-secondary-complainants-review",
+                kwargs={"complaint_id": complaint_id, "entry_id": entry_id},
+            ),
+            {"decision": "approved", "message": "Identity verified."},
+            format="json",
+        )
+        self.assertEqual(approve_resp.status_code, status.HTTP_200_OK)
+
+        complaint = Complaint.objects.get(id=complaint_id)
+        self.assertTrue(complaint.complainants.filter(id=secondary_user.id).exists())
+
+    def test_crime_scene_creation_stores_local_witness_contacts(self):
+        officer = self._create_user("officer_local_witness", roles=["Police Officer"])
+        self.client.force_authenticate(officer)
+
+        create_resp = self.client.post(
+            reverse("crime-scene-create"),
+            {
+                "title": "Street robbery",
+                "description": "Reported by local witnesses",
+                "location": "Zone W",
+                "incident_datetime": timezone.now().isoformat(),
+                "severity": Case.Severity.LEVEL_2,
+                "local_witnesses": [
+                    {"full_name": "Witness One", "national_id": "1234567890", "phone_number": "09120000001"},
+                    {"full_name": "Witness Two", "national_id": "1234567891", "phone_number": "09120000002"},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(create_resp.status_code, status.HTTP_201_CREATED)
+        case_id = create_resp.data["id"]
+        self.assertEqual(len(create_resp.data["local_witnesses"]), 2)
+        self.assertEqual(CrimeSceneWitness.objects.filter(case_id=case_id).count(), 2)
 
     def test_crime_scene_creation_by_officer_requires_approval(self):
         officer = self._create_user("officer2", roles=["Police Officer"])

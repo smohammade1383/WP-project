@@ -15,10 +15,12 @@ from .models import (
     Case,
     CaseLog,
     CaptainDecision,
+    CrimeSceneWitness,
     Complaint,
     ComplaintReview,
     DetectiveBoard,
     InterrogationScore,
+    SecondaryComplainant,
     SuspectCaseProfile,
 )
 from .permissions import CanViewAggregatedStats
@@ -39,6 +41,9 @@ from .serializers import (
     DetectiveBoardSerializer,
     InterrogationScoreSerializer,
     SergeantDecisionSerializer,
+    SecondaryComplainantRequestSerializer,
+    SecondaryComplainantReviewSerializer,
+    SecondaryComplainantSerializer,
     SuspectCaseProfileSerializer,
     SuspectNominationSerializer,
     WantedUpdateSerializer,
@@ -106,7 +111,13 @@ def case_queryset_for_user(user):
 
 
 def complaint_queryset_for_user(user):
-    base = Complaint.objects.all().prefetch_related("complainants", "reviews")
+    base = Complaint.objects.all().prefetch_related(
+        "complainants",
+        "reviews",
+        "secondary_complainants__user",
+        "secondary_complainants__requested_by",
+        "secondary_complainants__reviewed_by",
+    )
     if is_police_staff(user):
         return base
     return base.filter(Q(submitter=user) | Q(complainants=user)).distinct()
@@ -237,10 +248,132 @@ class ComplaintAddComplainantsAPIView(APIView):
         complaint = get_object_or_404(Complaint, id=complaint_id)
         serializer = AddComplainantsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        complaint.complainants.add(*serializer.validated_data["complainant_ids"])
+        to_add = []
+        for complainant_user in serializer.validated_data["complainant_ids"]:
+            if complainant_user.id == complaint.submitter_id:
+                continue
+            to_add.append(complainant_user)
+            secondary, _ = SecondaryComplainant.objects.get_or_create(
+                complaint=complaint,
+                user=complainant_user,
+            )
+            secondary.status = SecondaryComplainant.Status.APPROVED
+            secondary.reviewed_by = request.user
+            secondary.review_message = ""
+            secondary.save(update_fields=["status", "reviewed_by", "review_message", "updated_at"])
+
+        if to_add:
+            complaint.complainants.add(*to_add)
         if complaint.case_id:
             complaint.case.complainants.add(*complaint.complainants.all())
         return Response(ComplaintSerializer(complaint, context={"request": request}).data)
+
+
+@extend_schema(
+    tags=["Complaints"],
+    summary="List secondary complainants",
+    request=None,
+    responses={200: SecondaryComplainantSerializer(many=True)},
+)
+class ComplaintSecondaryComplainantListAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, complaint_id):
+        complaint = get_object_or_404(complaint_queryset_for_user(request.user), id=complaint_id)
+        entries = complaint.secondary_complainants.select_related("user", "requested_by", "reviewed_by").all()
+        return Response(SecondaryComplainantSerializer(entries, many=True).data)
+
+
+@extend_schema(
+    tags=["Complaints"],
+    summary="Submit secondary complainant request",
+    request=SecondaryComplainantRequestSerializer,
+    responses={200: SecondaryComplainantSerializer(many=True)},
+)
+class ComplaintSecondaryComplainantRequestAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, complaint_id):
+        complaint = get_object_or_404(Complaint, id=complaint_id)
+        if complaint.submitter_id != request.user.id:
+            raise PermissionDenied("Only the complaint submitter can request secondary complainants.")
+
+        serializer = SecondaryComplainantRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        results = []
+        for complainant_user in serializer.validated_data["complainant_ids"]:
+            if complainant_user.id == complaint.submitter_id:
+                continue
+            entry, _ = SecondaryComplainant.objects.get_or_create(
+                complaint=complaint,
+                user=complainant_user,
+                defaults={"requested_by": request.user},
+            )
+            if entry.status != SecondaryComplainant.Status.APPROVED:
+                entry.status = SecondaryComplainant.Status.PENDING
+                entry.requested_by = request.user
+                entry.reviewed_by = None
+                entry.review_message = ""
+                entry.save(
+                    update_fields=[
+                        "status",
+                        "requested_by",
+                        "reviewed_by",
+                        "review_message",
+                        "updated_at",
+                    ]
+                )
+            results.append(entry)
+
+        return Response(SecondaryComplainantSerializer(results, many=True).data)
+
+
+@extend_schema(
+    tags=["Complaints"],
+    summary="Cadet approves/rejects a secondary complainant",
+    request=SecondaryComplainantReviewSerializer,
+    responses={200: OpenApiTypes.OBJECT},
+)
+class ComplaintSecondaryComplainantReviewAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, complaint_id, entry_id):
+        if not has_any_role(request.user, "Cadet", "Administrator"):
+            raise PermissionDenied("Only cadet-level roles can review secondary complainants.")
+
+        complaint = get_object_or_404(Complaint, id=complaint_id)
+        entry = get_object_or_404(
+            SecondaryComplainant.objects.select_related("user"),
+            id=entry_id,
+            complaint=complaint,
+        )
+        serializer = SecondaryComplainantReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        decision = serializer.validated_data["decision"]
+        message = serializer.validated_data.get("message", "")
+
+        if decision == "approved":
+            entry.status = SecondaryComplainant.Status.APPROVED
+            complaint.complainants.add(entry.user)
+            if complaint.case_id:
+                complaint.case.complainants.add(entry.user)
+        else:
+            entry.status = SecondaryComplainant.Status.REJECTED
+            complaint.complainants.remove(entry.user)
+            if complaint.case_id:
+                complaint.case.complainants.remove(entry.user)
+
+        entry.reviewed_by = request.user
+        entry.review_message = message
+        entry.save(update_fields=["status", "reviewed_by", "review_message", "updated_at"])
+
+        return Response(
+            {
+                "entry": SecondaryComplainantSerializer(entry).data,
+                "complaint": ComplaintSerializer(complaint, context={"request": request}).data,
+            }
+        )
 
 
 @extend_schema(
@@ -411,6 +544,7 @@ class CrimeSceneCaseCreateAPIView(APIView):
         serializer = CrimeSceneCaseCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         witness_ids = serializer.validated_data.pop("witness_ids", [])
+        local_witnesses = serializer.validated_data.pop("local_witnesses", [])
 
         case_obj = Case.objects.create(
             source_type=Case.SourceType.CRIME_SCENE,
@@ -421,6 +555,13 @@ class CrimeSceneCaseCreateAPIView(APIView):
         )
         if witness_ids:
             case_obj.witnesses.set(witness_ids)
+        for witness_data in local_witnesses:
+            CrimeSceneWitness.objects.get_or_create(
+                case=case_obj,
+                national_id=witness_data["national_id"],
+                phone_number=witness_data["phone_number"],
+                defaults={"full_name": witness_data.get("full_name", "")},
+            )
 
         return Response(CaseSerializer(case_obj, context={"request": request}).data, status=status.HTTP_201_CREATED)
 

@@ -1,0 +1,142 @@
+.legal-bail-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem;
+  direction: rtl;
+  text-align: right;
+}
+
+.legal-bail-header h1 {
+  margin: 0 0 0.45rem;
+  color: #111827;
+}
+
+.legal-bail-header p {
+  margin: 0 0 1rem;
+  color: #4b5563;
+}
+
+.legal-bail-feedback {
+  border-radius: 12px;
+  padding: 0.75rem 0.95rem;
+  margin-bottom: 1rem;
+  font-size: 0.92rem;
+}
+
+.legal-bail-feedback.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.legal-bail-feedback.success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #166534;
+}
+
+.legal-bail-loading,
+.legal-bail-empty {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+}
+
+.legal-bail-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.legal-bail-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.legal-bail-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.legal-bail-card-header h3 {
+  margin: 0;
+}
+
+.legal-state-badge {
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.legal-state-badge.free {
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.legal-state-badge.detained {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.legal-state-badge.pending_bail {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.legal-bail-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.7rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.legal-bail-meta span {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.legal-bail-meta strong {
+  color: #111827;
+}
+
+.legal-bail-actions {
+  margin-top: 0.85rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pay-btn {
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #fff;
+  padding: 0.55rem 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pay-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.pay-note {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .legal-bail-page {
+    padding: 1rem;
+  }
+}

@@ -76,6 +76,9 @@ const CitizenComplaints = () => {
     location: '',
     incident_datetime: '',
   });
+  const [secondaryRequestTarget, setSecondaryRequestTarget] = useState<Complaint | null>(null);
+  const [secondaryRequestIds, setSecondaryRequestIds] = useState('');
+  const [secondaryRequestLoading, setSecondaryRequestLoading] = useState(false);
 
   const loadComplaints = async () => {
     try {
@@ -162,6 +165,56 @@ const CitizenComplaints = () => {
     return '-';
   };
 
+  const remainingAttempts = (item: Complaint): number => {
+    return Math.max(0, 3 - item.invalid_attempt_count);
+  };
+
+  const parseUserIds = (raw: string): number[] => {
+    return raw
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0);
+  };
+
+  const openSecondaryRequest = (item: Complaint) => {
+    setSecondaryRequestTarget(item);
+    setSecondaryRequestIds('');
+    setError('');
+    setSuccess('');
+  };
+
+  const closeSecondaryRequest = () => {
+    setSecondaryRequestTarget(null);
+    setSecondaryRequestIds('');
+  };
+
+  const submitSecondaryRequest = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!secondaryRequestTarget) return;
+    const ids = parseUserIds(secondaryRequestIds);
+    if (ids.length === 0) {
+      setError('برای درخواست شاکی فرعی، شناسه کاربری معتبر وارد کنید.');
+      return;
+    }
+
+    try {
+      setSecondaryRequestLoading(true);
+      setError('');
+      await complaintsApi.requestSecondaryComplainants(secondaryRequestTarget.id, {
+        complainant_ids: ids,
+      });
+      setSuccess('درخواست بررسی شاکی(های) فرعی برای کارآموز ثبت شد.');
+      closeSecondaryRequest();
+      await loadComplaints();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'ثبت درخواست شاکی فرعی با خطا مواجه شد.'));
+    } finally {
+      setSecondaryRequestLoading(false);
+    }
+  };
+
   return (
     <div className="citizen-complaints-page">
       <div className="citizen-complaints-header">
@@ -218,10 +271,20 @@ const CitizenComplaints = () => {
                   <strong>{item.invalid_attempt_count} / 3</strong>
                 </div>
                 <div>
+                  <span>فرصت باقی‌مانده تا ابطال</span>
+                  <strong>{remainingAttempts(item)} از 3</strong>
+                </div>
+                <div>
                   <span>کد پرونده</span>
                   <strong>{item.case ? `#${item.case}` : 'تشکیل نشده'}</strong>
                 </div>
               </div>
+
+              {remainingAttempts(item) <= 1 && item.status !== 'void' && (
+                <div className="complaint-risk">
+                  هشدار: با {remainingAttempts(item)} تلاش باقی‌مانده، در صورت ثبت اطلاعات ناقص شکایت باطل می‌شود.
+                </div>
+              )}
 
               {(item.status === 'returned' || item.status === 'rejected') && (
                 <div className="complaint-reason">
@@ -231,17 +294,28 @@ const CitizenComplaints = () => {
               )}
 
               <div className="complaint-actions">
-                {canEdit(item) ? (
-                  <button type="button" className="edit-btn" onClick={() => openEdit(item)}>
-                    ویرایش و ارسال مجدد
-                  </button>
-                ) : (
-                  <span className="read-only-note">
-                    {item.status === 'returned'
-                      ? 'فقط ثبت‌کننده اصلی امکان اصلاح دارد.'
-                      : 'این شکایت قابل ویرایش نیست.'}
-                  </span>
-                )}
+                <div className="complaint-actions-row">
+                  {canEdit(item) ? (
+                    <button type="button" className="edit-btn" onClick={() => openEdit(item)}>
+                      ویرایش و ارسال مجدد
+                    </button>
+                  ) : (
+                    <span className="read-only-note">
+                      {item.status === 'returned'
+                        ? 'فقط ثبت‌کننده اصلی امکان اصلاح دارد.'
+                        : 'این شکایت قابل ویرایش نیست.'}
+                    </span>
+                  )}
+                  {isSubmitter(item) && item.status !== 'void' && (
+                    <button
+                      type="button"
+                      className="secondary-btn-inline"
+                      onClick={() => openSecondaryRequest(item)}
+                    >
+                      درخواست شاکی فرعی
+                    </button>
+                  )}
+                </div>
               </div>
             </article>
           ))}
@@ -313,6 +387,39 @@ const CitizenComplaints = () => {
                 </button>
                 <button type="submit" className="save-btn" disabled={savingEdit}>
                   {savingEdit ? 'در حال ارسال...' : 'ثبت اصلاحات'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {secondaryRequestTarget && (
+        <div className="edit-modal-overlay" onClick={closeSecondaryRequest}>
+          <div className="edit-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="edit-modal-header">
+              <h3>درخواست شاکی فرعی برای شکایت #{secondaryRequestTarget.id}</h3>
+              <button type="button" onClick={closeSecondaryRequest} aria-label="بستن">
+                ×
+              </button>
+            </div>
+            <form onSubmit={submitSecondaryRequest} className="edit-form">
+              <label htmlFor="secondary-ids">شناسه کاربران (با کاما جدا کنید)</label>
+              <input
+                id="secondary-ids"
+                type="text"
+                placeholder="مثال: 12, 18"
+                value={secondaryRequestIds}
+                onChange={(event) => setSecondaryRequestIds(event.target.value)}
+                disabled={secondaryRequestLoading}
+                required
+              />
+              <div className="edit-form-actions">
+                <button type="button" className="cancel-btn" onClick={closeSecondaryRequest}>
+                  انصراف
+                </button>
+                <button type="submit" className="save-btn" disabled={secondaryRequestLoading}>
+                  {secondaryRequestLoading ? 'در حال ثبت...' : 'ارسال درخواست'}
                 </button>
               </div>
             </form>

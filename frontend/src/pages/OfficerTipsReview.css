@@ -1,0 +1,171 @@
+.officer-tips-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem;
+  direction: rtl;
+  text-align: right;
+}
+
+.officer-tips-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.officer-tips-header h1 {
+  margin: 0 0 0.45rem;
+  color: #111827;
+}
+
+.officer-tips-header p {
+  margin: 0;
+  color: #4b5563;
+}
+
+.tips-summary {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+  border-radius: 12px;
+  padding: 0.65rem 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tips-feedback {
+  border-radius: 12px;
+  padding: 0.75rem 0.95rem;
+  margin-bottom: 1rem;
+  font-size: 0.92rem;
+}
+
+.tips-feedback.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.tips-feedback.success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #166534;
+}
+
+.tips-loading,
+.tips-empty {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+}
+
+.tips-empty h3 {
+  margin-top: 0;
+}
+
+.tips-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.tip-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.tip-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.tip-card-header h3 {
+  margin: 0;
+}
+
+.tip-status {
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.tip-description {
+  margin: 0.75rem 0;
+  color: #374151;
+  line-height: 1.65;
+}
+
+.tip-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.7rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 0.7rem;
+}
+
+.tip-meta span {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.tip-meta strong {
+  color: #111827;
+}
+
+.tip-actions {
+  margin-top: 0.8rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.tip-forward-btn,
+.tip-reject-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tip-forward-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
+}
+
+.tip-reject-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+}
+
+.tip-forward-btn:disabled,
+.tip-reject-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .officer-tips-page {
+    padding: 1rem;
+  }
+
+  .officer-tips-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tips-summary {
+    text-align: center;
+  }
+}

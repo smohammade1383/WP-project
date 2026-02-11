@@ -24,6 +24,10 @@ import CitizenComplaints from './pages/CitizenComplaints';
 import CitizenComplaintNew from './pages/CitizenComplaintNew';
 import CitizenRewards from './pages/CitizenRewards';
 import CadetComplaintsInbox from './pages/CadetComplaintsInbox';
+import OfficerComplaintsApproval from './pages/OfficerComplaintsApproval';
+import OfficerTipsReview from './pages/OfficerTipsReview';
+import OfficerCrimeSceneCreate from './pages/OfficerCrimeSceneCreate';
+import LegalBailStatus from './pages/LegalBailStatus';
 
 export const router = createBrowserRouter([
   {
@@ -124,33 +128,19 @@ export const router = createBrowserRouter([
       },
       {
         path: 'officer/complaints',
-        element: (
-          <PlaceholderPage
-            icon="✅"
-            title="تایید نهایی شکایات"
-            description="بررسی شکایات تایید شده توسط کارآموز"
-          />
-        ),
+        element: <OfficerComplaintsApproval />,
       },
       {
         path: 'officer/tips',
-        element: (
-          <PlaceholderPage
-            icon="📣"
-            title="گزارش‌های مردمی"
-            description="بررسی گزارش‌های شهروندان درباره مظنونین"
-          />
-        ),
+        element: <OfficerTipsReview />,
       },
       {
         path: 'officer/crime-scene',
-        element: (
-          <PlaceholderPage
-            icon="🚨"
-            title="ثبت سریع صحنه جرم"
-            description="ثبت صحنه جرم بدون شاکی"
-          />
-        ),
+        element: <OfficerCrimeSceneCreate />,
+      },
+      {
+        path: 'legal-bail',
+        element: <LegalBailStatus />,
       },
       {
         path: 'detective/cases',

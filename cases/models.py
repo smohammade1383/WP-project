@@ -96,6 +96,18 @@ class Case(models.Model):
         self.save(update_fields=["status", "updated_at"])
 
 
+class CrimeSceneWitness(models.Model):
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="local_witnesses")
+    full_name = models.CharField(max_length=150, blank=True)
+    national_id = models.CharField(max_length=10)
+    phone_number = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("case", "national_id", "phone_number")
+        ordering = ["id"]
+
+
 class Complaint(models.Model):
     class Status(models.TextChoices):
         SUBMITTED = "submitted", _("Submitted")
@@ -152,6 +164,38 @@ class ComplaintReview(models.Model):
         if self.decision == self.Decision.RETURNED and not self.message.strip():
             raise ValidationError("Returned review must include a message.")
         super().save(*args, **kwargs)
+
+
+class SecondaryComplainant(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Pending")
+        APPROVED = "approved", _("Approved")
+        REJECTED = "rejected", _("Rejected")
+
+    complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name="secondary_complainants")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="secondary_complaints")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="requested_secondary_complainants",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_secondary_complainants",
+    )
+    review_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("complaint", "user")
+        ordering = ["-created_at"]
 
 
 class CaseLog(models.Model):

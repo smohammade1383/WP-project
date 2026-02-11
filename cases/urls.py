@@ -17,6 +17,9 @@ from .views import (
     ComplaintCadetReviewAPIView,
     ComplaintListCreateAPIView,
     ComplaintOfficerReviewAPIView,
+    ComplaintSecondaryComplainantListAPIView,
+    ComplaintSecondaryComplainantRequestAPIView,
+    ComplaintSecondaryComplainantReviewAPIView,
     ComplaintRetrieveUpdateAPIView,
     CrimeSceneCaseApproveAPIView,
     CrimeSceneCaseCreateAPIView,
@@ -37,6 +40,21 @@ urlpatterns = [
     path("complaints/", ComplaintListCreateAPIView.as_view(), name="complaint-list-create"),
     path("complaints/<int:pk>/", ComplaintRetrieveUpdateAPIView.as_view(), name="complaint-detail-update"),
     path("complaints/<int:complaint_id>/add-complainants/", ComplaintAddComplainantsAPIView.as_view(), name="complaint-add-complainants"),
+    path(
+        "complaints/<int:complaint_id>/secondary-complainants/",
+        ComplaintSecondaryComplainantListAPIView.as_view(),
+        name="complaint-secondary-complainants",
+    ),
+    path(
+        "complaints/<int:complaint_id>/secondary-complainants/request/",
+        ComplaintSecondaryComplainantRequestAPIView.as_view(),
+        name="complaint-secondary-complainants-request",
+    ),
+    path(
+        "complaints/<int:complaint_id>/secondary-complainants/<int:entry_id>/review/",
+        ComplaintSecondaryComplainantReviewAPIView.as_view(),
+        name="complaint-secondary-complainants-review",
+    ),
     path("complaints/<int:complaint_id>/cadet-review/", ComplaintCadetReviewAPIView.as_view(), name="complaint-cadet-review"),
     path("complaints/<int:complaint_id>/officer-review/", ComplaintOfficerReviewAPIView.as_view(), name="complaint-officer-review"),
 

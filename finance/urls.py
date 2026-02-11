@@ -3,6 +3,8 @@ from django.urls import path
 from .views import (
     PaymentCallbackAPIView,
     PaymentInitiateAPIView,
+    PaymentStartAPIView,
+    PaymentTransactionListAPIView,
     PaymentReturnPageAPIView,
     RewardDetectiveReviewAPIView,
     RewardOfficerReviewAPIView,
@@ -17,6 +19,8 @@ urlpatterns = [
     path("reward-reports/verify/", RewardVerifyAPIView.as_view(), name="reward-verify"),
 
     path("payments/initiate/", PaymentInitiateAPIView.as_view(), name="payment-initiate"),
+    path("payments/", PaymentTransactionListAPIView.as_view(), name="payment-list"),
+    path("payments/<int:transaction_id>/start/", PaymentStartAPIView.as_view(), name="payment-start"),
     path("payments/callback/", PaymentCallbackAPIView.as_view(), name="payment-callback"),
     path("payments/<int:transaction_id>/return/", PaymentReturnPageAPIView.as_view(), name="payment-return"),
 ]

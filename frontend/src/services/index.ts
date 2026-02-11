@@ -17,11 +17,17 @@ export { complaintsApi } from './complaints.api';
 export type {
   Complaint,
   ComplaintStatus,
+  SecondaryComplainant,
   ComplaintDecision,
   ComplaintDecisionRequest,
   ComplaintDecisionResponse,
+  OfficerReviewResponse,
 } from './complaints.api';
 export { rewardsApi } from './rewards.api';
 export type { RewardReport, RewardReportStatus } from './rewards.api';
+export { paymentsApi } from './payments.api';
+export type { PaymentTransaction, PaymentStatus, TransactionType } from './payments.api';
+export { crimeSceneApi } from './crime-scene.api';
+export type { CrimeSceneCase, CreateCrimeSceneCaseRequest } from './crime-scene.api';
 export { usersApi } from './users.api';
 export type { Role as AdminRole } from './users.api';

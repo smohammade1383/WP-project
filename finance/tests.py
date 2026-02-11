@@ -209,3 +209,63 @@ class FinanceFlowAPITests(APITestCase):
         )
         self.assertEqual(callback_resp.status_code, status.HTTP_200_OK)
         self.assertEqual(callback_resp.data["status"], PaymentTransaction.Status.PAID)
+
+    def test_suspect_can_list_and_start_own_payment(self):
+        officer = self._create_user("officer7", roles=["Police Officer"])
+        suspect = self._create_user("suspect7")
+        _, profile = self._create_case_and_profile(officer, suspect, Case.Severity.LEVEL_2)
+
+        self.client.force_authenticate(officer)
+        init_resp = self.client.post(
+            reverse("payment-initiate"),
+            {
+                "suspect_profile": profile.id,
+                "amount": 1500000,
+                "transaction_type": PaymentTransaction.TransactionType.BAIL,
+            },
+            format="json",
+        )
+        self.assertEqual(init_resp.status_code, status.HTTP_201_CREATED)
+        tx_id = init_resp.data["transaction"]["id"]
+
+        self.client.force_authenticate(suspect)
+        list_resp = self.client.get(reverse("payment-list"))
+        self.assertEqual(list_resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(item["id"] == tx_id for item in list_resp.data))
+
+        start_resp = self.client.post(reverse("payment-start", kwargs={"transaction_id": tx_id}), {}, format="json")
+        self.assertEqual(start_resp.status_code, status.HTTP_200_OK)
+        self.assertIn("/api/finance/payments/", start_resp.data["payment_url"])
+
+    def test_paid_bail_releases_arrest_status(self):
+        officer = self._create_user("officer8", roles=["Police Officer"])
+        suspect = self._create_user("suspect8")
+        _, profile = self._create_case_and_profile(officer, suspect, Case.Severity.LEVEL_2)
+        profile.is_arrested = True
+        profile.save(update_fields=["is_arrested"])
+
+        self.client.force_authenticate(officer)
+        init_resp = self.client.post(
+            reverse("payment-initiate"),
+            {
+                "suspect_profile": profile.id,
+                "amount": 1600000,
+                "transaction_type": PaymentTransaction.TransactionType.BAIL,
+            },
+            format="json",
+        )
+        tx_reference = init_resp.data["transaction"]["gateway_reference"]
+
+        self.client.force_authenticate(None)
+        callback_resp = self.client.post(
+            reverse("payment-callback"),
+            {
+                "gateway_reference": tx_reference,
+                "status": "paid",
+                "payload": {"provider": "simulated", "trace": "ok"},
+            },
+            format="json",
+        )
+        self.assertEqual(callback_resp.status_code, status.HTTP_200_OK)
+        profile.refresh_from_db()
+        self.assertFalse(profile.is_arrested)

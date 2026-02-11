@@ -1,5 +1,6 @@
 import uuid
 
+from django.db import models
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
@@ -61,6 +62,22 @@ class RewardReportListCreateAPIView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(reporter=self.request.user)
+
+
+@extend_schema_view(
+    get=extend_schema(tags=["Payments"], summary="List payment transactions"),
+)
+class PaymentTransactionListAPIView(generics.ListAPIView):
+    serializer_class = PaymentTransactionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        base = PaymentTransaction.objects.select_related("case", "suspect_profile", "payer").all()
+        if is_police_staff(self.request.user):
+            return base
+        return base.filter(
+            models.Q(payer=self.request.user) | models.Q(suspect_profile__suspect=self.request.user)
+        ).distinct()
 
 
 @extend_schema(
@@ -233,6 +250,38 @@ class PaymentInitiateAPIView(APIView):
 
 @extend_schema(
     tags=["Payments"],
+    summary="Start payment for an initiated transaction",
+    request=None,
+    responses={200: OpenApiTypes.OBJECT},
+)
+class PaymentStartAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, transaction_id):
+        tx = get_object_or_404(
+            PaymentTransaction.objects.select_related("suspect_profile__suspect"),
+            id=transaction_id,
+        )
+
+        is_owner = tx.payer_id == request.user.id
+        is_suspect_owner = bool(tx.suspect_profile_id and tx.suspect_profile.suspect_id == request.user.id)
+        if not (is_police_staff(request.user) or is_owner or is_suspect_owner):
+            raise PermissionDenied("You do not have access to this transaction.")
+
+        if tx.status != PaymentTransaction.Status.INITIATED:
+            raise ValidationError({"detail": "Only initiated transactions can be paid."})
+
+        payment_url = tx.return_url or f"/api/finance/payments/{tx.id}/return/?status=paid"
+        return Response(
+            {
+                "transaction": PaymentTransactionSerializer(tx).data,
+                "payment_url": payment_url,
+            }
+        )
+
+
+@extend_schema(
+    tags=["Payments"],
     summary="Payment gateway callback endpoint",
     request=PaymentCallbackSerializer,
     responses={200: PaymentTransactionSerializer},
@@ -260,6 +309,14 @@ class PaymentCallbackAPIView(APIView):
         if callback_status == "paid":
             tx.status = PaymentTransaction.Status.PAID
             tx.paid_at = timezone.now()
+            if (
+                tx.suspect_profile_id
+                and tx.transaction_type in {PaymentTransaction.TransactionType.BAIL, PaymentTransaction.TransactionType.FINE}
+            ):
+                profile = tx.suspect_profile
+                if profile.is_arrested:
+                    profile.is_arrested = False
+                    profile.save(update_fields=["is_arrested"])
         elif tx.status != PaymentTransaction.Status.PAID:
             tx.status = PaymentTransaction.Status.FAILED
             tx.paid_at = None

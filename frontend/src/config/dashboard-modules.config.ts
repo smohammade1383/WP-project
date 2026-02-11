@@ -54,6 +54,15 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
     allowedRoles: ALL_ROLES,
     color: '#7F8C8D',
   },
+  {
+    id: 'legal-bail',
+    title: 'وضعیت حقوقی و وثیقه',
+    description: 'مشاهده وضعیت بازداشت و پرداخت آنلاین وثیقه/جریمه',
+    icon: '💳',
+    route: '/legal-bail',
+    allowedRoles: ['Basic User', 'Suspect', 'Criminal'],
+    color: '#0F766E',
+  },
 
   // Citizen Modules
   {

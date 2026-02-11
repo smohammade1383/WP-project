@@ -7,10 +7,12 @@ from .models import (
     BoardConnection,
     CaptainDecision,
     Case,
+    CrimeSceneWitness,
     Complaint,
     ComplaintReview,
     DetectiveBoard,
     InterrogationScore,
+    SecondaryComplainant,
     SuspectCaseProfile,
 )
 
@@ -23,10 +25,18 @@ class UserBriefSerializer(serializers.ModelSerializer):
         fields = ("id", "username", "first_name", "last_name", "national_id")
 
 
+class CrimeSceneWitnessSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CrimeSceneWitness
+        fields = ("id", "full_name", "national_id", "phone_number")
+        read_only_fields = ("id",)
+
+
 class CaseSerializer(serializers.ModelSerializer):
     complainants = UserBriefSerializer(many=True, read_only=True)
     witnesses = UserBriefSerializer(many=True, read_only=True)
     suspects = UserBriefSerializer(many=True, read_only=True)
+    local_witnesses = CrimeSceneWitnessSerializer(many=True, read_only=True)
     created_by = UserBriefSerializer(read_only=True)
     approved_by = UserBriefSerializer(read_only=True)
     complainant_ids = serializers.PrimaryKeyRelatedField(
@@ -64,6 +74,7 @@ class CaseSerializer(serializers.ModelSerializer):
             "complainants",
             "witnesses",
             "suspects",
+            "local_witnesses",
             "complainant_ids",
             "witness_ids",
             "suspect_ids",
@@ -107,7 +118,9 @@ class CaseSerializer(serializers.ModelSerializer):
 class ComplaintSerializer(serializers.ModelSerializer):
     submitter = UserBriefSerializer(read_only=True)
     complainants = UserBriefSerializer(many=True, read_only=True)
+    secondary_complainants = serializers.SerializerMethodField(read_only=True)
     latest_review_decision = serializers.SerializerMethodField(read_only=True)
+    latest_review_step = serializers.SerializerMethodField(read_only=True)
     latest_review_message = serializers.SerializerMethodField(read_only=True)
     complainant_ids = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -129,8 +142,10 @@ class ComplaintSerializer(serializers.ModelSerializer):
             "status",
             "invalid_attempt_count",
             "latest_review_decision",
+            "latest_review_step",
             "latest_review_message",
             "complainants",
+            "secondary_complainants",
             "complainant_ids",
             "created_at",
             "updated_at",
@@ -164,6 +179,14 @@ class ComplaintSerializer(serializers.ModelSerializer):
         review = self._latest_review(obj)
         return review.decision if review else None
 
+    def get_secondary_complainants(self, obj):
+        entries = obj.secondary_complainants.select_related("user", "requested_by", "reviewed_by")
+        return SecondaryComplainantSerializer(entries, many=True).data
+
+    def get_latest_review_step(self, obj):
+        review = self._latest_review(obj)
+        return review.step if review else None
+
     def get_latest_review_message(self, obj):
         review = self._latest_review(obj)
         return review.message if review and review.message else ""
@@ -192,12 +215,47 @@ class AddComplainantsSerializer(serializers.Serializer):
     complainant_ids = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
 
 
+class SecondaryComplainantSerializer(serializers.ModelSerializer):
+    user = UserBriefSerializer(read_only=True)
+    requested_by = UserBriefSerializer(read_only=True)
+    reviewed_by = UserBriefSerializer(read_only=True)
+
+    class Meta:
+        model = SecondaryComplainant
+        fields = (
+            "id",
+            "user",
+            "status",
+            "requested_by",
+            "reviewed_by",
+            "review_message",
+            "created_at",
+            "updated_at",
+        )
+
+
+class SecondaryComplainantRequestSerializer(serializers.Serializer):
+    complainant_ids = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
+
+
+class SecondaryComplainantReviewSerializer(serializers.Serializer):
+    decision = serializers.ChoiceField(choices=[("approved", "approved"), ("rejected", "rejected")])
+    message = serializers.CharField(required=False, allow_blank=True)
+
+
+class CrimeSceneWitnessInputSerializer(serializers.Serializer):
+    full_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    national_id = serializers.CharField(max_length=10)
+    phone_number = serializers.CharField(max_length=20)
+
+
 class CrimeSceneCaseCreateSerializer(serializers.ModelSerializer):
     witness_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=User.objects.all(),
         required=False,
     )
+    local_witnesses = CrimeSceneWitnessInputSerializer(many=True, required=False)
 
     class Meta:
         model = Case
@@ -209,6 +267,7 @@ class CrimeSceneCaseCreateSerializer(serializers.ModelSerializer):
             "incident_datetime",
             "severity",
             "witness_ids",
+            "local_witnesses",
         )
 
 

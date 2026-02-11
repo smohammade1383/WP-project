@@ -7,11 +7,13 @@ from .models import (
     CaptainDecision,
     Case,
     CaseLog,
+    CrimeSceneWitness,
     Notification,
     Complaint,
     ComplaintReview,
     DetectiveBoard,
     InterrogationScore,
+    SecondaryComplainant,
     SuspectCaseProfile,
 )
 
@@ -32,7 +34,9 @@ class ComplaintAdmin(admin.ModelAdmin):
 
 
 admin.site.register(ComplaintReview)
+admin.site.register(SecondaryComplainant)
 admin.site.register(CaseLog)
+admin.site.register(CrimeSceneWitness)
 admin.site.register(DetectiveBoard)
 admin.site.register(BoardItem)
 admin.site.register(BoardLink)

@@ -56,15 +56,21 @@ class RewardVerificationSerializer(serializers.Serializer):
 
 
 class PaymentTransactionSerializer(serializers.ModelSerializer):
+    case_status = serializers.CharField(source="case.status", read_only=True)
+    suspect_is_arrested = serializers.BooleanField(source="suspect_profile.is_arrested", read_only=True)
+
     class Meta:
         model = PaymentTransaction
         fields = (
             "id",
+            "payer",
             "case",
             "suspect_profile",
             "amount",
             "transaction_type",
             "status",
+            "case_status",
+            "suspect_is_arrested",
             "gateway_reference",
             "callback_payload",
             "return_url",
