@@ -23,11 +23,32 @@ export interface WantedPerson {
   reward_amount: number;
 }
 
+export interface CreateCitizenTipRequest {
+  case?: number;
+  suspect_profile?: number;
+  description: string;
+}
+
+export interface CitizenTip {
+  id: number;
+  reporter: number;
+  case: number | null;
+  suspect_profile: number | null;
+  description: string;
+  status: 'officer_review' | 'detective_review' | 'approved';
+  officer_reviewer: number | null;
+  detective_reviewer: number | null;
+  created_at: string;
+}
+
 export const peopleApi = {
   getWantedList: async (): Promise<WantedPerson[]> => {
     return api.get<WantedPerson[]>('/people/wanted/');
   },
   getWantedDetail: async (suspectId: number): Promise<WantedPerson> => {
     return api.get<WantedPerson>(`/people/wanted/${suspectId}/`);
+  },
+  submitTip: async (payload: CreateCitizenTipRequest): Promise<CitizenTip> => {
+    return api.post<CitizenTip>('/people/tips/', payload);
   },
 };

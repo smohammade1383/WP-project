@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { peopleApi, type WantedPerson } from '../services';
+import { authService, peopleApi, type WantedPerson } from '../services';
 import './MostWanted.css';
 
 const severityLabel = (level: number) => {
@@ -40,6 +40,16 @@ const getDisplayName = (person: WantedPerson['suspect']) => {
   return fallback || person.username;
 };
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+  return fallback;
+};
+
 const MostWanted = () => {
   const [wanted, setWanted] = useState<WantedPerson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +61,13 @@ const MostWanted = () => {
   const [detail, setDetail] = useState<WantedPerson | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [reportTarget, setReportTarget] = useState<WantedPerson | null>(null);
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [reportSuccess, setReportSuccess] = useState('');
   const isModalOpen = selectedSuspectId !== null;
+  const isReportModalOpen = reportTarget !== null;
 
   useEffect(() => {
     const fetchWanted = async () => {
@@ -60,8 +76,8 @@ const MostWanted = () => {
         const data = await peopleApi.getWantedList();
         setWanted(data);
         setError('');
-      } catch (err: any) {
-        setError(err.message || 'خطا در دریافت لیست افراد تحت پیگیری شدید');
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, 'خطا در دریافت لیست افراد تحت پیگیری شدید'));
       } finally {
         setLoading(false);
       }
@@ -98,8 +114,8 @@ const MostWanted = () => {
         setDetailError('');
         const result = await peopleApi.getWantedDetail(selectedSuspectId);
         setDetail(result);
-      } catch (err: any) {
-        setDetailError(err.message || 'خطا در دریافت اطلاعات مظنون');
+      } catch (err: unknown) {
+        setDetailError(getErrorMessage(err, 'خطا در دریافت اطلاعات مظنون'));
       } finally {
         setDetailLoading(false);
       }
@@ -120,6 +136,64 @@ const MostWanted = () => {
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isModalOpen]);
+
+  useEffect(() => {
+    if (!isReportModalOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeReportModal();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isReportModalOpen]);
+
+  const openReportModal = (item: WantedPerson) => {
+    if (!authService.isAuthenticated()) {
+      window.alert('برای ارسال گزارش ابتدا وارد حساب کاربری شوید.');
+      return;
+    }
+    setReportTarget(item);
+    setReportDescription('');
+    setReportError('');
+    setReportSuccess('');
+  };
+
+  const closeReportModal = () => {
+    setReportTarget(null);
+    setReportDescription('');
+    setReportError('');
+    setReportSuccess('');
+  };
+
+  const handleSubmitReport = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!reportTarget) return;
+
+    const description = reportDescription.trim();
+    if (description.length < 10) {
+      setReportError('متن گزارش باید حداقل ۱۰ کاراکتر باشد.');
+      return;
+    }
+
+    try {
+      setReportLoading(true);
+      setReportError('');
+      await peopleApi.submitTip({
+        case: reportTarget.case_id,
+        suspect_profile: reportTarget.id,
+        description,
+      });
+      setReportSuccess('گزارش شما ثبت شد و برای بررسی افسر ارسال شد.');
+      setReportDescription('');
+    } catch (err: unknown) {
+      setReportError(getErrorMessage(err, 'ثبت گزارش با خطا مواجه شد.'));
+    } finally {
+      setReportLoading(false);
+    }
+  };
 
   return (
     <div className="most-wanted-page">
@@ -239,6 +313,12 @@ const MostWanted = () => {
                 </div>
                 <div className="wanted-actions">
                   <button
+                    className="wanted-report-btn"
+                    onClick={() => openReportModal(item)}
+                  >
+                    ارسال گزارش
+                  </button>
+                  <button
                     className="wanted-detail-btn"
                     onClick={() => setSelectedSuspectId(item.suspect.id)}
                   >
@@ -356,6 +436,65 @@ const MostWanted = () => {
                 </div>
               </div>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {isReportModalOpen && reportTarget && (
+        <div className="report-modal-overlay" onClick={closeReportModal}>
+          <div
+            className="report-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="report-modal-header">
+              <h3>ارسال گزارش مردمی</h3>
+              <button
+                type="button"
+                className="report-modal-close"
+                onClick={closeReportModal}
+                aria-label="بستن"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="report-modal-target">
+              <span>مظنون:</span>
+              <strong>{getDisplayName(reportTarget.suspect)}</strong>
+              <span>پرونده:</span>
+              <strong>#{reportTarget.case_id}</strong>
+            </div>
+
+            <form onSubmit={handleSubmitReport} className="report-form">
+              <label htmlFor="report-description">شرح گزارش</label>
+              <textarea
+                id="report-description"
+                rows={5}
+                value={reportDescription}
+                onChange={(event) => setReportDescription(event.target.value)}
+                placeholder="جزئیات اطلاعاتی که درباره این مظنون دارید را وارد کنید..."
+                disabled={reportLoading}
+              />
+
+              {reportError && <p className="report-feedback error">{reportError}</p>}
+              {reportSuccess && <p className="report-feedback success">{reportSuccess}</p>}
+
+              <div className="report-form-actions">
+                <button
+                  type="button"
+                  className="report-cancel-btn"
+                  onClick={closeReportModal}
+                  disabled={reportLoading}
+                >
+                  انصراف
+                </button>
+                <button type="submit" className="report-submit-btn" disabled={reportLoading}>
+                  {reportLoading ? 'در حال ارسال...' : 'ثبت گزارش'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
