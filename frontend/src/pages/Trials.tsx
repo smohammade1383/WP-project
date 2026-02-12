@@ -1,19 +1,16 @@
+import { Navigate } from 'react-router-dom';
+import { hasAnyRole, useRoleRouterContext } from '../hooks/useRoleRouterContext';
+
 const Trials = () => {
-  return (
-    <div style={{ padding: '2rem', direction: 'rtl', textAlign: 'right' }}>
-      <h1>⚖️ محاکمات</h1>
-      <p>مدیریت جلسات دادگاه و احکام</p>
-      <div style={{ 
-        background: 'white', 
-        padding: '2rem', 
-        borderRadius: '8px', 
-        marginTop: '2rem',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-      }}>
-        <h3>این صفحه در حال توسعه است</h3>
-      </div>
-    </div>
-  );
+  const { isAuthenticated, roles } = useRoleRouterContext();
+
+  if (!isAuthenticated) return <Navigate to="/auth" replace />;
+
+  if (hasAnyRole(roles, ['Judge'])) return <Navigate to="/judge/bench" replace />;
+  if (hasAnyRole(roles, ['Captain', 'Chief'])) return <Navigate to="/reports" replace />;
+  if (hasAnyRole(roles, ['Administrator'])) return <Navigate to="/admin" replace />;
+
+  return <Navigate to="/403" replace />;
 };
 
 export default Trials;

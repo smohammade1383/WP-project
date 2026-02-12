@@ -33,6 +33,7 @@ import CaptainDashboard from './pages/CaptainDashboard';
 import ChiefDashboard from './pages/ChiefDashboard';
 import JudgeDashboard from './pages/JudgeDashboard';
 import DetectiveRewardsReview from './pages/DetectiveRewardsReview';
+import Forbidden from './pages/Forbidden';
 
 export const router = createBrowserRouter([
   {
@@ -190,6 +191,10 @@ export const router = createBrowserRouter([
       {
         path: 'judge/bench',
         element: <JudgeDashboard />,
+      },
+      {
+        path: '403',
+        element: <Forbidden />,
       },
       // Additional routes will be added here
     ],
