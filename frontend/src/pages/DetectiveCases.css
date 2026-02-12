@@ -536,6 +536,50 @@
   gap: 0.45rem;
 }
 
+.board-links-manager {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.board-links-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.board-link-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #ffffff;
+  padding: 0.42rem 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.board-link-row span {
+  color: #334155;
+  font-size: 0.74rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-link-row button {
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: #ffffff;
+  border-radius: 7px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.board-link-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .inspector-card {
   border: 1px solid #e2e8f0;
   border-radius: 9px;

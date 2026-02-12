@@ -24,16 +24,7 @@
 .board-link-path.draft {
   stroke-dasharray: 7 6;
   opacity: 0.95;
-  animation: draftLinkPulse 0.9s linear infinite;
-}
-
-@keyframes draftLinkPulse {
-  0% {
-    stroke-dashoffset: 0;
-  }
-  100% {
-    stroke-dashoffset: -26;
-  }
+  filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.45));
 }
 
 .link-delete-btn {

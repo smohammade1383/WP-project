@@ -171,6 +171,8 @@ const DetectiveCases = () => {
   const [newBoardNote, setNewBoardNote] = useState('');
   const [savingBoard, setSavingBoard] = useState(false);
   const boardCanvasRef = useRef<HTMLDivElement>(null);
+  const draftPointRef = useRef<{ x: number; y: number } | null>(null);
+  const draftFrameRef = useRef<number | null>(null);
   const [lastBoardSnapshotAt, setLastBoardSnapshotAt] = useState<string>('');
 
   const [selectedNomineeIds, setSelectedNomineeIds] = useState<number[]>([]);
@@ -252,6 +254,29 @@ const DetectiveCases = () => {
     }
     return evidenceItems.find((item) => item.id === selectedBoardItem.evidence) || null;
   }, [selectedBoardItem, evidenceItems]);
+
+  const boardItemLabelMap = useMemo(() => {
+    const labels: Record<number, string> = {};
+    boardItems.forEach((item) => {
+      switch (item.item_type) {
+        case 'note':
+          labels[item.id] = item.note_text?.trim() || `یادداشت #${item.id}`;
+          break;
+        case 'evidence':
+          labels[item.id] = item.evidence_title || `مدرک #${item.id}`;
+          break;
+        case 'witness':
+          labels[item.id] = item.username ? `شاهد: ${item.username}` : `شاهد #${item.id}`;
+          break;
+        case 'suspect':
+          labels[item.id] = item.username ? `مظنون: ${item.username}` : `مظنون #${item.id}`;
+          break;
+        default:
+          labels[item.id] = `آیتم #${item.id}`;
+      }
+    });
+    return labels;
+  }, [boardItems]);
 
   const getBoardPointFromClient = useCallback(
     (clientX: number, clientY: number) => {
@@ -348,6 +373,11 @@ const DetectiveCases = () => {
       setBoardLinks([]);
       setConnectingFromId(null);
       setIsConnectingDrag(false);
+      draftPointRef.current = null;
+      if (draftFrameRef.current !== null) {
+        window.cancelAnimationFrame(draftFrameRef.current);
+        draftFrameRef.current = null;
+      }
       setConnectionDraftPoint(null);
       setSelectedNomineeIds([]);
       return;
@@ -570,6 +600,11 @@ const DetectiveCases = () => {
       if (connectingFromId === id) {
         setConnectingFromId(null);
         setIsConnectingDrag(false);
+        draftPointRef.current = null;
+        if (draftFrameRef.current !== null) {
+          window.cancelAnimationFrame(draftFrameRef.current);
+          draftFrameRef.current = null;
+        }
         setConnectionDraftPoint(null);
       }
     } catch (err: unknown) {
@@ -605,6 +640,11 @@ const DetectiveCases = () => {
       if (!selectedCase || fromItem === toItem) {
         setConnectingFromId(null);
         setIsConnectingDrag(false);
+        draftPointRef.current = null;
+        if (draftFrameRef.current !== null) {
+          window.cancelAnimationFrame(draftFrameRef.current);
+          draftFrameRef.current = null;
+        }
         setConnectionDraftPoint(null);
         return;
       }
@@ -616,6 +656,11 @@ const DetectiveCases = () => {
       if (alreadyLinked) {
         setConnectingFromId(null);
         setIsConnectingDrag(false);
+        draftPointRef.current = null;
+        if (draftFrameRef.current !== null) {
+          window.cancelAnimationFrame(draftFrameRef.current);
+          draftFrameRef.current = null;
+        }
         setConnectionDraftPoint(null);
         setError('بین این دو آیتم قبلا اتصال ثبت شده است.');
         return;
@@ -624,6 +669,11 @@ const DetectiveCases = () => {
         setError('ویرایش تخته برای این پرونده قفل است.');
         setConnectingFromId(null);
         setIsConnectingDrag(false);
+        draftPointRef.current = null;
+        if (draftFrameRef.current !== null) {
+          window.cancelAnimationFrame(draftFrameRef.current);
+          draftFrameRef.current = null;
+        }
         setConnectionDraftPoint(null);
         return;
       }
@@ -635,6 +685,11 @@ const DetectiveCases = () => {
         setBoardLinks((prev) => [...prev, link]);
         setConnectingFromId(null);
         setIsConnectingDrag(false);
+        draftPointRef.current = null;
+        if (draftFrameRef.current !== null) {
+          window.cancelAnimationFrame(draftFrameRef.current);
+          draftFrameRef.current = null;
+        }
         setConnectionDraftPoint(null);
         setSuccess('اتصال قرمز با موفقیت ایجاد شد.');
         setError('');
@@ -642,6 +697,11 @@ const DetectiveCases = () => {
         setError(getErrorMessage(err, 'ایجاد اتصال روی تخته ناموفق بود.'));
         setConnectingFromId(null);
         setIsConnectingDrag(false);
+        draftPointRef.current = null;
+        if (draftFrameRef.current !== null) {
+          window.cancelAnimationFrame(draftFrameRef.current);
+          draftFrameRef.current = null;
+        }
         setConnectionDraftPoint(null);
       }
     },
@@ -665,6 +725,7 @@ const DetectiveCases = () => {
       setSelectedBoardItemId(itemId);
       setIsConnectingDrag(true);
       if (point) {
+        draftPointRef.current = point;
         setConnectionDraftPoint(point);
       }
       setError('');
@@ -673,6 +734,11 @@ const DetectiveCases = () => {
     if (connectingFromId === null) {
       setConnectingFromId(itemId);
       setIsConnectingDrag(false);
+      draftPointRef.current = null;
+      if (draftFrameRef.current !== null) {
+        window.cancelAnimationFrame(draftFrameRef.current);
+        draftFrameRef.current = null;
+      }
       setConnectionDraftPoint(null);
       setSelectedBoardItemId(itemId);
       setSuccess(`مبدا اتصال روی آیتم #${itemId} تنظیم شد. حالا مقصد را انتخاب کنید.`);
@@ -682,6 +748,11 @@ const DetectiveCases = () => {
     if (connectingFromId === itemId) {
       setConnectingFromId(null);
       setIsConnectingDrag(false);
+      draftPointRef.current = null;
+      if (draftFrameRef.current !== null) {
+        window.cancelAnimationFrame(draftFrameRef.current);
+        draftFrameRef.current = null;
+      }
       setConnectionDraftPoint(null);
       setSuccess('حالت اتصال لغو شد.');
       return;
@@ -711,12 +782,24 @@ const DetectiveCases = () => {
     const handleMouseMove = (event: MouseEvent) => {
       const point = getBoardPointFromClient(event.clientX, event.clientY);
       if (point) {
-        setConnectionDraftPoint(point);
+        draftPointRef.current = point;
+        if (draftFrameRef.current === null) {
+          draftFrameRef.current = window.requestAnimationFrame(() => {
+            draftFrameRef.current = null;
+            if (draftPointRef.current) {
+              setConnectionDraftPoint(draftPointRef.current);
+            }
+          });
+        }
       }
     };
 
     const handleMouseUp = (event: MouseEvent) => {
       setIsConnectingDrag(false);
+      if (draftFrameRef.current !== null) {
+        window.cancelAnimationFrame(draftFrameRef.current);
+        draftFrameRef.current = null;
+      }
       const targetElement = document
         .elementFromPoint(event.clientX, event.clientY)
         ?.closest('[data-board-item-id]') as HTMLElement | null;
@@ -728,6 +811,7 @@ const DetectiveCases = () => {
         return;
       }
 
+      draftPointRef.current = null;
       setConnectionDraftPoint(null);
       if (targetId === connectingFromId) {
         setConnectingFromId(null);
@@ -739,6 +823,10 @@ const DetectiveCases = () => {
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      if (draftFrameRef.current !== null) {
+        window.cancelAnimationFrame(draftFrameRef.current);
+        draftFrameRef.current = null;
+      }
     };
   }, [connectingFromId, getBoardPointFromClient, handleCreateBoardLink, isConnectingDrag]);
 
@@ -1017,14 +1105,19 @@ const DetectiveCases = () => {
                           </button>
                         )}
                         {connectingFromId && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setConnectingFromId(null);
-                              setIsConnectingDrag(false);
-                              setConnectionDraftPoint(null);
-                            }}
-                          >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConnectingFromId(null);
+                                  setIsConnectingDrag(false);
+                                  draftPointRef.current = null;
+                                  if (draftFrameRef.current !== null) {
+                                    window.cancelAnimationFrame(draftFrameRef.current);
+                                    draftFrameRef.current = null;
+                                  }
+                                  setConnectionDraftPoint(null);
+                                }}
+                              >
                             لغو اتصال
                           </button>
                         )}
@@ -1164,6 +1257,31 @@ const DetectiveCases = () => {
                               <strong>نوع آیتم: {selectedBoardItem.item_type}</strong>
                               {selectedBoardItem.note_text && <p>{selectedBoardItem.note_text}</p>}
                               {selectedBoardItem.username && <p>کاربر: {selectedBoardItem.username}</p>}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="board-links-manager">
+                          <h5>اتصالات ثبت‌شده</h5>
+                          {boardLinks.length === 0 ? (
+                            <p className="small-empty">هنوز هیچ اتصال قرمزی روی تخته ثبت نشده است.</p>
+                          ) : (
+                            <div className="board-links-list">
+                              {boardLinks.map((link) => (
+                                <div key={link.id} className="board-link-row">
+                                  <span>
+                                    {boardItemLabelMap[link.from_item] || `آیتم #${link.from_item}`} ←{' '}
+                                    {boardItemLabelMap[link.to_item] || `آیتم #${link.to_item}`}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteBoardLink(link.id)}
+                                    disabled={isCaseLocked}
+                                  >
+                                    حذف
+                                  </button>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
