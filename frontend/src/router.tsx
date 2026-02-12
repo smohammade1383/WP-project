@@ -28,6 +28,7 @@ import OfficerComplaintsApproval from './pages/OfficerComplaintsApproval';
 import OfficerCrimeSceneCreate from './pages/OfficerCrimeSceneCreate';
 import LegalBailStatus from './pages/LegalBailStatus';
 import CoronerLab from './pages/CoronerLab';
+import SergeantDashboard from './pages/SergeantDashboard';
 
 export const router = createBrowserRouter([
   {
@@ -158,33 +159,15 @@ export const router = createBrowserRouter([
       },
       {
         path: 'sergeant/crime-scenes',
-        element: (
-          <PlaceholderPage
-            icon="🛡️"
-            title="تایید صحنه جرم"
-            description="بررسی پرونده‌های ثبت شده توسط افسران"
-          />
-        ),
+        element: <SergeantDashboard />,
       },
       {
         path: 'sergeant/operations',
-        element: (
-          <PlaceholderPage
-            icon="📌"
-            title="درخواست‌های عملیاتی"
-            description="درخواست‌های دستگیری کارآگاهان"
-          />
-        ),
+        element: <SergeantDashboard />,
       },
       {
         path: 'sergeant/detention',
-        element: (
-          <PlaceholderPage
-            icon="🔒"
-            title="بازداشتگاه"
-            description="مدیریت متهمین و وثیقه‌ها"
-          />
-        ),
+        element: <SergeantDashboard />,
       },
       {
         path: 'captain/interrogations',

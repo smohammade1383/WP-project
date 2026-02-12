@@ -366,6 +366,7 @@ class SuspectCaseProfileSerializer(serializers.ModelSerializer):
     ranking_score = serializers.IntegerField(read_only=True)
     reward_amount = serializers.IntegerField(read_only=True)
     wanted_days = serializers.IntegerField(read_only=True)
+    scores = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = SuspectCaseProfile
@@ -382,7 +383,26 @@ class SuspectCaseProfileSerializer(serializers.ModelSerializer):
             "public_details",
             "ranking_score",
             "reward_amount",
+            "scores",
         )
+
+    def get_scores(self, obj):
+        return [
+            {
+                "id": score.id,
+                "scorer_role": score.scorer_role,
+                "score": score.score,
+                "notes": score.notes,
+                "created_at": score.created_at,
+                "scorer": {
+                    "id": score.scorer_id,
+                    "username": score.scorer.username,
+                    "first_name": score.scorer.first_name,
+                    "last_name": score.scorer.last_name,
+                },
+            }
+            for score in obj.scores.select_related("scorer").all()
+        ]
 
 
 class SuspectNominationSerializer(serializers.Serializer):
@@ -392,6 +412,10 @@ class SuspectNominationSerializer(serializers.Serializer):
 
 class SergeantDecisionSerializer(serializers.Serializer):
     approved = serializers.BooleanField()
+    message = serializers.CharField(required=False, allow_blank=True)
+
+
+class SubmitToCaptainSerializer(serializers.Serializer):
     message = serializers.CharField(required=False, allow_blank=True)
 
 

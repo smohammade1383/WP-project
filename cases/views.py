@@ -41,6 +41,7 @@ from .serializers import (
     DetectiveBoardSerializer,
     InterrogationScoreSerializer,
     SergeantDecisionSerializer,
+    SubmitToCaptainSerializer,
     SecondaryComplainantRequestSerializer,
     SecondaryComplainantReviewSerializer,
     SecondaryComplainantSerializer,
@@ -1008,6 +1009,107 @@ class DetectiveNotificationListAPIView(APIView):
             for log in notifications
         ]
         return Response(data)
+
+
+@extend_schema(
+    tags=["Interrogation"],
+    summary="List suspect profiles (optionally filtered by case/arrest status)",
+    request=None,
+    responses={200: SuspectCaseProfileSerializer(many=True)},
+)
+class SuspectProfileListAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not is_police_staff(request.user):
+            raise PermissionDenied("Only police roles can view suspect profiles.")
+
+        queryset = SuspectCaseProfile.objects.select_related("suspect", "case").all()
+
+        case_id = request.query_params.get("case")
+        if case_id and case_id.isdigit():
+            queryset = queryset.filter(case_id=int(case_id))
+
+        arrest_warrant_issued = request.query_params.get("arrest_warrant_issued")
+        if arrest_warrant_issued is not None:
+            normalized = arrest_warrant_issued.strip().lower()
+            if normalized in {"true", "1", "yes"}:
+                queryset = queryset.filter(arrest_warrant_issued=True)
+            elif normalized in {"false", "0", "no"}:
+                queryset = queryset.filter(arrest_warrant_issued=False)
+
+        is_arrested = request.query_params.get("is_arrested")
+        if is_arrested is not None:
+            normalized = is_arrested.strip().lower()
+            if normalized in {"true", "1", "yes"}:
+                queryset = queryset.filter(is_arrested=True)
+            elif normalized in {"false", "0", "no"}:
+                queryset = queryset.filter(is_arrested=False)
+
+        return Response(SuspectCaseProfileSerializer(queryset, many=True).data)
+
+
+@extend_schema(
+    tags=["Interrogation"],
+    summary="Sergeant submits arrested case package to captain queue",
+    request=SubmitToCaptainSerializer,
+    responses={200: OpenApiTypes.OBJECT},
+)
+class SergeantSubmitToCaptainAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, case_id):
+        if not has_any_role(request.user, "Sergeant", "Administrator"):
+            raise PermissionDenied("Only sergeant role can submit a case to captain queue.")
+
+        case_obj = get_object_or_404(Case, id=case_id)
+        serializer = SubmitToCaptainSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        message = serializer.validated_data.get("message", "").strip()
+
+        arrested_profiles = list(case_obj.suspect_profiles.filter(is_arrested=True))
+        if not arrested_profiles:
+            raise ValidationError({"detail": "At least one arrested suspect is required before captain handoff."})
+
+        missing_scores = []
+        for profile in arrested_profiles:
+            has_detective_score = profile.scores.filter(scorer_role=InterrogationScore.ScorerRole.DETECTIVE).exists()
+            has_sergeant_score = profile.scores.filter(scorer_role=InterrogationScore.ScorerRole.SERGEANT).exists()
+            if not has_detective_score or not has_sergeant_score:
+                missing_scores.append(
+                    {
+                        "profile_id": profile.id,
+                        "suspect_id": profile.suspect_id,
+                        "needs_detective_score": not has_detective_score,
+                        "needs_sergeant_score": not has_sergeant_score,
+                    }
+                )
+
+        if missing_scores:
+            raise ValidationError(
+                {
+                    "detail": "All arrested suspects must have both detective and sergeant interrogation scores.",
+                    "missing_profiles": missing_scores,
+                }
+            )
+
+        case_obj.status = Case.Status.ARRESTED
+        case_obj.save(update_fields=["status", "updated_at"])
+
+        CaseLog.objects.create(
+            case=case_obj,
+            actor=request.user,
+            action="submitted_to_captain",
+            description=message or "Submitted by sergeant to captain queue.",
+        )
+
+        return Response(
+            {
+                "case": CaseSerializer(case_obj, context={"request": request}).data,
+                "submitted_profiles": len(arrested_profiles),
+                "message": message,
+            }
+        )
 
 
 @extend_schema(tags=["Stats"], summary="Aggregated case statistics", responses={200: OpenApiTypes.OBJECT})

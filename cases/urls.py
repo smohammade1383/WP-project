@@ -27,6 +27,8 @@ from .views import (
     DetectiveNotificationListAPIView,
     InterrogationScoreCreateAPIView,
     SergeantDecisionAPIView,
+    SergeantSubmitToCaptainAPIView,
+    SuspectProfileListAPIView,
     SevereTrackingListAPIView,
     SuspectArrestAPIView,
     SuspectNominationAPIView,
@@ -73,7 +75,9 @@ urlpatterns = [
     path("<int:case_id>/suspects/sergeant-decision/", SergeantDecisionAPIView.as_view(), name="sergeant-decision"),
     path("suspect-profiles/<int:profile_id>/arrest/", SuspectArrestAPIView.as_view(), name="suspect-arrest"),
     path("suspect-profiles/<int:profile_id>/score/", InterrogationScoreCreateAPIView.as_view(), name="suspect-score"),
+    path("suspect-profiles/", SuspectProfileListAPIView.as_view(), name="suspect-profile-list"),
     path("suspect-profiles/<int:profile_id>/captain-decision/", CaptainDecisionCreateAPIView.as_view(), name="captain-decision"),
+    path("<int:case_id>/submit-to-captain/", SergeantSubmitToCaptainAPIView.as_view(), name="submit-to-captain"),
     path("captain-decisions/<int:decision_id>/chief-decision/", ChiefDecisionAPIView.as_view(), name="chief-decision"),
     path("suspect-profiles/<int:profile_id>/wanted/", SuspectWantedUpdateAPIView.as_view(), name="suspect-wanted-update"),
 
