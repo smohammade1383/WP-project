@@ -69,3 +69,5 @@ export type {
   ChiefReportPerson,
   ChiefStats,
 } from './chief.api';
+export { judgeApi } from './judge.api';
+export type { JudgeCase, TrialSubmissionPayload } from './judge.api';

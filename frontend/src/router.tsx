@@ -31,6 +31,7 @@ import CoronerLab from './pages/CoronerLab';
 import SergeantDashboard from './pages/SergeantDashboard';
 import CaptainDashboard from './pages/CaptainDashboard';
 import ChiefDashboard from './pages/ChiefDashboard';
+import JudgeDashboard from './pages/JudgeDashboard';
 
 export const router = createBrowserRouter([
   {
@@ -189,13 +190,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'judge/bench',
-        element: (
-          <PlaceholderPage
-            icon="⚖️"
-            title="میز قضاوت"
-            description="بررسی پرونده‌های تکمیل شده و صدور رای"
-          />
-        ),
+        element: <JudgeDashboard />,
       },
       // Additional routes will be added here
     ],
