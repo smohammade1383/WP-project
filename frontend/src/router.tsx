@@ -19,19 +19,20 @@ import Rewards from './pages/Rewards';
 import AdminPanel from './pages/AdminPanel';
 import Users from './pages/Users';
 import MyCases from './pages/MyCases';
-import PlaceholderPage from './pages/PlaceholderPage';
 import CitizenComplaints from './pages/CitizenComplaints';
 import CitizenComplaintNew from './pages/CitizenComplaintNew';
 import CitizenRewards from './pages/CitizenRewards';
 import CadetComplaintsInbox from './pages/CadetComplaintsInbox';
 import OfficerComplaintsApproval from './pages/OfficerComplaintsApproval';
 import OfficerCrimeSceneCreate from './pages/OfficerCrimeSceneCreate';
+import OfficerTipsReview from './pages/OfficerTipsReview';
 import LegalBailStatus from './pages/LegalBailStatus';
 import CoronerLab from './pages/CoronerLab';
 import SergeantDashboard from './pages/SergeantDashboard';
 import CaptainDashboard from './pages/CaptainDashboard';
 import ChiefDashboard from './pages/ChiefDashboard';
 import JudgeDashboard from './pages/JudgeDashboard';
+import DetectiveRewardsReview from './pages/DetectiveRewardsReview';
 
 export const router = createBrowserRouter([
   {
@@ -135,6 +136,10 @@ export const router = createBrowserRouter([
         element: <OfficerComplaintsApproval />,
       },
       {
+        path: 'officer/tips',
+        element: <OfficerTipsReview />,
+      },
+      {
         path: 'officer/crime-scene',
         element: <OfficerCrimeSceneCreate />,
       },
@@ -148,13 +153,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'detective/rewards',
-        element: (
-          <PlaceholderPage
-            icon="🔖"
-            title="تاییدیه پاداش"
-            description="اعتبارسنجی گزارش‌های مردمی تایید شده"
-          />
-        ),
+        element: <DetectiveRewardsReview />,
       },
       {
         path: 'detective/evidence',

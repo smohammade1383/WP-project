@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from cases.models import Case
+from evidence.models import Evidence
 from .models import PaymentTransaction, RewardReport
 from .serializers import (
     PaymentCallbackSerializer,
@@ -69,7 +70,7 @@ class RewardReportListCreateAPIView(generics.ListCreateAPIView):
         return RewardReport.objects.filter(reporter=self.request.user).select_related("reporter", "suspect_profile", "case")
 
     def perform_create(self, serializer):
-        serializer.save(reporter=self.request.user)
+        serializer.save(reporter=self.request.user, status=RewardReport.Status.OFFICER_REVIEW)
 
 
 @extend_schema_view(
@@ -110,6 +111,11 @@ class RewardOfficerReviewAPIView(APIView):
             raise PermissionDenied("Only officer+ roles can review reward submissions.")
 
         report = get_object_or_404(RewardReport, id=report_id)
+        if report.status in {RewardReport.Status.REJECTED, RewardReport.Status.APPROVED}:
+            raise ValidationError({"detail": "This report is already finalized."})
+        if report.status == RewardReport.Status.DETECTIVE_REVIEW:
+            raise ValidationError({"detail": "This report is already forwarded to detective queue."})
+
         serializer = RewardOfficerReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -138,6 +144,11 @@ class RewardDetectiveReviewAPIView(APIView):
             raise PermissionDenied("Only detective roles can finalize reward reports.")
 
         report = get_object_or_404(RewardReport, id=report_id)
+        if report.status in {RewardReport.Status.REJECTED, RewardReport.Status.APPROVED}:
+            raise ValidationError({"detail": "This report is already finalized."})
+        if report.status != RewardReport.Status.DETECTIVE_REVIEW:
+            raise ValidationError({"detail": "Report must be in detective review queue."})
+
         serializer = RewardDetectiveReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action = serializer.validated_data["action"]
@@ -151,8 +162,22 @@ class RewardDetectiveReviewAPIView(APIView):
         if not report.suspect_profile:
             raise ValidationError({"suspect_profile": "An associated suspect profile is required for reward approval."})
 
+        related_case = report.case or report.suspect_profile.case
+        if not related_case:
+            raise ValidationError({"case": "A related case is required to finalize this report."})
+
+        if report.case_id != related_case.id:
+            report.case = related_case
+
         report.status = RewardReport.Status.APPROVED
-        report.save(update_fields=["reviewed_by_detective", "status", "unique_code", "reward_amount"])
+        report.save(update_fields=["reviewed_by_detective", "status", "unique_code", "reward_amount", "case"])
+        Evidence.objects.create(
+            case=related_case,
+            title=f"Informant Report #{report.id}",
+            description=report.description,
+            type=Evidence.Type.OTHER,
+            created_by=request.user,
+        )
         report.refresh_from_db()
         return Response(RewardReportSerializer(report).data)
 
@@ -164,7 +189,8 @@ class RewardDetectiveReviewAPIView(APIView):
     responses={200: OpenApiTypes.OBJECT},
     parameters=[
         OpenApiParameter(name="national_id", type=str, location=OpenApiParameter.QUERY, required=True),
-        OpenApiParameter(name="unique_code", type=str, location=OpenApiParameter.QUERY, required=True),
+        OpenApiParameter(name="unique_code", type=str, location=OpenApiParameter.QUERY, required=False),
+        OpenApiParameter(name="tracking_code", type=str, location=OpenApiParameter.QUERY, required=False),
     ],
 )
 class RewardVerifyAPIView(APIView):
@@ -179,13 +205,14 @@ class RewardVerifyAPIView(APIView):
 
         report = get_object_or_404(
             RewardReport.objects.select_related("reporter"),
-            unique_code=serializer.validated_data["unique_code"],
+            unique_code=serializer.validated_data["resolved_code"],
             reporter__national_id=serializer.validated_data["national_id"],
             status=RewardReport.Status.APPROVED,
         )
         return Response(
             {
                 "report_id": report.id,
+                "tracking_code": report.unique_code,
                 "reward_amount": report.reward_amount,
                 "reporter": {
                     "id": report.reporter.id,

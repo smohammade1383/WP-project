@@ -14,6 +14,7 @@ class FinanceUserBriefSerializer(serializers.ModelSerializer):
 
 class RewardReportSerializer(serializers.ModelSerializer):
     reporter = FinanceUserBriefSerializer(read_only=True)
+    tracking_code = serializers.CharField(source="unique_code", read_only=True)
 
     class Meta:
         model = RewardReport
@@ -27,6 +28,7 @@ class RewardReportSerializer(serializers.ModelSerializer):
             "reviewed_by_officer",
             "reviewed_by_detective",
             "unique_code",
+            "tracking_code",
             "reward_amount",
             "created_at",
         )
@@ -37,9 +39,30 @@ class RewardReportSerializer(serializers.ModelSerializer):
             "reviewed_by_officer",
             "reviewed_by_detective",
             "unique_code",
+            "tracking_code",
             "reward_amount",
             "created_at",
         )
+
+    def validate(self, attrs):
+        case_obj = attrs.get("case")
+        suspect_profile = attrs.get("suspect_profile")
+
+        if not case_obj and not suspect_profile:
+            raise serializers.ValidationError(
+                {"detail": "Either case or suspect_profile must be provided."}
+            )
+
+        if suspect_profile and not case_obj:
+            attrs["case"] = suspect_profile.case
+            return attrs
+
+        if suspect_profile and case_obj and suspect_profile.case_id != case_obj.id:
+            raise serializers.ValidationError(
+                {"suspect_profile": "suspect_profile must belong to the provided case."}
+            )
+
+        return attrs
 
 
 class RewardOfficerReviewSerializer(serializers.Serializer):
@@ -52,7 +75,18 @@ class RewardDetectiveReviewSerializer(serializers.Serializer):
 
 class RewardVerificationSerializer(serializers.Serializer):
     national_id = serializers.CharField(max_length=10)
-    unique_code = serializers.CharField(max_length=24)
+    unique_code = serializers.CharField(max_length=24, required=False, allow_blank=True)
+    tracking_code = serializers.CharField(max_length=24, required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        unique_code = (attrs.get("unique_code") or "").strip()
+        tracking_code = (attrs.get("tracking_code") or "").strip()
+        if not unique_code and not tracking_code:
+            raise serializers.ValidationError(
+                {"detail": "Either unique_code or tracking_code must be provided."}
+            )
+        attrs["resolved_code"] = unique_code or tracking_code
+        return attrs
 
 
 class PaymentTransactionSerializer(serializers.ModelSerializer):

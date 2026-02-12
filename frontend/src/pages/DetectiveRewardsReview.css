@@ -1,0 +1,194 @@
+.detective-rewards-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.detective-rewards-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.detective-rewards-header h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.3rem;
+}
+
+.detective-rewards-header p {
+  margin: 8px 0 0;
+  color: #475569;
+}
+
+.queue-count {
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.detective-rewards-feedback {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 600;
+}
+
+.detective-rewards-feedback.error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.detective-rewards-feedback.success {
+  background: #ecfdf5;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.detective-rewards-empty {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 18px;
+  color: #475569;
+}
+
+.detective-rewards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.detective-reward-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detective-reward-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.detective-reward-head h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.status-chip {
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.82rem;
+}
+
+.detective-reward-card p {
+  margin: 0;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.detective-reward-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.detective-reward-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detective-reward-actions button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.detective-reward-actions button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.reject-btn {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.approve-btn {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.detective-reward-note {
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 8px;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.detective-approved-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.detective-approved-section h2 {
+  margin: 0 0 10px;
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.detective-approved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.approved-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #334155;
+}
+
+.approved-row strong {
+  color: #1d4ed8;
+}
+
+@media (max-width: 900px) {
+  .detective-rewards-page {
+    padding: 12px;
+  }
+
+  .detective-rewards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
