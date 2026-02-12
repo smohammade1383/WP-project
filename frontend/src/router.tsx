@@ -29,6 +29,7 @@ import OfficerCrimeSceneCreate from './pages/OfficerCrimeSceneCreate';
 import LegalBailStatus from './pages/LegalBailStatus';
 import CoronerLab from './pages/CoronerLab';
 import SergeantDashboard from './pages/SergeantDashboard';
+import CaptainDashboard from './pages/CaptainDashboard';
 
 export const router = createBrowserRouter([
   {
@@ -171,13 +172,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'captain/interrogations',
-        element: (
-          <PlaceholderPage
-            icon="🎯"
-            title="نظارت بر بازجویی"
-            description="بررسی نمرات بازجویی و تایید نهایی"
-          />
-        ),
+        element: <CaptainDashboard />,
       },
       {
         path: 'chief/critical-cases',

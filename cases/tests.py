@@ -341,7 +341,7 @@ class CaseFlowAPITests(APITestCase):
         self.assertIsNone(captain_resp.data["chief_confirmed"])
 
         critical_case.refresh_from_db()
-        self.assertEqual(critical_case.status, Case.Status.ARRESTED)
+        self.assertEqual(critical_case.status, Case.Status.WAITING_CHIEF)
 
         decision_id = captain_resp.data["id"]
         self.client.force_authenticate(chief)
@@ -506,4 +506,37 @@ class CaseFlowAPITests(APITestCase):
         )
         self.assertEqual(submit_resp.status_code, status.HTTP_200_OK)
         self.assertEqual(submit_resp.data["submitted_profiles"], 1)
-        self.assertEqual(submit_resp.data["case"]["status"], Case.Status.ARRESTED)
+        self.assertEqual(submit_resp.data["case"]["status"], Case.Status.WAITING_CAPTAIN)
+
+    def test_captain_reject_returns_case_to_sergeant_queue(self):
+        captain = self._create_user("captain_reject_case", roles=["Captain"])
+        officer = self._create_user("officer_reject_case", roles=["Police Officer"])
+        suspect = self._create_user("suspect_reject_case", roles=["Suspect"])
+
+        case_obj = Case.objects.create(
+            title="Captain reject case",
+            description="Queue",
+            location="Zone C",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.WAITING_CAPTAIN,
+            severity=Case.Severity.LEVEL_2,
+            created_by=officer,
+        )
+        profile = SuspectCaseProfile.objects.create(
+            case=case_obj,
+            suspect=suspect,
+            arrest_warrant_issued=True,
+            is_arrested=True,
+        )
+
+        self.client.force_authenticate(captain)
+        reject_resp = self.client.post(
+            reverse("captain-decision", kwargs={"profile_id": profile.id}),
+            {"is_confirmed": False, "summary": "Needs more review."},
+            format="json",
+        )
+        self.assertEqual(reject_resp.status_code, status.HTTP_201_CREATED)
+
+        case_obj.refresh_from_db()
+        self.assertEqual(case_obj.status, Case.Status.ARRESTED)

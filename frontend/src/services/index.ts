@@ -46,6 +46,14 @@ export type {
   SergeantUserBrief,
   SubmitToCaptainResult,
 } from './sergeant.api';
+export { captainApi } from './captain.api';
+export type {
+  CaptainCase,
+  CaptainDecision,
+  CaptainScore,
+  CaptainSuspectProfile,
+  CaptainUserBrief,
+} from './captain.api';
 export { evidenceApi } from './evidence.api';
 export type { EvidenceRecord, EvidenceType } from './evidence.api';
 export { coronerApi } from './coroner.api';

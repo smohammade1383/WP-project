@@ -26,6 +26,8 @@ const statusLabelMap: Record<string, string> = {
   Open: 'باز / در حال بررسی',
   WarrantPending: 'در انتظار تصمیم گروهبان',
   Arrested: 'بازداشت انجام شده',
+  WaitingCaptain: 'در انتظار کاپیتان',
+  WaitingChief: 'در انتظار رئیس پلیس',
   InCourt: 'ارسال به دادگاه',
   Closed: 'بسته',
   Void: 'باطل',
@@ -177,7 +179,11 @@ const SergeantDashboard = () => {
   const captainCandidates = useMemo(() => {
     const grouped = new Map<number, SergeantSuspectProfile[]>();
     profiles
-      .filter((profile) => profile.is_arrested)
+      .filter((profile) => {
+        if (!profile.is_arrested) return false;
+        const relatedCase = casesById.get(profile.case);
+        return relatedCase?.status === 'Arrested';
+      })
       .forEach((profile) => {
         const list = grouped.get(profile.case) || [];
         list.push(profile);

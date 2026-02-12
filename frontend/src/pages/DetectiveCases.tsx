@@ -56,6 +56,8 @@ const statusLabelMap: Record<string, string> = {
   Open: 'باز / در حال بررسی',
   WarrantPending: 'در انتظار تایید گروهبان',
   Arrested: 'بازداشت انجام شده',
+  WaitingCaptain: 'در انتظار کاپیتان',
+  WaitingChief: 'در انتظار رئیس پلیس',
   InCourt: 'ارسال به دادگاه',
   Closed: 'بسته',
   Void: 'باطل',

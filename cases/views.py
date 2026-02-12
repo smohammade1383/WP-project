@@ -895,13 +895,46 @@ class CaptainDecisionCreateAPIView(APIView):
             decision.chief = request.user
             decision.chief_confirmed = is_confirmed
             decision.save(update_fields=["chief", "chief_confirmed"])
-            case_obj.status = Case.Status.IN_COURT if is_confirmed else Case.Status.OPEN
-        elif is_confirmed and case_obj.severity != Case.Severity.CRITICAL:
+            case_obj.status = Case.Status.IN_COURT if is_confirmed else Case.Status.ARRESTED
+            CaseLog.objects.create(
+                case=case_obj,
+                actor=request.user,
+                action="chief_auto_decision",
+                description="critical case finalized by chief role at captain step",
+            )
+        elif case_obj.severity == Case.Severity.CRITICAL:
+            if is_confirmed:
+                case_obj.status = Case.Status.WAITING_CHIEF
+                CaseLog.objects.create(
+                    case=case_obj,
+                    actor=request.user,
+                    action="captain_escalate_chief",
+                    description=summary or "Escalated to chief for critical confirmation.",
+                )
+            else:
+                case_obj.status = Case.Status.ARRESTED
+                CaseLog.objects.create(
+                    case=case_obj,
+                    actor=request.user,
+                    action="captain_reject",
+                    description=summary or "Returned to sergeant queue for review.",
+                )
+        elif is_confirmed:
             case_obj.status = Case.Status.IN_COURT
-        elif is_confirmed and case_obj.severity == Case.Severity.CRITICAL:
-            case_obj.status = Case.Status.ARRESTED
+            CaseLog.objects.create(
+                case=case_obj,
+                actor=request.user,
+                action="captain_prosecute",
+                description=summary or "Sent to court.",
+            )
         else:
-            case_obj.status = Case.Status.OPEN
+            case_obj.status = Case.Status.ARRESTED
+            CaseLog.objects.create(
+                case=case_obj,
+                actor=request.user,
+                action="captain_reject",
+                description=summary or "Returned to sergeant queue for review.",
+            )
         case_obj.save(update_fields=["status", "updated_at"])
 
         return Response(CaptainDecisionSerializer(decision).data, status=status.HTTP_201_CREATED)
@@ -939,8 +972,20 @@ class ChiefDecisionAPIView(APIView):
 
         if decision.is_confirmed and decision.chief_confirmed:
             case_obj.status = Case.Status.IN_COURT
+            CaseLog.objects.create(
+                case=case_obj,
+                actor=request.user,
+                action="chief_confirmed",
+                description="Chief confirmed captain decision and sent to court.",
+            )
         else:
-            case_obj.status = Case.Status.OPEN
+            case_obj.status = Case.Status.ARRESTED
+            CaseLog.objects.create(
+                case=case_obj,
+                actor=request.user,
+                action="chief_rejected",
+                description="Chief rejected captain decision and returned to sergeant queue.",
+            )
         case_obj.save(update_fields=["status", "updated_at"])
 
         return Response(CaptainDecisionSerializer(decision).data)
@@ -1093,7 +1138,7 @@ class SergeantSubmitToCaptainAPIView(APIView):
                 }
             )
 
-        case_obj.status = Case.Status.ARRESTED
+        case_obj.status = Case.Status.WAITING_CAPTAIN
         case_obj.save(update_fields=["status", "updated_at"])
 
         CaseLog.objects.create(

@@ -19,6 +19,8 @@ class Case(models.Model):
         OPEN = "Open", _("Open / Investigating")
         WARRANT_PENDING = "WarrantPending", _("Warrant Requested")
         ARRESTED = "Arrested", _("Suspect Arrested")
+        WAITING_CAPTAIN = "WaitingCaptain", _("Waiting For Captain Decision")
+        WAITING_CHIEF = "WaitingChief", _("Waiting For Chief Confirmation")
         IN_COURT = "InCourt", _("Sent to Court")
         CLOSED = "Closed", _("Case Closed")
         VOID = "Void", _("Void")
@@ -82,7 +84,26 @@ class Case(models.Model):
             self.Status.PENDING_OFFICER: {self.Status.OPEN, self.Status.NEEDS_COMPLAINANT_UPDATE, self.Status.VOID},
             self.Status.OPEN: {self.Status.WARRANT_PENDING, self.Status.ARRESTED, self.Status.CLOSED},
             self.Status.WARRANT_PENDING: {self.Status.ARRESTED, self.Status.OPEN, self.Status.CLOSED},
-            self.Status.ARRESTED: {self.Status.IN_COURT, self.Status.OPEN, self.Status.CLOSED},
+            self.Status.ARRESTED: {
+                self.Status.WAITING_CAPTAIN,
+                self.Status.WAITING_CHIEF,
+                self.Status.IN_COURT,
+                self.Status.OPEN,
+                self.Status.CLOSED,
+            },
+            self.Status.WAITING_CAPTAIN: {
+                self.Status.IN_COURT,
+                self.Status.WAITING_CHIEF,
+                self.Status.ARRESTED,
+                self.Status.OPEN,
+                self.Status.CLOSED,
+            },
+            self.Status.WAITING_CHIEF: {
+                self.Status.IN_COURT,
+                self.Status.ARRESTED,
+                self.Status.OPEN,
+                self.Status.CLOSED,
+            },
             self.Status.IN_COURT: {self.Status.CLOSED},
             self.Status.CLOSED: set(),
             self.Status.VOID: set(),
