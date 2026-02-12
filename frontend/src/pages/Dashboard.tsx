@@ -8,10 +8,6 @@ const Dashboard = () => {
   const user = authService.getUserData();
   const { availableModules } = useModuleAccess();
 
-  const visibleModules = availableModules.filter(
-    (module) => module.id !== 'detective-board'
-  );
-
   const handleModuleClick = (route: string) => {
     navigate(route);
   };
@@ -36,14 +32,14 @@ const Dashboard = () => {
       </div>
 
       <div className="dashboard-content">
-        {visibleModules.length === 0 ? (
+        {availableModules.length === 0 ? (
           <div className="no-modules-message">
             <p>هیچ ماژولی برای نمایش وجود ندارد.</p>
             <p>لطفاً با مدیر سیستم تماس بگیرید.</p>
           </div>
         ) : (
           <div className="modules-grid">
-            {visibleModules.map((module) => (
+            {availableModules.map((module) => (
               <div
                 key={module.id}
                 className="module-card"
@@ -67,7 +63,7 @@ const Dashboard = () => {
         <div className="dashboard-info">
           <div className="info-card">
             <h3>📊 آمار سریع</h3>
-            <p>تعداد ماژول‌های در دسترس: <strong>{visibleModules.length}</strong></p>
+            <p>تعداد ماژول‌های در دسترس: <strong>{availableModules.length}</strong></p>
           </div>
         </div>
       </div>

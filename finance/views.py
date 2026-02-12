@@ -47,6 +47,14 @@ def is_police_staff(user):
     return has_any_role(user, *POLICE_ROLES)
 
 
+def resolve_payment_url(request, tx):
+    if tx.return_url:
+        if tx.return_url.startswith(("http://", "https://")):
+            return tx.return_url
+        return request.build_absolute_uri(tx.return_url)
+    return request.build_absolute_uri(f"/api/finance/payments/{tx.id}/return/?status=paid")
+
+
 @extend_schema_view(
     get=extend_schema(tags=["Rewards"], summary="List reward reports"),
     post=extend_schema(tags=["Rewards"], summary="Submit reward report by citizen"),
@@ -238,7 +246,7 @@ class PaymentInitiateAPIView(APIView):
             return_url=data.get("return_url", ""),
         )
 
-        payment_url = f"/api/finance/payments/{tx.id}/return/?status=paid"
+        payment_url = resolve_payment_url(request, tx)
         return Response(
             {
                 "transaction": PaymentTransactionSerializer(tx).data,
@@ -271,7 +279,7 @@ class PaymentStartAPIView(APIView):
         if tx.status != PaymentTransaction.Status.INITIATED:
             raise ValidationError({"detail": "Only initiated transactions can be paid."})
 
-        payment_url = tx.return_url or f"/api/finance/payments/{tx.id}/return/?status=paid"
+        payment_url = resolve_payment_url(request, tx)
         return Response(
             {
                 "transaction": PaymentTransactionSerializer(tx).data,

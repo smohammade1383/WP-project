@@ -3,6 +3,15 @@ import { paymentsApi, type PaymentTransaction } from '../services';
 import './LegalBailStatus.css';
 
 const formatAmount = (value: number): string => value.toLocaleString('fa-IR');
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_ORIGIN = new URL(API_BASE_URL).origin;
+
+const toAbsoluteUrl = (url: string): string => {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  return new URL(url, API_ORIGIN).toString();
+};
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (typeof error === 'object' && error !== null && 'message' in error) {
@@ -76,7 +85,7 @@ const LegalBailStatus = () => {
       setSuccess('');
       const result = await paymentsApi.start(transactionId);
       setSuccess(`در حال انتقال به درگاه پرداخت تراکنش #${transactionId} ...`);
-      window.location.href = result.payment_url;
+      window.location.href = toAbsoluteUrl(result.payment_url);
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'شروع پرداخت آنلاین با خطا مواجه شد.'));
     } finally {

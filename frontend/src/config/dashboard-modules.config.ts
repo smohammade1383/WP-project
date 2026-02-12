@@ -115,15 +115,6 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
     color: '#16A085',
   },
   {
-    id: 'officer-tips',
-    title: 'گزارش‌های مردمی',
-    description: 'بررسی گزارش‌های شهروندان',
-    icon: '📣',
-    route: '/officer/tips',
-    allowedRoles: ['Police Officer', 'Patrol Officer'],
-    color: '#9B59B6',
-  },
-  {
     id: 'officer-crime-scene',
     title: 'ثبت سریع صحنه جرم',
     description: 'ثبت صحنه جرم بدون شاکی',

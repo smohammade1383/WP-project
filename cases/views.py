@@ -426,6 +426,8 @@ class ComplaintCadetReviewAPIView(APIView):
         else:
             # Cadet approval only advances the complaint to officer review.
             # Case creation must happen only after officer approval.
+            complaint.status = Complaint.Status.SUBMITTED
+            complaint.save(update_fields=["status", "updated_at"])
             if complaint.case_id:
                 complaint.case.status = Case.Status.PENDING_OFFICER
                 complaint.case.save(update_fields=["status", "updated_at"])

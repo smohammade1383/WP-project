@@ -4,7 +4,7 @@ import Home from './pages/Home';
 import ComponentsDemo from './pages/ComponentsDemo';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
-import DetectiveBoard from './pages/DetectiveBoard';
+import DetectiveCases from './pages/DetectiveCases';
 import Cases from './pages/Cases';
 import Complaints from './pages/Complaints';
 import MostWanted from './pages/MostWanted';
@@ -25,7 +25,6 @@ import CitizenComplaintNew from './pages/CitizenComplaintNew';
 import CitizenRewards from './pages/CitizenRewards';
 import CadetComplaintsInbox from './pages/CadetComplaintsInbox';
 import OfficerComplaintsApproval from './pages/OfficerComplaintsApproval';
-import OfficerTipsReview from './pages/OfficerTipsReview';
 import OfficerCrimeSceneCreate from './pages/OfficerCrimeSceneCreate';
 import LegalBailStatus from './pages/LegalBailStatus';
 
@@ -52,7 +51,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'detective-board',
-        element: <DetectiveBoard />,
+        element: <DetectiveCases />,
       },
       {
         path: 'cases',
@@ -131,10 +130,6 @@ export const router = createBrowserRouter([
         element: <OfficerComplaintsApproval />,
       },
       {
-        path: 'officer/tips',
-        element: <OfficerTipsReview />,
-      },
-      {
         path: 'officer/crime-scene',
         element: <OfficerCrimeSceneCreate />,
       },
@@ -144,7 +139,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'detective/cases',
-        element: <MyCases />,
+        element: <DetectiveCases />,
       },
       {
         path: 'detective/rewards',
@@ -158,13 +153,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'detective/evidence',
-        element: (
-          <PlaceholderPage
-            icon="🧪"
-            title="مدارک جدید"
-            description="مدارک تازه اضافه شده به پرونده‌ها"
-          />
-        ),
+        element: <DetectiveCases />,
       },
       {
         path: 'sergeant/crime-scenes',

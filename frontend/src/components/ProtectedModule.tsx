@@ -3,7 +3,7 @@
  * Wraps components that require specific module access
  */
 
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { authService } from '../services/auth.service';
 import { hasModuleAccess } from '../config/dashboard-modules.config';

@@ -7,6 +7,16 @@ import { useEffect, useState } from 'react';
 import { casesApi, type Case } from '../services/cases.api';
 import { authApi } from '../services/auth.api';
 
+const errorMessage = (err: unknown): string => {
+  if (typeof err === 'object' && err !== null && 'message' in err) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+  return 'خطا در انجام عملیات';
+};
+
 const ExampleApiUsage = () => {
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,8 +34,8 @@ const ExampleApiUsage = () => {
       
       const response = await casesApi.getCases(1, 10);
       setCases(response.results);
-    } catch (err: any) {
-      setError(err.message || 'خطا در بارگذاری اطلاعات');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -35,13 +45,13 @@ const ExampleApiUsage = () => {
   const handleLogin = async () => {
     try {
       const response = await authApi.login({
-        username: 'user@example.com',
+        identifier: 'user@example.com',
         password: 'password123',
       });
       
       console.log('Logged in:', response.user);
-    } catch (err: any) {
-      console.error('Login failed:', err.message);
+    } catch (err: unknown) {
+      console.error('Login failed:', errorMessage(err));
     }
   };
 
@@ -57,8 +67,8 @@ const ExampleApiUsage = () => {
       
       console.log('Case created:', newCase);
       loadCases(); // Reload list
-    } catch (err: any) {
-      console.error('Create failed:', err.message);
+    } catch (err: unknown) {
+      console.error('Create failed:', errorMessage(err));
     }
   };
 

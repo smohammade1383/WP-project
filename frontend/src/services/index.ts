@@ -31,3 +31,11 @@ export { crimeSceneApi } from './crime-scene.api';
 export type { CrimeSceneCase, CreateCrimeSceneCaseRequest } from './crime-scene.api';
 export { usersApi } from './users.api';
 export type { Role as AdminRole } from './users.api';
+export { detectiveApi } from './detective.api';
+export type {
+  DetectiveCase,
+  DetectiveCaseUser,
+  DetectiveNotification,
+} from './detective.api';
+export { evidenceApi } from './evidence.api';
+export type { EvidenceRecord, EvidenceType } from './evidence.api';

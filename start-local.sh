@@ -20,6 +20,8 @@ trap cleanup SIGINT SIGTERM
 echo "🐍 Starting Django Backend on port 8000..."
 cd /Users/apple/Documents/GitHub/WP-project
 source venv/bin/activate
+echo "🔧 Running database migrations..."
+python manage.py migrate --noinput
 python manage.py runserver &
 BACKEND_PID=$!
 
