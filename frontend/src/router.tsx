@@ -19,6 +19,7 @@ import Rewards from './pages/Rewards';
 import AdminPanel from './pages/AdminPanel';
 import Users from './pages/Users';
 import MyCases from './pages/MyCases';
+import PlaceholderPage from './pages/PlaceholderPage';
 
 export const router = createBrowserRouter([
   {
@@ -100,6 +101,180 @@ export const router = createBrowserRouter([
       {
         path: 'my-cases',
         element: <MyCases />,
+      },
+      {
+        path: 'citizen/complaints',
+        element: (
+          <PlaceholderPage
+            icon="📝"
+            title="پیگیری شکایات"
+            description="مشاهده وضعیت شکایات ثبت شده"
+          />
+        ),
+      },
+      {
+        path: 'citizen/complaints/new',
+        element: (
+          <PlaceholderPage
+            icon="➕"
+            title="ثبت شکایت جدید"
+            description="فرم ثبت شکایت جدید شهروندان"
+          />
+        ),
+      },
+      {
+        path: 'citizen/rewards',
+        element: (
+          <PlaceholderPage
+            icon="🎁"
+            title="وضعیت پاداش‌ها"
+            description="پیگیری گزارش‌های مردمی و پاداش‌ها"
+          />
+        ),
+      },
+      {
+        path: 'cadet/complaints',
+        element: (
+          <PlaceholderPage
+            icon="📥"
+            title="شکایات دریافتی"
+            description="بررسی شکایات جدید شهروندان"
+          />
+        ),
+      },
+      {
+        path: 'officer/complaints',
+        element: (
+          <PlaceholderPage
+            icon="✅"
+            title="تایید نهایی شکایات"
+            description="بررسی شکایات تایید شده توسط کارآموز"
+          />
+        ),
+      },
+      {
+        path: 'officer/tips',
+        element: (
+          <PlaceholderPage
+            icon="📣"
+            title="گزارش‌های مردمی"
+            description="بررسی گزارش‌های شهروندان درباره مظنونین"
+          />
+        ),
+      },
+      {
+        path: 'officer/crime-scene',
+        element: (
+          <PlaceholderPage
+            icon="🚨"
+            title="ثبت سریع صحنه جرم"
+            description="ثبت صحنه جرم بدون شاکی"
+          />
+        ),
+      },
+      {
+        path: 'detective/cases',
+        element: <MyCases />,
+      },
+      {
+        path: 'detective/rewards',
+        element: (
+          <PlaceholderPage
+            icon="🔖"
+            title="تاییدیه پاداش"
+            description="اعتبارسنجی گزارش‌های مردمی تایید شده"
+          />
+        ),
+      },
+      {
+        path: 'detective/evidence',
+        element: (
+          <PlaceholderPage
+            icon="🧪"
+            title="مدارک جدید"
+            description="مدارک تازه اضافه شده به پرونده‌ها"
+          />
+        ),
+      },
+      {
+        path: 'sergeant/crime-scenes',
+        element: (
+          <PlaceholderPage
+            icon="🛡️"
+            title="تایید صحنه جرم"
+            description="بررسی پرونده‌های ثبت شده توسط افسران"
+          />
+        ),
+      },
+      {
+        path: 'sergeant/operations',
+        element: (
+          <PlaceholderPage
+            icon="📌"
+            title="درخواست‌های عملیاتی"
+            description="درخواست‌های دستگیری کارآگاهان"
+          />
+        ),
+      },
+      {
+        path: 'sergeant/detention',
+        element: (
+          <PlaceholderPage
+            icon="🔒"
+            title="بازداشتگاه"
+            description="مدیریت متهمین و وثیقه‌ها"
+          />
+        ),
+      },
+      {
+        path: 'captain/interrogations',
+        element: (
+          <PlaceholderPage
+            icon="🎯"
+            title="نظارت بر بازجویی"
+            description="بررسی نمرات بازجویی و تایید نهایی"
+          />
+        ),
+      },
+      {
+        path: 'chief/critical-cases',
+        element: (
+          <PlaceholderPage
+            icon="🚩"
+            title="پرونده‌های بحرانی"
+            description="پرونده‌های سطح بحرانی برای تایید نهایی"
+          />
+        ),
+      },
+      {
+        path: 'chief/stats',
+        element: (
+          <PlaceholderPage
+            icon="📈"
+            title="آمار کلان"
+            description="نمودارهای مدیریتی از وضعیت جرم و جنایت"
+          />
+        ),
+      },
+      {
+        path: 'coroner/lab',
+        element: (
+          <PlaceholderPage
+            icon="🧬"
+            title="آزمایشگاه مدارک"
+            description="مدیریت نتایج آزمایش مدارک زیستی"
+          />
+        ),
+      },
+      {
+        path: 'judge/bench',
+        element: (
+          <PlaceholderPage
+            icon="⚖️"
+            title="میز قضاوت"
+            description="بررسی پرونده‌های تکمیل شده و صدور رای"
+          />
+        ),
       },
       // Additional routes will be added here
     ],

@@ -87,11 +87,12 @@ describe('Dashboard Modules Configuration', () => {
       const modules = getModulesForUser(['Judge']);
       expect(modules.length).toBeGreaterThan(0);
       
-      // Should include reports and trials
+      // Should include judge-bench and reports
+      const judgeBench = modules.find((m) => m.id === 'judge-bench');
       const reports = modules.find((m) => m.id === 'reports');
-      const trials = modules.find((m) => m.id === 'trials');
+      
+      expect(judgeBench).toBeDefined();
       expect(reports).toBeDefined();
-      expect(trials).toBeDefined();
     });
 
     it('should return combined modules for users with multiple roles', () => {
@@ -125,6 +126,10 @@ describe('Dashboard Modules Configuration', () => {
         // Notifications should be available to all
         const notifications = modules.find((m) => m.id === 'notifications');
         expect(notifications).toBeDefined();
+
+        // Most wanted should be available to all
+        const mostWanted = modules.find((m) => m.id === 'most-wanted');
+        expect(mostWanted).toBeDefined();
       });
     });
   });
@@ -133,7 +138,7 @@ describe('Dashboard Modules Configuration', () => {
     it('should return true when user has required role', () => {
       expect(hasModuleAccess('detective-board', ['Detective'])).toBe(true);
       expect(hasModuleAccess('admin-panel', ['Administrator'])).toBe(true);
-      expect(hasModuleAccess('cases', ['Police Officer'])).toBe(true);
+      expect(hasModuleAccess('most-wanted', ['Police Officer'])).toBe(true);
     });
 
     it('should return false when user does not have required role', () => {
@@ -149,8 +154,8 @@ describe('Dashboard Modules Configuration', () => {
     });
 
     it('should return true when user has one of multiple required roles', () => {
-      expect(hasModuleAccess('detective-board', ['Captain'])).toBe(true);
-      expect(hasModuleAccess('cases', ['Sergeant'])).toBe(true);
+      expect(hasModuleAccess('reports', ['Chief'])).toBe(true);
+      expect(hasModuleAccess('reports', ['Captain'])).toBe(true);
     });
 
     it('should return correct access for users with multiple roles', () => {
@@ -165,7 +170,7 @@ describe('Dashboard Modules Configuration', () => {
     it('should return true for Basic User modules with no roles', () => {
       expect(hasModuleAccess('profile', [])).toBe(true);
       expect(hasModuleAccess('notifications', [])).toBe(true);
-      expect(hasModuleAccess('my-cases', [])).toBe(true);
+      expect(hasModuleAccess('most-wanted', [])).toBe(true);
     });
 
     it('should return false for restricted modules with no roles', () => {
@@ -191,7 +196,7 @@ describe('Dashboard Modules Configuration', () => {
       expect(coronerHasBoard).toBe(false);
     });
 
-    it('All police roles should see cases module', () => {
+    it('All police roles should see most-wanted module', () => {
       const policeRoles = [
         'Detective',
         'Police Officer',
@@ -203,18 +208,18 @@ describe('Dashboard Modules Configuration', () => {
       
       policeRoles.forEach((role) => {
         const modules = getModulesForUser([role]);
-        const hasCases = modules.some((m) => m.id === 'cases');
-        expect(hasCases).toBe(true);
+        const hasMostWanted = modules.some((m) => m.id === 'most-wanted');
+        expect(hasMostWanted).toBe(true);
       });
     });
 
-    it('Only high-level roles should see admin-panel', () => {
+    it('Only Administrator should see admin-panel', () => {
       const adminModules = getModulesForUser(['Administrator']);
       const chiefModules = getModulesForUser(['Chief']);
       const detectiveModules = getModulesForUser(['Detective']);
       
       expect(adminModules.some((m) => m.id === 'admin-panel')).toBe(true);
-      expect(chiefModules.some((m) => m.id === 'admin-panel')).toBe(true);
+      expect(chiefModules.some((m) => m.id === 'admin-panel')).toBe(false);
       expect(detectiveModules.some((m) => m.id === 'admin-panel')).toBe(false);
     });
   });

@@ -5,10 +5,13 @@ from rest_framework import serializers
 
 from .constants import DEFAULT_SIGNUP_ROLE
 from .models import User
+from .utils import normalize_digits
 
 
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
+    phone_number = serializers.CharField()
+    national_id = serializers.CharField()
 
     class Meta:
         model = User
@@ -23,13 +26,18 @@ class SignupSerializer(serializers.ModelSerializer):
         )
 
     def create(self, validated_data):
+        validated_data["username"] = validated_data["username"].strip()
+        validated_data["email"] = validated_data["email"].strip().lower()
+        validated_data["phone_number"] = normalize_digits(validated_data["phone_number"]).strip()
+        validated_data["national_id"] = normalize_digits(validated_data["national_id"]).strip()
+
         password = validated_data.pop("password")
         
         # Check for existing users with better error messages
         errors = {}
         if User.objects.filter(username=validated_data.get('username')).exists():
             errors['username'] = 'این نام کاربری قبلاً استفاده شده است'
-        if User.objects.filter(email=validated_data.get('email')).exists():
+        if User.objects.filter(email__iexact=validated_data.get('email')).exists():
             errors['email'] = 'این ایمیل قبلاً ثبت شده است'
         if User.objects.filter(phone_number=validated_data.get('phone_number')).exists():
             errors['phone_number'] = 'این شماره تلفن قبلاً ثبت شده است'
@@ -50,6 +58,18 @@ class SignupSerializer(serializers.ModelSerializer):
         user.groups.add(default_group)
         return user
 
+    def validate_phone_number(self, value):
+        normalized = normalize_digits(value).strip()
+        if not normalized.startswith("09") or len(normalized) != 11 or not normalized.isdigit():
+            raise serializers.ValidationError("فرمت شماره تلفن نامعتبر است (مثال: ۰۹۱۲۳۴۵۶۷۸۹)")
+        return normalized
+
+    def validate_national_id(self, value):
+        normalized = normalize_digits(value).strip()
+        if len(normalized) != 10 or not normalized.isdigit():
+            raise serializers.ValidationError("کد ملی باید ۱۰ رقم باشد")
+        return normalized
+
 
 class LoginSerializer(serializers.Serializer):
     identifier = serializers.CharField()
@@ -57,9 +77,11 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         request = self.context.get("request")
+        identifier = normalize_digits(attrs["identifier"]).strip()
+        attrs["identifier"] = identifier
         user = authenticate(
             request=request,
-            username=attrs["identifier"],
+            username=identifier,
             password=attrs["password"],
         )
         if not user:

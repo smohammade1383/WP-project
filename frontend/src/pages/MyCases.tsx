@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/auth.service';
 import './MyCases.css';
 
@@ -15,6 +16,7 @@ interface Case {
 
 const MyCases = () => {
   const user = authService.getUserData();
+  const navigate = useNavigate();
   
   // Mock data - in real app, this would come from API
   const [filter, setFilter] = useState<'all' | 'active' | 'pending' | 'closed'>('all');
@@ -68,11 +70,22 @@ const MyCases = () => {
     }
   };
 
+  const handleOpenBoard = (caseId: number) => {
+    navigate(`/detective-board?caseId=${caseId}`);
+  };
+
+  const subtitle = useMemo(() => {
+    if (user?.first_name || user?.last_name) {
+      return `پرونده‌های تحت مسئولیت ${user?.first_name || ''} ${user?.last_name || ''}`.trim();
+    }
+    return 'پرونده‌های تحت مسئولیت شما';
+  }, [user]);
+
   return (
     <div className="my-cases-page">
       <div className="my-cases-header">
         <h1>📋 پرونده‌های من</h1>
-        <p>پرونده‌های تحت مسئولیت شما</p>
+        <p>{subtitle}</p>
       </div>
 
       {/* Statistics */}
@@ -164,8 +177,13 @@ const MyCases = () => {
 
               <div className="case-footer">
                 <div className="case-actions">
-                  <button className="action-btn primary">مشاهده جزئیات</button>
-                  <button className="action-btn secondary">ویرایش</button>
+                  <button
+                    className="action-btn primary"
+                    onClick={() => handleOpenBoard(caseItem.id)}
+                  >
+                    باز کردن تخته کارآگاه
+                  </button>
+                  <button className="action-btn secondary">مشاهده جزئیات</button>
                 </div>
               </div>
             </div>

@@ -4,6 +4,8 @@ from django.db.models import Q
 
 User = get_user_model()
 
+from .utils import normalize_digits
+
 
 class MultiIdentifierAuthBackend(ModelBackend):
     """Authenticate with username, email, phone number, or national ID."""
@@ -13,12 +15,16 @@ class MultiIdentifierAuthBackend(ModelBackend):
         if not identifier or not password:
             return None
 
+        identifier = str(identifier).strip()
+        normalized_identifier = normalize_digits(identifier).strip()
+        identifiers = {identifier, normalized_identifier}
+
         try:
             user = User.objects.get(
-                Q(username=identifier)
+                Q(username__in=identifiers)
                 | Q(email__iexact=identifier)
-                | Q(phone_number=identifier)
-                | Q(national_id=identifier)
+                | Q(phone_number__in=identifiers)
+                | Q(national_id__in=identifiers)
             )
         except User.DoesNotExist:
             return None
