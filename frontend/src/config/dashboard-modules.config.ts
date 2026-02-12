@@ -148,8 +148,8 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
   // User Management & Admin
   {
     id: 'admin-panel',
-    title: 'پنل مدیریت',
-    description: 'مدیریت کاربران و تنظیمات سیستم',
+    title: 'پنل ادمین',
+    description: 'مدیریت نقش‌ها و تنظیمات دسترسی',
     icon: '⚙️',
     route: '/admin',
     allowedRoles: ['Administrator', 'Chief'],
@@ -158,11 +158,11 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
   {
     id: 'users',
     title: 'مدیریت کاربران',
-    description: 'مشاهده و ویرایش کاربران',
+    description: 'لیست و ویرایش کاربران سامانه',
     icon: '👥',
     route: '/users',
     allowedRoles: ['Administrator', 'Chief', 'Captain'],
-    color: '#95A5A6',
+    color: '#34495E',
   },
 
   // Personal Modules

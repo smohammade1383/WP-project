@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from .permissions import IsAdministrator
 from .serializers import (
+    AdminUserSerializer,
     ChangePasswordSerializer,
     LoginSerializer,
     ProfileSerializer,
@@ -140,6 +141,21 @@ class RoleRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Group.objects.all()
     serializer_class = RoleSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
+
+class AdminUserDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = AdminUserSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        if user.id == request.user.id:
+            return Response(
+                {"detail": "امکان حذف حساب خودتان وجود ندارد"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 @extend_schema(
