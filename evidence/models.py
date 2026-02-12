@@ -36,9 +36,19 @@ class TranscriptionMedia(models.Model):
 
 
 class BioMedicalEvidence(models.Model):
+    class ValidationStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        REJECTED = "rejected", "Rejected"
+
     evidence = models.OneToOneField(Evidence, on_delete=models.CASCADE, related_name="bio_medical")
     result_followup = models.TextField(blank=True)
     lab_result = models.TextField(blank=True)
+    validation_status = models.CharField(
+        max_length=20,
+        choices=ValidationStatus.choices,
+        default=ValidationStatus.PENDING,
+    )
 
 
 class BioMedicalImage(models.Model):

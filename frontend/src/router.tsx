@@ -27,6 +27,7 @@ import CadetComplaintsInbox from './pages/CadetComplaintsInbox';
 import OfficerComplaintsApproval from './pages/OfficerComplaintsApproval';
 import OfficerCrimeSceneCreate from './pages/OfficerCrimeSceneCreate';
 import LegalBailStatus from './pages/LegalBailStatus';
+import CoronerLab from './pages/CoronerLab';
 
 export const router = createBrowserRouter([
   {
@@ -217,13 +218,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'coroner/lab',
-        element: (
-          <PlaceholderPage
-            icon="🧬"
-            title="آزمایشگاه مدارک"
-            description="مدیریت نتایج آزمایش مدارک زیستی"
-          />
-        ),
+        element: <CoronerLab />,
       },
       {
         path: 'judge/bench',

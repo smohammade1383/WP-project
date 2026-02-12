@@ -106,6 +106,17 @@ const formatDateTime = (value: string): string => {
   });
 };
 
+const getBioValidationStatus = (evidence: EvidenceRecord): string => {
+  if (evidence.type !== 'bio_medical') return 'accepted';
+  const status = (evidence.details as { validation_status?: unknown }).validation_status;
+  return typeof status === 'string' ? status : 'pending';
+};
+
+const isEvidenceReadyForBoard = (evidence: EvidenceRecord): boolean => {
+  if (evidence.type !== 'bio_medical') return true;
+  return getBioValidationStatus(evidence) === 'accepted';
+};
+
 const parseIds = (raw: string): number[] => {
   return raw
     .split(',')
@@ -169,6 +180,11 @@ const DetectiveCases = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const requestedCaseId = useMemo(() => {
+    const value = Number(searchParams.get('caseId'));
+    return Number.isInteger(value) && value > 0 ? value : null;
+  }, [searchParams]);
+
   const requiredModuleId = useMemo(() => {
     if (location.pathname === '/detective-board') return 'detective-board';
     if (location.pathname === '/detective/evidence') return 'detective-evidence';
@@ -223,27 +239,43 @@ const DetectiveCases = () => {
     [evidenceItems, evidenceIdsOnBoard]
   );
 
+  const selectedBoardItem = useMemo(
+    () => boardItems.find((item) => item.id === selectedBoardItemId) || null,
+    [boardItems, selectedBoardItemId]
+  );
+
+  const selectedBoardEvidence = useMemo(() => {
+    if (!selectedBoardItem || selectedBoardItem.item_type !== 'evidence' || !selectedBoardItem.evidence) {
+      return null;
+    }
+    return evidenceItems.find((item) => item.id === selectedBoardItem.evidence) || null;
+  }, [selectedBoardItem, evidenceItems]);
+
   const loadCases = useCallback(async () => {
     try {
       setLoadingCases(true);
       const data = await detectiveApi.listCases();
       setCases(data);
       setError('');
-      const requestedCaseId = Number(searchParams.get('caseId'));
-      const hasRequestedCase = Number.isInteger(requestedCaseId) && requestedCaseId > 0;
-      if (hasRequestedCase && data.some((item) => item.id === requestedCaseId)) {
-        setSelectedCaseId(requestedCaseId);
-      } else if (selectedCaseId === null && data.length > 0) {
-        setSelectedCaseId(data[0].id);
-      } else if (selectedCaseId !== null && !data.some((item) => item.id === selectedCaseId)) {
-        setSelectedCaseId(data.length > 0 ? data[0].id : null);
-      }
+      const existingIds = new Set(data.map((item) => item.id));
+      setSelectedCaseId((prev) => {
+        if (requestedCaseId !== null && existingIds.has(requestedCaseId)) {
+          return requestedCaseId;
+        }
+        if (prev === null && data.length > 0) {
+          return data[0].id;
+        }
+        if (prev !== null && !existingIds.has(prev)) {
+          return data.length > 0 ? data[0].id : null;
+        }
+        return prev;
+      });
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'خطا در دریافت پرونده‌های کارآگاه'));
     } finally {
       setLoadingCases(false);
     }
-  }, [searchParams, selectedCaseId]);
+  }, [requestedCaseId]);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -364,6 +396,7 @@ const DetectiveCases = () => {
           transcriptionFiles.forEach((file) => formData.append('media_files', file));
         } else {
           formData.append('result_followup', evidenceForm.result_followup.trim());
+          formData.append('bio_validation_status', 'pending');
           bioImages.forEach((file) => formData.append('images', file));
         }
 
@@ -448,6 +481,15 @@ const DetectiveCases = () => {
     }
     try {
       setError('');
+      const evidence = evidenceItems.find((item) => item.id === evidenceId);
+      if (!evidence) {
+        setError('مدرک انتخاب شده یافت نشد.');
+        return;
+      }
+      if (!isEvidenceReadyForBoard(evidence)) {
+        setError('این مدرک زیستی هنوز توسط پزشک قانونی تایید نشده و قابل افزودن به تخته نیست.');
+        return;
+      }
       const item = await boardApi.createBoardItem(selectedCase.id, {
         item_type: 'evidence',
         evidence: evidenceId,
@@ -863,12 +905,25 @@ const DetectiveCases = () => {
                               <div key={item.id} className="bag-item">
                                 <div>
                                   <strong>{item.title}</strong>
-                                  <small>{evidenceTypeLabelMap[item.type]}</small>
+                                  <small>
+                                    {evidenceTypeLabelMap[item.type]}
+                                    {item.type === 'bio_medical' &&
+                                      (getBioValidationStatus(item) === 'accepted'
+                                        ? ' • تایید پزشک قانونی'
+                                        : getBioValidationStatus(item) === 'rejected'
+                                          ? ' • رد شده'
+                                          : ' • منتظر آزمایش')}
+                                  </small>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => handleAddEvidenceToBoard(item.id)}
-                                  disabled={isCaseLocked}
+                                  disabled={isCaseLocked || !isEvidenceReadyForBoard(item)}
+                                  title={
+                                    isEvidenceReadyForBoard(item)
+                                      ? ''
+                                      : 'مدرک زیستی تا زمان تایید پزشک قانونی قابل افزودن نیست'
+                                  }
                                 >
                                   افزودن
                                 </button>
@@ -919,6 +974,47 @@ const DetectiveCases = () => {
                                 </div>
                               </div>
                             ))
+                          )}
+                        </div>
+
+                        <div className="board-item-inspector">
+                          <h5>جزئیات آیتم انتخابی</h5>
+                          {!selectedBoardItem ? (
+                            <p className="small-empty">برای مشاهده جزئیات، روی یکی از آیتم‌های تخته کلیک کنید.</p>
+                          ) : selectedBoardItem.item_type === 'evidence' && selectedBoardEvidence ? (
+                            <div className="inspector-card">
+                              <strong>{selectedBoardEvidence.title}</strong>
+                              <p>{selectedBoardEvidence.description}</p>
+                              <ul>
+                                <li>نوع: {evidenceTypeLabelMap[selectedBoardEvidence.type]}</li>
+                                <li>ثبت: {formatDateTime(selectedBoardEvidence.created_at)}</li>
+                                <li>
+                                  ثبت‌کننده: {selectedBoardEvidence.created_by.first_name}{' '}
+                                  {selectedBoardEvidence.created_by.last_name}
+                                </li>
+                                {selectedBoardEvidence.type === 'bio_medical' && (
+                                  <li>
+                                    وضعیت آزمایش:{' '}
+                                    {getBioValidationStatus(selectedBoardEvidence) === 'accepted'
+                                      ? 'تایید شده'
+                                      : getBioValidationStatus(selectedBoardEvidence) === 'rejected'
+                                        ? 'رد شده'
+                                        : 'منتظر آزمایش'}
+                                  </li>
+                                )}
+                              </ul>
+                              {Object.keys(selectedBoardEvidence.details || {}).length > 0 && (
+                                <pre>
+                                  {JSON.stringify(selectedBoardEvidence.details, null, 2)}
+                                </pre>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="inspector-card">
+                              <strong>نوع آیتم: {selectedBoardItem.item_type}</strong>
+                              {selectedBoardItem.note_text && <p>{selectedBoardItem.note_text}</p>}
+                              {selectedBoardItem.username && <p>کاربر: {selectedBoardItem.username}</p>}
+                            </div>
                           )}
                         </div>
                       </aside>

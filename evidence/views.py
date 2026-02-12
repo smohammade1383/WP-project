@@ -70,10 +70,13 @@ def create_evidence_details(evidence, validated_data, files, user):
     elif evidence.type == Evidence.Type.BIO_MEDICAL:
         if "lab_result" in validated_data and not can_set_lab_result(user):
             raise PermissionDenied("Only coroner roles can set lab_result.")
+        if "bio_validation_status" in validated_data and not can_set_lab_result(user):
+            raise PermissionDenied("Only coroner roles can set validation status.")
         bio = BioMedicalEvidence.objects.create(
             evidence=evidence,
             result_followup=validated_data.get("result_followup", ""),
             lab_result=validated_data.get("lab_result", ""),
+            validation_status=BioMedicalEvidence.ValidationStatus.PENDING,
         )
         for image_file in files.getlist("images"):
             BioMedicalImage.objects.create(bio_medical=bio, image_file=image_file)
@@ -112,13 +115,28 @@ def update_evidence_details(evidence, validated_data, files, user):
 
     elif evidence.type == Evidence.Type.BIO_MEDICAL and hasattr(evidence, "bio_medical"):
         bio = evidence.bio_medical
+        updated_fields = set()
         if "result_followup" in validated_data:
             bio.result_followup = validated_data["result_followup"]
+            updated_fields.add("result_followup")
         if "lab_result" in validated_data:
             if not can_set_lab_result(user):
                 raise PermissionDenied("Only coroner roles can set lab_result.")
             bio.lab_result = validated_data["lab_result"]
-        bio.save(update_fields=["result_followup", "lab_result"])
+            updated_fields.add("lab_result")
+        if "bio_validation_status" in validated_data:
+            if not can_set_lab_result(user):
+                raise PermissionDenied("Only coroner roles can set validation status.")
+            new_status = validated_data["bio_validation_status"]
+            if new_status == BioMedicalEvidence.ValidationStatus.ACCEPTED and not (
+                validated_data.get("lab_result", "").strip() or bio.lab_result.strip()
+            ):
+                raise ValidationError({"lab_result": "Accepted bio evidence must include lab_result."})
+            bio.validation_status = new_status
+            updated_fields.add("validation_status")
+
+        if updated_fields:
+            bio.save(update_fields=list(updated_fields))
         for image_file in files.getlist("images"):
             BioMedicalImage.objects.create(bio_medical=bio, image_file=image_file)
 

@@ -14,21 +14,29 @@ interface BoardItemProps {
 const BoardItem = ({ item, onUpdate, onDelete, onSelect, isSelected, scale }: BoardItemProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const hasMovedRef = useRef(false);
   const itemRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('.item-delete-btn')) {
       return;
     }
-    
+
+    e.preventDefault();
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    hasMovedRef.current = false;
     setIsDragging(true);
-    onSelect(item.id);
-    
+
     const rect = itemRef.current?.getBoundingClientRect();
+    const container = itemRef.current?.parentElement;
+    const scrollLeft = container?.scrollLeft || 0;
+    const scrollTop = container?.scrollTop || 0;
     if (rect) {
       setDragOffset({
-        x: (e.clientX - rect.left) / scale,
-        y: (e.clientY - rect.top) / scale,
+        x: (e.clientX - rect.left + scrollLeft) / scale,
+        y: (e.clientY - rect.top + scrollTop) / scale,
       });
     }
   };
@@ -38,13 +46,18 @@ const BoardItem = ({ item, onUpdate, onDelete, onSelect, isSelected, scale }: Bo
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!itemRef.current) return;
-      
+
       const container = itemRef.current.parentElement;
       if (!container) return;
 
+      const distance = Math.hypot(e.clientX - dragStartRef.current.x, e.clientY - dragStartRef.current.y);
+      if (distance > 4) {
+        hasMovedRef.current = true;
+      }
+
       const containerRect = container.getBoundingClientRect();
-      const newX = (e.clientX - containerRect.left) / scale - dragOffset.x;
-      const newY = (e.clientY - containerRect.top) / scale - dragOffset.y;
+      const newX = (e.clientX - containerRect.left + container.scrollLeft) / scale - dragOffset.x;
+      const newY = (e.clientY - containerRect.top + container.scrollTop) / scale - dragOffset.y;
 
       // Update position immediately for smooth dragging
       itemRef.current.style.left = `${newX}px`;
@@ -58,10 +71,14 @@ const BoardItem = ({ item, onUpdate, onDelete, onSelect, isSelected, scale }: Bo
       if (!container) return;
 
       const containerRect = container.getBoundingClientRect();
-      const newX = (e.clientX - containerRect.left) / scale - dragOffset.x;
-      const newY = (e.clientY - containerRect.top) / scale - dragOffset.y;
+      const newX = (e.clientX - containerRect.left + container.scrollLeft) / scale - dragOffset.x;
+      const newY = (e.clientY - containerRect.top + container.scrollTop) / scale - dragOffset.y;
 
-      onUpdate(item.id, { x: newX, y: newY });
+      if (hasMovedRef.current) {
+        onUpdate(item.id, { x: newX, y: newY });
+      } else {
+        onSelect(item.id);
+      }
       setIsDragging(false);
     };
 
@@ -72,7 +89,7 @@ const BoardItem = ({ item, onUpdate, onDelete, onSelect, isSelected, scale }: Bo
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragOffset, item.id, onUpdate, scale]);
+  }, [dragOffset, isDragging, item.id, onSelect, onUpdate, scale]);
 
   const getItemIcon = () => {
     switch (item.item_type) {

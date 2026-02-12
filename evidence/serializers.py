@@ -46,6 +46,8 @@ class EvidenceSerializer(serializers.ModelSerializer):
             return {
                 "result_followup": obj.bio_medical.result_followup,
                 "lab_result": obj.bio_medical.lab_result,
+                "validation_status": obj.bio_medical.validation_status,
+                "is_validated": obj.bio_medical.validation_status == obj.bio_medical.ValidationStatus.ACCEPTED,
                 "images": [img.image_file.name for img in obj.bio_medical.images.all()],
             }
         if obj.type == Evidence.Type.VEHICLE and hasattr(obj, "vehicle"):
@@ -75,6 +77,10 @@ class EvidenceWriteSerializer(serializers.Serializer):
     transcript_text = serializers.CharField(required=False, allow_blank=True)
     result_followup = serializers.CharField(required=False, allow_blank=True)
     lab_result = serializers.CharField(required=False, allow_blank=True)
+    bio_validation_status = serializers.ChoiceField(
+        choices=["pending", "accepted", "rejected"],
+        required=False,
+    )
     vehicle_model = serializers.CharField(required=False, allow_blank=True)
     vehicle_color = serializers.CharField(required=False, allow_blank=True)
     license_plate = serializers.CharField(required=False, allow_blank=True)

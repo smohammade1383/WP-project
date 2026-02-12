@@ -39,3 +39,4 @@ export type {
 } from './detective.api';
 export { evidenceApi } from './evidence.api';
 export type { EvidenceRecord, EvidenceType } from './evidence.api';
+export { coronerApi } from './coroner.api';

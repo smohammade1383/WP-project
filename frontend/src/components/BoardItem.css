@@ -1,48 +1,51 @@
 .board-item {
   position: absolute;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  cursor: move;
+  background: #fffef7;
+  border-radius: 10px;
+  border: 1px solid #e4d9c4;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+  cursor: grab;
   user-select: none;
-  transition: box-shadow 0.2s, transform 0.1s;
+  transition: box-shadow 0.2s, transform 0.1s, border-color 0.2s;
   direction: rtl;
   text-align: right;
   overflow: hidden;
+  transform-origin: center;
 }
 
 .board-item:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
 }
 
 .board-item.selected {
-  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+  box-shadow: 0 12px 26px rgba(220, 38, 38, 0.34);
   border: 2px solid #dc2626;
 }
 
 .board-item.dragging {
-  opacity: 0.8;
-  transform: scale(1.05);
+  opacity: 0.9;
+  transform: scale(1.03) rotate(0.4deg);
+  cursor: grabbing;
   z-index: 1000;
 }
 
 .board-item.note {
-  background: #fef3c7;
+  background: linear-gradient(180deg, #fff7d6 0%, #fef3c7 100%);
   border-right: 4px solid #f59e0b;
 }
 
 .board-item.evidence {
-  background: #dbeafe;
+  background: linear-gradient(180deg, #ecf4ff 0%, #dbeafe 100%);
   border-right: 4px solid #3b82f6;
 }
 
 .board-item.witness {
-  background: #d1fae5;
+  background: linear-gradient(180deg, #ebfff5 0%, #d1fae5 100%);
   border-right: 4px solid #10b981;
 }
 
 .board-item.suspect {
-  background: #fecaca;
+  background: linear-gradient(180deg, #ffecec 0%, #fecaca 100%);
   border-right: 4px solid #dc2626;
 }
 
@@ -51,8 +54,8 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.05);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.55);
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.14);
   font-weight: 600;
   font-size: 14px;
 }
@@ -100,16 +103,30 @@
   overflow-y: auto;
 }
 
+.board-item::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #f87171 0%, #dc2626 65%);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+  z-index: 2;
+}
+
 /* Connection points */
 .connection-point {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   background: #dc2626;
-  border: 2px solid white;
+  border: 2px solid #fff;
   border-radius: 50%;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.2s;
   cursor: crosshair;
   z-index: 10;
 }
@@ -120,25 +137,25 @@
 }
 
 .connection-point-top {
-  top: -6px;
+  top: -7px;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .connection-point-right {
-  right: -6px;
+  right: -7px;
   top: 50%;
   transform: translateY(-50%);
 }
 
 .connection-point-bottom {
-  bottom: -6px;
+  bottom: -7px;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .connection-point-left {
-  left: -6px;
+  left: -7px;
   top: 50%;
   transform: translateY(-50%);
 }

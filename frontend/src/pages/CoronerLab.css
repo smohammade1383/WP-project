@@ -1,0 +1,274 @@
+.coroner-lab-page {
+  direction: rtl;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.2rem;
+}
+
+.coroner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.coroner-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #0f172a;
+}
+
+.coroner-header p {
+  margin: 0.4rem 0 0;
+  color: #475569;
+}
+
+.coroner-header button {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.coroner-feedback {
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.9rem;
+  border: 1px solid transparent;
+}
+
+.coroner-feedback.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.coroner-feedback.success {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.coroner-filters {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.coroner-filters button {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 0.38rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.coroner-filters button.active {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.coroner-empty {
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  text-align: center;
+  padding: 1rem;
+  color: #64748b;
+}
+
+.coroner-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.coroner-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.85rem;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  display: grid;
+  gap: 0.55rem;
+}
+
+.coroner-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.coroner-card-top h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.92rem;
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 0.14rem 0.5rem;
+  font-size: 0.72rem;
+}
+
+.badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge.accepted {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.coroner-card p {
+  margin: 0;
+  color: #334155;
+  font-size: 0.84rem;
+}
+
+.coroner-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #64748b;
+  font-size: 0.74rem;
+}
+
+.coroner-details {
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 0.55rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.coroner-details strong {
+  font-size: 0.76rem;
+  color: #334155;
+}
+
+.coroner-details p {
+  margin: 0.2rem 0 0;
+  color: #475569;
+  font-size: 0.78rem;
+}
+
+.review-btn {
+  justify-self: flex-start;
+  border: 1px solid #0ea5e9;
+  background: #0ea5e9;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.38rem 0.7rem;
+  cursor: pointer;
+}
+
+.coroner-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.52);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1rem;
+}
+
+.coroner-modal {
+  width: min(620px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.coroner-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.8rem 0.9rem;
+}
+
+.coroner-modal-header h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.coroner-modal-header button {
+  border: none;
+  background: transparent;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.coroner-modal-form {
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.coroner-modal-form label {
+  color: #334155;
+  font-size: 0.82rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.coroner-modal-form input,
+.coroner-modal-form select,
+.coroner-modal-form textarea {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+}
+
+.evidence-title {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.coroner-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.coroner-modal-actions button {
+  border-radius: 8px;
+  padding: 0.42rem 0.8rem;
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+}
+
+.coroner-modal-actions button.cancel {
+  border-color: #94a3b8;
+  background: #fff;
+  color: #334155;
+}
+
+@media (max-width: 900px) {
+  .coroner-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

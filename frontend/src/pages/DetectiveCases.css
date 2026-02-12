@@ -471,6 +471,11 @@
   cursor: pointer;
 }
 
+.bag-item button:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
 .board-note-box {
   display: grid;
   gap: 0.4rem;
@@ -505,6 +510,52 @@
   gap: 0.45rem;
 }
 
+.board-item-inspector {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.inspector-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #ffffff;
+  padding: 0.6rem;
+}
+
+.inspector-card strong {
+  color: #0f172a;
+  font-size: 0.84rem;
+}
+
+.inspector-card p {
+  margin: 0.35rem 0;
+  color: #334155;
+  font-size: 0.8rem;
+}
+
+.inspector-card ul {
+  margin: 0.35rem 0;
+  padding: 0 1rem 0 0;
+  color: #334155;
+  font-size: 0.78rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.inspector-card pre {
+  margin: 0.45rem 0 0;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.45rem;
+  overflow: auto;
+  max-height: 180px;
+  font-size: 0.7rem;
+  color: #334155;
+  direction: ltr;
+  text-align: left;
+}
+
 .person-row {
   border: 1px solid #e2e8f0;
   border-radius: 9px;
@@ -530,9 +581,12 @@
   position: relative;
   overflow: auto;
   background:
-    linear-gradient(90deg, #e2e8f0 1px, transparent 1px),
-    linear-gradient(#e2e8f0 1px, transparent 1px);
-  background-size: 42px 42px;
+    radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.12) 0 2px, transparent 3px) 0 0/18px
+      18px,
+    radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.08) 0 2px, transparent 3px) 0 0/20px
+      20px,
+    linear-gradient(135deg, #8b5e3c 0%, #6e4a2d 55%, #7c5433 100%);
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.24);
 }
 
 .detective-board-canvas {
@@ -768,4 +822,3 @@
     align-items: stretch;
   }
 }
-
