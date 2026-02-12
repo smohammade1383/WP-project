@@ -13,3 +13,5 @@ export { statsApi } from './stats.api';
 export type { AggregatedStats } from './stats.api';
 export { peopleApi } from './people.api';
 export type { PublicPerson, WantedPerson } from './people.api';
+export { usersApi } from './users.api';
+export type { Role as AdminRole } from './users.api';

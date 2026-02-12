@@ -24,7 +24,13 @@ interface UseModuleAccess {
  */
 export const useModuleAccess = (): UseModuleAccess => {
   const user = authService.getUserData();
-  const userRoles = useMemo(() => user?.role_names || [], [user]);
+  const userRoles = useMemo(() => {
+    const roles = new Set<string>(user?.role_names || []);
+    if (user?.is_superuser) {
+      roles.add('Administrator');
+    }
+    return Array.from(roles);
+  }, [user]);
 
   const availableModules = useMemo(() => {
     return getModulesForUser(userRoles);

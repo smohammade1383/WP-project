@@ -260,7 +260,10 @@ const MostWanted = () => {
             aria-modal="true"
           >
             <div className="wanted-modal-header">
-              <h2>جزئیات مظنون تحت پیگیری شدید</h2>
+              <div className="modal-header-text">
+                <span>تحت پیگیری شدید</span>
+                <h2>جزئیات مظنون</h2>
+              </div>
               <button
                 className="modal-close-btn"
                 onClick={() => setSelectedSuspectId(null)}
@@ -283,38 +286,33 @@ const MostWanted = () => {
               </div>
             ) : detail ? (
               <div className="wanted-modal-body">
-                <div className="modal-content">
-                  <div className="modal-photo">
-                    {detail.public_photo ? (
-                      <img src={detail.public_photo} alt={getDisplayName(detail.suspect)} />
-                    ) : (
-                      <div className="photo-placeholder">
-                        {getDisplayName(detail.suspect).slice(0, 1)}
+                <div className="modal-layout">
+                  <div className="modal-sidebar">
+                    <div className="profile-card">
+                      <div className="profile-photo">
+                        {detail.public_photo ? (
+                          <img src={detail.public_photo} alt={getDisplayName(detail.suspect)} />
+                        ) : (
+                          <div className="photo-placeholder">
+                            {getDisplayName(detail.suspect).slice(0, 1)}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="modal-info">
-                    <div className="modal-title">
-                      <div>
+                      <div className="profile-meta">
                         <h3>{getDisplayName(detail.suspect)}</h3>
-                        <p className="modal-subtitle">@{detail.suspect.username}</p>
+                        <p>@{detail.suspect.username}</p>
+                        <div className="profile-badges">
+                          <span className={`severity-badge ${severityClass(detail.case_severity)}`}>
+                            {severityLabel(detail.case_severity)}
+                          </span>
+                          <span className={`status-badge ${detail.severe_tracking ? 'severe' : 'normal'}`}>
+                            {detail.severe_tracking ? 'تحت پیگیری شدید' : 'عادی'}
+                          </span>
+                        </div>
                       </div>
-                      <span className={`severity-tag ${severityClass(detail.case_severity)}`}>
-                        {severityLabel(detail.case_severity)}
-                      </span>
                     </div>
-                    <p className="modal-details">
-                      {detail.public_details || 'جزئیات عمومی ثبت نشده است.'}
-                    </p>
-                    <div className="modal-grid">
-                      <div>
-                        <span>کد ملی</span>
-                        <strong>{detail.suspect.national_id}</strong>
-                      </div>
-                      <div>
-                        <span>پرونده مرتبط</span>
-                        <strong>#{detail.case_id}</strong>
-                      </div>
+
+                    <div className="profile-stats">
                       <div>
                         <span>روزهای تعقیب</span>
                         <strong>{formatNumber(detail.wanted_days)}</strong>
@@ -327,15 +325,32 @@ const MostWanted = () => {
                         <span>پاداش (ریال)</span>
                         <strong>{formatNumber(detail.reward_amount)}</strong>
                       </div>
-                      <div>
-                        <span>وضعیت</span>
-                        <strong>{detail.severe_tracking ? 'تحت پیگیری شدید' : 'عادی'}</strong>
-                      </div>
                     </div>
-                    <div className="modal-actions">
-                      <button className="wanted-detail-btn" onClick={() => setSelectedSuspectId(null)}>
-                        بازگشت
-                      </button>
+                  </div>
+
+                  <div className="modal-content">
+                    <div className="detail-summary">
+                      <h4>شرح مختصر</h4>
+                      <p>{detail.public_details || 'جزئیات عمومی ثبت نشده است.'}</p>
+                    </div>
+
+                    <div className="detail-grid">
+                      <div>
+                        <span>کد ملی</span>
+                        <strong>{detail.suspect.national_id}</strong>
+                      </div>
+                      <div>
+                        <span>پرونده مرتبط</span>
+                        <strong>#{detail.case_id}</strong>
+                      </div>
+                      <div>
+                        <span>سطح جرم</span>
+                        <strong>{severityLabel(detail.case_severity)}</strong>
+                      </div>
+                      <div>
+                        <span>تاریخ شروع تعقیب</span>
+                        <strong>{new Date(detail.wanted_since).toLocaleDateString('fa-IR')}</strong>
+                      </div>
                     </div>
                   </div>
                 </div>

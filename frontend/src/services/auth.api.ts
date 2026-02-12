@@ -21,6 +21,7 @@ export interface User {
   last_name: string;
   role_names: string[];
   is_active: boolean;
+  is_superuser?: boolean;
 }
 
 export interface LoginResponse {

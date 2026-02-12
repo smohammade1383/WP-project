@@ -1,6 +1,7 @@
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import Group
 from django.middleware.csrf import get_token
+from django.db.models import Q
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
@@ -113,6 +114,26 @@ class RoleListCreateAPIView(generics.ListCreateAPIView):
     queryset = Group.objects.all().order_by("name")
     serializer_class = RoleSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
+
+class UserListAPIView(generics.ListAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    queryset = User.objects.all().order_by("username")
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        query = self.request.query_params.get("q", "").strip()
+        if not query:
+            return queryset
+        return queryset.filter(
+            Q(username__icontains=query)
+            | Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+            | Q(email__icontains=query)
+            | Q(phone_number__icontains=query)
+            | Q(national_id__icontains=query)
+        )
 
 
 class RoleRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
