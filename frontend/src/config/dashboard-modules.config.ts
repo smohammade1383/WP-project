@@ -120,7 +120,7 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
     description: 'ثبت صحنه جرم بدون شاکی',
     icon: '🚨',
     route: '/officer/crime-scene',
-    allowedRoles: ['Police Officer', 'Patrol Officer'],
+    allowedRoles: ['Police Officer', 'Patrol Officer', 'Detective', 'Sergeant', 'Captain', 'Chief', 'Administrator'],
     color: '#E74C3C',
   },
 

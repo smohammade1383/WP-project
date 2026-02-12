@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ProtectedModule from '../components/ProtectedModule';
-import { sergeantApi, type SergeantCase, type SergeantSuspectProfile } from '../services';
+import {
+  evidenceApi,
+  sergeantApi,
+  type EvidenceRecord,
+  type SergeantCase,
+  type SergeantSuspectProfile,
+} from '../services';
+import { boardApi, type BoardItem as BoardItemType, type BoardLink as BoardLinkType } from '../services/board.api';
 import './SergeantDashboard.css';
 
 type SergeantTab = 'crime-scenes' | 'operations' | 'detention';
@@ -38,6 +45,26 @@ const severityLabelMap: Record<number, string> = {
   2: 'سطح ۲',
   3: 'سطح ۱',
   4: 'بحرانی',
+};
+
+const evidenceTypeLabelMap: Record<EvidenceRecord['type'], string> = {
+  transcription: 'استشهاد شاهدان',
+  bio_medical: 'زیستی/پزشکی',
+  vehicle: 'وسیله نقلیه',
+  identity_document: 'مدرک شناسایی',
+  other: 'سایر',
+};
+
+const formatDetailValue = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '-';
+  }
 };
 
 const resolveTab = (pathname: string): SergeantTab => {
@@ -104,6 +131,12 @@ const SergeantDashboard = () => {
   const [bailTypeByProfile, setBailTypeByProfile] = useState<Record<number, 'bail' | 'fine'>>({});
   const [paymentLinkByProfile, setPaymentLinkByProfile] = useState<Record<number, string>>({});
   const [captainMessageByCase, setCaptainMessageByCase] = useState<Record<number, string>>({});
+  const [detailCaseId, setDetailCaseId] = useState<number | null>(null);
+  const [detailEvidence, setDetailEvidence] = useState<EvidenceRecord[]>([]);
+  const [detailBoardItems, setDetailBoardItems] = useState<BoardItemType[]>([]);
+  const [detailBoardLinks, setDetailBoardLinks] = useState<BoardLinkType[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
 
   useEffect(() => {
     setActiveTab(resolveTab(location.pathname));
@@ -205,6 +238,32 @@ const SergeantDashboard = () => {
       })
       .sort((a, b) => b.caseId - a.caseId);
   }, [casesById, profiles]);
+
+  const selectedDetailCase = useMemo(
+    () => (detailCaseId ? casesById.get(detailCaseId) || null : null),
+    [casesById, detailCaseId]
+  );
+
+  const boardItemLabelMap = useMemo(() => {
+    const labels: Record<number, string> = {};
+    detailBoardItems.forEach((item) => {
+      if (item.item_type === 'note') {
+        labels[item.id] = item.note_text?.trim() ? `یادداشت: ${item.note_text}` : `یادداشت #${item.id}`;
+      } else if (item.item_type === 'evidence') {
+        labels[item.id] = item.evidence_title?.trim() ? item.evidence_title : `مدرک #${item.id}`;
+      } else if (item.item_type === 'witness') {
+        labels[item.id] = item.username?.trim() ? `شاهد: ${item.username}` : `شاهد #${item.id}`;
+      } else if (item.item_type === 'suspect') {
+        labels[item.id] = item.username?.trim() ? `مظنون: ${item.username}` : `مظنون #${item.id}`;
+      }
+    });
+    return labels;
+  }, [detailBoardItems]);
+
+  const detectiveNotes = useMemo(
+    () => detailBoardItems.filter((item) => item.item_type === 'note' && item.note_text?.trim()),
+    [detailBoardItems]
+  );
 
   const navigateTab = (tab: SergeantTab) => {
     setActiveTab(tab);
@@ -338,6 +397,37 @@ const SergeantDashboard = () => {
     }
   };
 
+  const openOperationDetails = async (caseId: number) => {
+    try {
+      setDetailCaseId(caseId);
+      setDetailLoading(true);
+      setDetailError('');
+      const [evidence, board] = await Promise.all([
+        evidenceApi.listByCase(caseId),
+        boardApi.getDetectiveBoard(caseId),
+      ]);
+      setDetailEvidence(evidence);
+      setDetailBoardItems(board.items || []);
+      setDetailBoardLinks(board.links || []);
+    } catch (err: unknown) {
+      setDetailError(getErrorMessage(err, 'دریافت جزئیات مدارک و یادداشت‌های کارآگاه ناموفق بود.'));
+      setDetailEvidence([]);
+      setDetailBoardItems([]);
+      setDetailBoardLinks([]);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeOperationDetails = () => {
+    setDetailCaseId(null);
+    setDetailError('');
+    setDetailLoading(false);
+    setDetailEvidence([]);
+    setDetailBoardItems([]);
+    setDetailBoardLinks([]);
+  };
+
   return (
     <ProtectedModule moduleId={requiredModuleId}>
       <div className="sergeant-page">
@@ -462,6 +552,16 @@ const SergeantDashboard = () => {
                       />
                     </label>
                     <div className="card-actions">
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={detailLoading && detailCaseId === caseItem.id}
+                        onClick={() => openOperationDetails(caseItem.id)}
+                      >
+                        {detailLoading && detailCaseId === caseItem.id
+                          ? 'در حال دریافت...'
+                          : 'مشاهده مدارک و یادداشت‌ها'}
+                      </button>
                       <button
                         type="button"
                         className="primary"
@@ -732,6 +832,111 @@ const SergeantDashboard = () => {
               )}
             </section>
           </section>
+        )}
+
+        {detailCaseId && (
+          <div className="operation-detail-overlay" role="dialog" aria-modal="true">
+            <div className="operation-detail-modal">
+              <div className="operation-detail-header">
+                <div>
+                  <h3>
+                    جزئیات پرونده #{detailCaseId}
+                    {selectedDetailCase ? ` - ${selectedDetailCase.title}` : ''}
+                  </h3>
+                  <p>بررسی مدارک ثبت‌شده و یادداشت‌های تحلیلی کارآگاه</p>
+                </div>
+                <button type="button" className="secondary" onClick={closeOperationDetails}>
+                  بستن
+                </button>
+              </div>
+
+              {detailLoading ? (
+                <div className="section-empty">در حال دریافت جزئیات پرونده...</div>
+              ) : detailError ? (
+                <div className="sergeant-feedback error">{detailError}</div>
+              ) : (
+                <>
+                  <section className="operation-detail-section">
+                    <div className="section-top">
+                      <h4>مدارک پرونده</h4>
+                      <span>{detailEvidence.length} مورد</span>
+                    </div>
+                    {detailEvidence.length === 0 ? (
+                      <div className="section-empty">مدرکی برای این پرونده ثبت نشده است.</div>
+                    ) : (
+                      <div className="operation-evidence-grid">
+                        {detailEvidence.map((item) => (
+                          <article key={item.id} className="operation-evidence-card">
+                            <div className="card-title-row">
+                              <h5>{item.title}</h5>
+                              <span className="status-pill">{evidenceTypeLabelMap[item.type] || item.type}</span>
+                            </div>
+                            <p>{item.description}</p>
+                            <div className="card-meta">
+                              <span>
+                                ثبت‌کننده: {item.created_by.first_name} {item.created_by.last_name}
+                              </span>
+                              <span>{formatDate(item.created_at)}</span>
+                            </div>
+                            {Object.keys(item.details || {}).length > 0 && (
+                              <div className="detail-kv">
+                                {Object.entries(item.details).map(([key, value]) => (
+                                  <div key={`${item.id}-${key}`} className="detail-kv-row">
+                                    <span>{key}</span>
+                                    <strong>{formatDetailValue(value)}</strong>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="operation-detail-section">
+                    <div className="section-top">
+                      <h4>یادداشت‌های کارآگاه (از تخته کارآگاه)</h4>
+                      <span>{detectiveNotes.length} یادداشت</span>
+                    </div>
+                    {detectiveNotes.length === 0 ? (
+                      <div className="section-empty">یادداشتی روی تخته کارآگاه ثبت نشده است.</div>
+                    ) : (
+                      <ul className="operation-note-list">
+                        {detectiveNotes.map((item) => (
+                          <li key={item.id}>
+                            <strong>یادداشت #{item.id}:</strong> {item.note_text}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+
+                  <section className="operation-detail-section">
+                    <div className="section-top">
+                      <h4>ارتباطات تخته کارآگاه</h4>
+                      <span>{detailBoardLinks.length} اتصال</span>
+                    </div>
+                    {detailBoardLinks.length === 0 ? (
+                      <div className="section-empty">اتصالی بین آیتم‌های تخته ثبت نشده است.</div>
+                    ) : (
+                      <div className="operation-link-list">
+                        {detailBoardLinks.map((link) => (
+                          <div key={link.id} className="operation-link-row">
+                            <span>
+                              {boardItemLabelMap[link.from_item] || `آیتم #${link.from_item}`} ←{' '}
+                              {boardItemLabelMap[link.to_item] || `آیتم #${link.to_item}`}
+                            </span>
+                            {link.description ? <strong>{link.description}</strong> : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                </>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </ProtectedModule>
