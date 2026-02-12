@@ -240,21 +240,35 @@ class EvidenceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
 
     def patch(self, request, *args, **kwargs):
         evidence = self.get_object()
-        if not can_submit_evidence(request.user, evidence.case):
+        can_owner_edit = can_submit_evidence(request.user, evidence.case)
+        can_coroner_bio_edit = (
+            evidence.type == Evidence.Type.BIO_MEDICAL
+            and can_set_lab_result(request.user)
+        )
+        if not (can_owner_edit or can_coroner_bio_edit):
             raise PermissionDenied("You cannot edit this evidence.")
 
         serializer = EvidencePartialUpdateSerializer(data=request.data, context={"evidence": evidence})
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
 
+        if can_coroner_bio_edit and not can_owner_edit:
+            allowed_fields = {"lab_result", "result_followup", "bio_validation_status"}
+            blocked_fields = sorted(set(validated.keys()) - allowed_fields)
+            if blocked_fields:
+                raise PermissionDenied(
+                    f"Coroner can only update bio validation fields: {', '.join(sorted(allowed_fields))}."
+                )
+
         changed_fields = []
-        for field in ["title", "description"]:
-            if field in validated:
-                setattr(evidence, field, validated[field])
-                changed_fields.append(field)
-        if "case" in validated:
-            evidence.case = validated["case"]
-            changed_fields.append("case")
+        if can_owner_edit:
+            for field in ["title", "description"]:
+                if field in validated:
+                    setattr(evidence, field, validated[field])
+                    changed_fields.append(field)
+            if "case" in validated:
+                evidence.case = validated["case"]
+                changed_fields.append("case")
         if changed_fields:
             evidence.save(update_fields=changed_fields)
 

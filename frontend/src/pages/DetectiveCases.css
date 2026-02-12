@@ -387,6 +387,18 @@
   flex-wrap: wrap;
 }
 
+.connect-source-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid #fca5a5;
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .zoom-controls {
   display: flex;
   gap: 0.3rem;
@@ -403,6 +415,15 @@
   text-align: center;
   color: #1e293b;
   font-size: 0.82rem;
+}
+
+.board-connect-hint {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.76rem;
 }
 
 .board-layout {

@@ -6,9 +6,10 @@ interface BoardLinksProps {
   items: BoardItem[];
   scale: number;
   onDeleteLink: (linkId: number) => void;
+  draftLink?: { from_item: number; to_x: number; to_y: number } | null;
 }
 
-const BoardLinks = ({ links, items, onDeleteLink }: BoardLinksProps) => {
+const BoardLinks = ({ links, items, onDeleteLink, draftLink }: BoardLinksProps) => {
   const getItemCenter = (itemId: number) => {
     const item = items.find((i) => i.id === itemId);
     if (!item) return { x: 0, y: 0 };
@@ -19,23 +20,18 @@ const BoardLinks = ({ links, items, onDeleteLink }: BoardLinksProps) => {
     };
   };
 
-  const calculatePath = (fromId: number, toId: number) => {
-    const from = getItemCenter(fromId);
-    const to = getItemCenter(toId);
-
-    // Create curved path
+  const calculatePathFromPoints = (from: { x: number; y: number }, to: { x: number; y: number }) => {
     const midX = (from.x + to.x) / 2;
     const midY = (from.y + to.y) / 2;
-    
-    // Control point for Bezier curve
+
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    // Perpendicular offset for curve
-    const offsetX = -dy / distance * 30;
-    const offsetY = dx / distance * 30;
-    
+    const safeDistance = distance || 1;
+
+    const offsetX = (-dy / safeDistance) * 30;
+    const offsetY = (dx / safeDistance) * 30;
+
     const controlX = midX + offsetX;
     const controlY = midY + offsetY;
 
@@ -57,9 +53,10 @@ const BoardLinks = ({ links, items, onDeleteLink }: BoardLinksProps) => {
         </marker>
       </defs>
       {links.map((link) => {
-        const path = calculatePath(link.from_item, link.to_item);
-        const midPoint = getItemCenter(link.from_item);
+        const fromPoint = getItemCenter(link.from_item);
         const toPoint = getItemCenter(link.to_item);
+        const path = calculatePathFromPoints(fromPoint, toPoint);
+        const midPoint = getItemCenter(link.from_item);
         const deleteX = (midPoint.x + toPoint.x) / 2;
         const deleteY = (midPoint.y + toPoint.y) / 2;
 
@@ -102,6 +99,19 @@ const BoardLinks = ({ links, items, onDeleteLink }: BoardLinksProps) => {
           </g>
         );
       })}
+      {draftLink && (
+        <path
+          d={calculatePathFromPoints(getItemCenter(draftLink.from_item), {
+            x: draftLink.to_x,
+            y: draftLink.to_y,
+          })}
+          stroke="#ef4444"
+          strokeWidth="2.5"
+          fill="none"
+          markerEnd="url(#arrowhead)"
+          className="board-link-path draft"
+        />
+      )}
     </svg>
   );
 };

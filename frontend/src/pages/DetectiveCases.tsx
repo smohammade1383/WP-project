@@ -165,6 +165,8 @@ const DetectiveCases = () => {
   const [loadingBoard, setLoadingBoard] = useState(false);
   const [selectedBoardItemId, setSelectedBoardItemId] = useState<number | null>(null);
   const [connectingFromId, setConnectingFromId] = useState<number | null>(null);
+  const [isConnectingDrag, setIsConnectingDrag] = useState(false);
+  const [connectionDraftPoint, setConnectionDraftPoint] = useState<{ x: number; y: number } | null>(null);
   const [boardScale, setBoardScale] = useState(1);
   const [newBoardNote, setNewBoardNote] = useState('');
   const [savingBoard, setSavingBoard] = useState(false);
@@ -251,6 +253,20 @@ const DetectiveCases = () => {
     return evidenceItems.find((item) => item.id === selectedBoardItem.evidence) || null;
   }, [selectedBoardItem, evidenceItems]);
 
+  const getBoardPointFromClient = useCallback(
+    (clientX: number, clientY: number) => {
+      const canvas = boardCanvasRef.current;
+      const wrapper = canvas?.parentElement;
+      if (!canvas || !wrapper) return null;
+      const rect = wrapper.getBoundingClientRect();
+      return {
+        x: (clientX - rect.left + wrapper.scrollLeft) / boardScale,
+        y: (clientY - rect.top + wrapper.scrollTop) / boardScale,
+      };
+    },
+    [boardScale]
+  );
+
   const loadCases = useCallback(async () => {
     try {
       setLoadingCases(true);
@@ -330,6 +346,9 @@ const DetectiveCases = () => {
       setEvidenceItems([]);
       setBoardItems([]);
       setBoardLinks([]);
+      setConnectingFromId(null);
+      setIsConnectingDrag(false);
+      setConnectionDraftPoint(null);
       setSelectedNomineeIds([]);
       return;
     }
@@ -548,6 +567,11 @@ const DetectiveCases = () => {
       await boardApi.deleteBoardItem(id);
       setBoardItems((prev) => prev.filter((item) => item.id !== id));
       setBoardLinks((prev) => prev.filter((item) => item.from_item !== id && item.to_item !== id));
+      if (connectingFromId === id) {
+        setConnectingFromId(null);
+        setIsConnectingDrag(false);
+        setConnectionDraftPoint(null);
+      }
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'حذف آیتم تخته ناموفق بود.'));
     }
@@ -568,40 +592,155 @@ const DetectiveCases = () => {
 
   const handleStartConnection = () => {
     if (selectedBoardItemId) {
+      setIsConnectingDrag(false);
+      setConnectionDraftPoint(null);
       setConnectingFromId(selectedBoardItemId);
+      setSuccess(`آیتم #${selectedBoardItemId} به عنوان مبدا اتصال انتخاب شد. مقصد را انتخاب کنید.`);
+      setError('');
     }
   };
 
-  const handleCreateBoardLink = async (fromItem: number, toItem: number) => {
-    if (!selectedCase || fromItem === toItem) {
-      setConnectingFromId(null);
-      return;
-    }
+  const handleCreateBoardLink = useCallback(
+    async (fromItem: number, toItem: number) => {
+      if (!selectedCase || fromItem === toItem) {
+        setConnectingFromId(null);
+        setIsConnectingDrag(false);
+        setConnectionDraftPoint(null);
+        return;
+      }
+      const alreadyLinked = boardLinks.some(
+        (link) =>
+          (link.from_item === fromItem && link.to_item === toItem) ||
+          (link.from_item === toItem && link.to_item === fromItem)
+      );
+      if (alreadyLinked) {
+        setConnectingFromId(null);
+        setIsConnectingDrag(false);
+        setConnectionDraftPoint(null);
+        setError('بین این دو آیتم قبلا اتصال ثبت شده است.');
+        return;
+      }
+      if (isCaseLocked) {
+        setError('ویرایش تخته برای این پرونده قفل است.');
+        setConnectingFromId(null);
+        setIsConnectingDrag(false);
+        setConnectionDraftPoint(null);
+        return;
+      }
+      try {
+        const link = await boardApi.createBoardLink(selectedCase.id, {
+          from_item: fromItem,
+          to_item: toItem,
+        });
+        setBoardLinks((prev) => [...prev, link]);
+        setConnectingFromId(null);
+        setIsConnectingDrag(false);
+        setConnectionDraftPoint(null);
+        setSuccess('اتصال قرمز با موفقیت ایجاد شد.');
+        setError('');
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, 'ایجاد اتصال روی تخته ناموفق بود.'));
+        setConnectingFromId(null);
+        setIsConnectingDrag(false);
+        setConnectionDraftPoint(null);
+      }
+    },
+    [boardLinks, isCaseLocked, selectedCase]
+  );
+
+  const handleConnectRequest = (
+    itemId: number,
+    options?: { clientX?: number; clientY?: number; dragStart?: boolean }
+  ) => {
     if (isCaseLocked) {
       setError('ویرایش تخته برای این پرونده قفل است.');
-      setConnectingFromId(null);
       return;
     }
-    try {
-      const link = await boardApi.createBoardLink(selectedCase.id, {
-        from_item: fromItem,
-        to_item: toItem,
-      });
-      setBoardLinks((prev) => [...prev, link]);
-      setConnectingFromId(null);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, 'ایجاد اتصال روی تخته ناموفق بود.'));
-      setConnectingFromId(null);
+    if (options?.dragStart) {
+      const point =
+        typeof options.clientX === 'number' && typeof options.clientY === 'number'
+          ? getBoardPointFromClient(options.clientX, options.clientY)
+          : null;
+      setConnectingFromId(itemId);
+      setSelectedBoardItemId(itemId);
+      setIsConnectingDrag(true);
+      if (point) {
+        setConnectionDraftPoint(point);
+      }
+      setError('');
+      return;
     }
+    if (connectingFromId === null) {
+      setConnectingFromId(itemId);
+      setIsConnectingDrag(false);
+      setConnectionDraftPoint(null);
+      setSelectedBoardItemId(itemId);
+      setSuccess(`مبدا اتصال روی آیتم #${itemId} تنظیم شد. حالا مقصد را انتخاب کنید.`);
+      setError('');
+      return;
+    }
+    if (connectingFromId === itemId) {
+      setConnectingFromId(null);
+      setIsConnectingDrag(false);
+      setConnectionDraftPoint(null);
+      setSuccess('حالت اتصال لغو شد.');
+      return;
+    }
+    handleCreateBoardLink(connectingFromId, itemId);
   };
 
-  const handleSelectBoardItem = (itemId: number) => {
+  const handleSelectBoardItem = (
+    itemId: number,
+    options?: { shiftKey?: boolean; metaKey?: boolean; doubleClick?: boolean }
+  ) => {
+    const wantsQuickConnect = Boolean(options?.shiftKey || options?.metaKey || options?.doubleClick);
+    if (wantsQuickConnect) {
+      handleConnectRequest(itemId);
+      return;
+    }
     if (connectingFromId === null) {
       setSelectedBoardItemId(itemId);
       return;
     }
     handleCreateBoardLink(connectingFromId, itemId);
   };
+
+  useEffect(() => {
+    if (!isConnectingDrag || connectingFromId === null) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const point = getBoardPointFromClient(event.clientX, event.clientY);
+      if (point) {
+        setConnectionDraftPoint(point);
+      }
+    };
+
+    const handleMouseUp = (event: MouseEvent) => {
+      setIsConnectingDrag(false);
+      const targetElement = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest('[data-board-item-id]') as HTMLElement | null;
+
+      const rawId = targetElement?.getAttribute('data-board-item-id');
+      const targetId = rawId ? Number(rawId) : null;
+      if (targetId && targetId !== connectingFromId) {
+        handleCreateBoardLink(connectingFromId, targetId);
+        return;
+      }
+
+      setConnectionDraftPoint(null);
+      if (targetId === connectingFromId) {
+        setConnectingFromId(null);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [connectingFromId, getBoardPointFromClient, handleCreateBoardLink, isConnectingDrag]);
 
   const handleSaveBoard = async () => {
     if (!selectedCase) return;
@@ -878,10 +1017,18 @@ const DetectiveCases = () => {
                           </button>
                         )}
                         {connectingFromId && (
-                          <button type="button" onClick={() => setConnectingFromId(null)}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConnectingFromId(null);
+                              setIsConnectingDrag(false);
+                              setConnectionDraftPoint(null);
+                            }}
+                          >
                             لغو اتصال
                           </button>
                         )}
+                        {connectingFromId && <span className="connect-source-pill">مبدا: #{connectingFromId}</span>}
                       </div>
                       <div className="zoom-controls">
                         <button type="button" onClick={() => setBoardScale((prev) => Math.max(0.5, prev - 0.1))}>
@@ -893,6 +1040,9 @@ const DetectiveCases = () => {
                         </button>
                       </div>
                     </div>
+                    <p className="board-connect-hint">
+                      اتصال سریع: روی نقطه قرمز نگه‌دارید و روی مقصد رها کنید. همچنین `Shift + Click` و دوبار کلیک هم فعال است.
+                    </p>
 
                     <div className="board-layout">
                       <aside className="board-sidebar">
@@ -1036,6 +1186,15 @@ const DetectiveCases = () => {
                               items={boardItems}
                               scale={boardScale}
                               onDeleteLink={handleDeleteBoardLink}
+                              draftLink={
+                                connectingFromId !== null && connectionDraftPoint
+                                  ? {
+                                      from_item: connectingFromId,
+                                      to_x: connectionDraftPoint.x,
+                                      to_y: connectionDraftPoint.y,
+                                    }
+                                  : null
+                              }
                             />
 
                             {boardItems.map((item) => (
@@ -1045,7 +1204,9 @@ const DetectiveCases = () => {
                                 onUpdate={handleUpdateBoardItemPosition}
                                 onDelete={handleDeleteBoardItem}
                                 onSelect={handleSelectBoardItem}
+                                onConnectRequest={handleConnectRequest}
                                 isSelected={item.id === selectedBoardItemId}
+                                isConnectionSource={item.id === connectingFromId}
                                 scale={boardScale}
                               />
                             ))}

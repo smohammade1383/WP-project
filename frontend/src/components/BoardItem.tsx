@@ -6,12 +6,26 @@ interface BoardItemProps {
   item: BoardItemType;
   onUpdate: (id: number, position: { x: number; y: number }) => void;
   onDelete: (id: number) => void;
-  onSelect: (id: number) => void;
+  onSelect: (id: number, options?: { shiftKey?: boolean; metaKey?: boolean; doubleClick?: boolean }) => void;
+  onConnectRequest: (
+    id: number,
+    options?: { clientX?: number; clientY?: number; dragStart?: boolean }
+  ) => void;
   isSelected: boolean;
+  isConnectionSource: boolean;
   scale: number;
 }
 
-const BoardItem = ({ item, onUpdate, onDelete, onSelect, isSelected, scale }: BoardItemProps) => {
+const BoardItem = ({
+  item,
+  onUpdate,
+  onDelete,
+  onSelect,
+  onConnectRequest,
+  isSelected,
+  isConnectionSource,
+  scale,
+}: BoardItemProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -20,7 +34,7 @@ const BoardItem = ({ item, onUpdate, onDelete, onSelect, isSelected, scale }: Bo
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
-    if ((e.target as HTMLElement).closest('.item-delete-btn')) {
+    if ((e.target as HTMLElement).closest('.item-delete-btn, .connection-point')) {
       return;
     }
 
@@ -77,7 +91,10 @@ const BoardItem = ({ item, onUpdate, onDelete, onSelect, isSelected, scale }: Bo
       if (hasMovedRef.current) {
         onUpdate(item.id, { x: newX, y: newY });
       } else {
-        onSelect(item.id);
+        onSelect(item.id, {
+          shiftKey: e.shiftKey,
+          metaKey: e.metaKey || e.ctrlKey,
+        });
       }
       setIsDragging(false);
     };
@@ -139,7 +156,8 @@ const BoardItem = ({ item, onUpdate, onDelete, onSelect, isSelected, scale }: Bo
   return (
     <div
       ref={itemRef}
-      className={`board-item ${item.item_type} ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
+      data-board-item-id={item.id}
+      className={`board-item ${item.item_type} ${isSelected ? 'selected' : ''} ${isConnectionSource ? 'connect-source' : ''} ${isDragging ? 'dragging' : ''}`}
       style={{
         left: `${item.position_x}px`,
         top: `${item.position_y}px`,
@@ -147,6 +165,7 @@ const BoardItem = ({ item, onUpdate, onDelete, onSelect, isSelected, scale }: Bo
         minHeight: `${item.height}px`,
       }}
       onMouseDown={handleMouseDown}
+      onDoubleClick={() => onSelect(item.id, { doubleClick: true })}
     >
       <div className="item-header">
         <span className="item-icon">{getItemIcon()}</span>
@@ -166,10 +185,62 @@ const BoardItem = ({ item, onUpdate, onDelete, onSelect, isSelected, scale }: Bo
         {getItemContent()}
       </div>
       {/* Connection point indicators */}
-      <div className="connection-point connection-point-top" data-item-id={item.id} data-point="top" />
-      <div className="connection-point connection-point-right" data-item-id={item.id} data-point="right" />
-      <div className="connection-point connection-point-bottom" data-item-id={item.id} data-point="bottom" />
-      <div className="connection-point connection-point-left" data-item-id={item.id} data-point="left" />
+      <div
+        className="connection-point connection-point-top"
+        data-item-id={item.id}
+        data-point="top"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onConnectRequest(item.id, {
+            clientX: event.clientX,
+            clientY: event.clientY,
+            dragStart: true,
+          });
+        }}
+      />
+      <div
+        className="connection-point connection-point-right"
+        data-item-id={item.id}
+        data-point="right"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onConnectRequest(item.id, {
+            clientX: event.clientX,
+            clientY: event.clientY,
+            dragStart: true,
+          });
+        }}
+      />
+      <div
+        className="connection-point connection-point-bottom"
+        data-item-id={item.id}
+        data-point="bottom"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onConnectRequest(item.id, {
+            clientX: event.clientX,
+            clientY: event.clientY,
+            dragStart: true,
+          });
+        }}
+      />
+      <div
+        className="connection-point connection-point-left"
+        data-item-id={item.id}
+        data-point="left"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onConnectRequest(item.id, {
+            clientX: event.clientX,
+            clientY: event.clientY,
+            dragStart: true,
+          });
+        }}
+      />
     </div>
   );
 };

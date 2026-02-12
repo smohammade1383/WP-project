@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from cases.models import Case, Complaint, SuspectCaseProfile
+from cases.models import Case, Complaint, SecondaryComplainant, SuspectCaseProfile
 from finance.models import PaymentTransaction
 from users.models import User
 
@@ -279,3 +279,276 @@ class IntegrationScenarioTests(APITestCase):
         self.client.force_authenticate(viewer_user)
         allowed_resp = self.client.get(reverse("case-list-create"))
         self.assertEqual(allowed_resp.status_code, status.HTTP_200_OK)
+
+    def test_scenario_12_end_to_end_complaint_to_trial_with_detective_and_coroner(self):
+        citizen = self._create_user("end2end_citizen", roles=["Basic User"])
+        cadet = self._create_user("end2end_cadet", roles=["Cadet"])
+        officer = self._create_user("end2end_officer", roles=["Police Officer"])
+        detective = self._create_user("end2end_detective", roles=["Detective"])
+        coroner = self._create_user("end2end_coroner", roles=["Coroner"])
+        sergeant = self._create_user("end2end_sergeant", roles=["Sergeant"])
+        captain = self._create_user("end2end_captain", roles=["Captain"])
+        judge = self._create_user("end2end_judge", roles=["Judge"])
+        suspect = self._create_user("end2end_suspect", roles=["Suspect"])
+
+        self.client.force_authenticate(citizen)
+        complaint_resp = self.client.post(
+            reverse("complaint-list-create"),
+            {
+                "title": "End-to-end complaint",
+                "description": "Citizen files initial complaint",
+                "location": "District E2E",
+                "incident_datetime": timezone.now().isoformat(),
+            },
+            format="json",
+        )
+        self.assertEqual(complaint_resp.status_code, status.HTTP_201_CREATED)
+        complaint_id = complaint_resp.data["id"]
+
+        self.client.force_authenticate(cadet)
+        cadet_resp = self.client.post(
+            reverse("complaint-cadet-review", kwargs={"complaint_id": complaint_id}),
+            {"decision": "approved", "message": "Cadet verified complaint data."},
+            format="json",
+        )
+        self.assertEqual(cadet_resp.status_code, status.HTTP_200_OK)
+        self.assertIsNone(cadet_resp.data["complaint"]["case"])
+
+        self.client.force_authenticate(officer)
+        officer_resp = self.client.post(
+            reverse("complaint-officer-review", kwargs={"complaint_id": complaint_id}),
+            {"decision": "approved", "message": "Officer confirms and forms case."},
+            format="json",
+        )
+        self.assertEqual(officer_resp.status_code, status.HTTP_200_OK)
+        case_id = officer_resp.data["case"]["id"]
+        case_obj = Case.objects.get(id=case_id)
+        self.assertEqual(case_obj.status, Case.Status.OPEN)
+
+        self.client.force_authenticate(detective)
+        other_evidence_resp = self.client.post(
+            reverse("evidence-list-create"),
+            {
+                "case": case_id,
+                "title": "Knife",
+                "description": "Weapon found in scene",
+                "type": "other",
+            },
+            format="json",
+        )
+        self.assertEqual(other_evidence_resp.status_code, status.HTTP_201_CREATED)
+        other_evidence_id = other_evidence_resp.data["id"]
+
+        bio_evidence_resp = self.client.post(
+            reverse("evidence-list-create"),
+            {
+                "case": case_id,
+                "title": "Fingerprint sample",
+                "description": "Needs coroner validation",
+                "type": "bio_medical",
+                "result_followup": "sent to lab",
+            },
+            format="json",
+        )
+        self.assertEqual(bio_evidence_resp.status_code, status.HTTP_201_CREATED)
+        bio_evidence_id = bio_evidence_resp.data["id"]
+
+        board_other_resp = self.client.post(
+            reverse("board-item-list-create", kwargs={"case_id": case_id}),
+            {"item_type": "evidence", "evidence": other_evidence_id, "position_x": 120, "position_y": 140},
+            format="json",
+        )
+        self.assertEqual(board_other_resp.status_code, status.HTTP_201_CREATED)
+
+        board_bio_before_coroner = self.client.post(
+            reverse("board-item-list-create", kwargs={"case_id": case_id}),
+            {"item_type": "evidence", "evidence": bio_evidence_id, "position_x": 240, "position_y": 200},
+            format="json",
+        )
+        self.assertEqual(board_bio_before_coroner.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.client.force_authenticate(coroner)
+        coroner_review_resp = self.client.patch(
+            reverse("evidence-rud", kwargs={"pk": bio_evidence_id}),
+            {
+                "lab_result": "Coroner approved with sufficient DNA match.",
+                "result_followup": "validated",
+                "bio_validation_status": "accepted",
+            },
+            format="json",
+        )
+        self.assertEqual(coroner_review_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(coroner_review_resp.data["details"]["validation_status"], "accepted")
+
+        self.client.force_authenticate(detective)
+        board_bio_after_coroner = self.client.post(
+            reverse("board-item-list-create", kwargs={"case_id": case_id}),
+            {"item_type": "evidence", "evidence": bio_evidence_id, "position_x": 260, "position_y": 220},
+            format="json",
+        )
+        self.assertEqual(board_bio_after_coroner.status_code, status.HTTP_201_CREATED)
+
+        nominate_resp = self.client.post(
+            reverse("suspects-nominate", kwargs={"case_id": case_id}),
+            {"suspect_ids": [suspect.id], "summary": "Evidence links suspect to the case."},
+            format="json",
+        )
+        self.assertEqual(nominate_resp.status_code, status.HTTP_200_OK)
+
+        case_obj.refresh_from_db()
+        self.assertEqual(case_obj.status, Case.Status.WARRANT_PENDING)
+        profile = SuspectCaseProfile.objects.get(case_id=case_id, suspect_id=suspect.id)
+
+        self.client.force_authenticate(sergeant)
+        sergeant_resp = self.client.post(
+            reverse("sergeant-decision", kwargs={"case_id": case_id}),
+            {"approved": True, "message": "Proceed with arrest."},
+            format="json",
+        )
+        self.assertEqual(sergeant_resp.status_code, status.HTTP_200_OK)
+
+        self.client.force_authenticate(officer)
+        arrest_resp = self.client.post(reverse("suspect-arrest", kwargs={"profile_id": profile.id}), {}, format="json")
+        self.assertEqual(arrest_resp.status_code, status.HTTP_200_OK)
+        case_obj.refresh_from_db()
+        self.assertEqual(case_obj.status, Case.Status.ARRESTED)
+
+        self.client.force_authenticate(detective)
+        detective_score_resp = self.client.post(
+            reverse("suspect-score", kwargs={"profile_id": profile.id}),
+            {"scorer_role": "detective", "score": 8, "notes": "Strong match with evidence board."},
+            format="json",
+        )
+        self.assertEqual(detective_score_resp.status_code, status.HTTP_201_CREATED)
+
+        self.client.force_authenticate(sergeant)
+        sergeant_score_resp = self.client.post(
+            reverse("suspect-score", kwargs={"profile_id": profile.id}),
+            {"scorer_role": "sergeant", "score": 7, "notes": "Interrogation responses are inconsistent."},
+            format="json",
+        )
+        self.assertEqual(sergeant_score_resp.status_code, status.HTTP_201_CREATED)
+
+        self.client.force_authenticate(captain)
+        captain_resp = self.client.post(
+            reverse("captain-decision", kwargs={"profile_id": profile.id}),
+            {"is_confirmed": True, "summary": "Send to court."},
+            format="json",
+        )
+        self.assertEqual(captain_resp.status_code, status.HTTP_201_CREATED)
+        case_obj.refresh_from_db()
+        self.assertEqual(case_obj.status, Case.Status.IN_COURT)
+
+        self.client.force_authenticate(judge)
+        trial_resp = self.client.post(
+            reverse("trial-create"),
+            {
+                "case": case_id,
+                "defendant": suspect.id,
+                "verdict": "guilty",
+                "verdict_note": "Evidence chain is sufficient.",
+                "punishment_title": "Imprisonment",
+                "punishment_description": "5 years imprisonment",
+            },
+            format="json",
+        )
+        self.assertEqual(trial_resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(trial_resp.data["verdict"], "guilty")
+        case_obj.refresh_from_db()
+        self.assertEqual(case_obj.status, Case.Status.CLOSED)
+
+    def test_scenario_13_officer_return_goes_back_to_cadet_without_case_creation(self):
+        citizen = self._create_user("officer_return_citizen", roles=["Basic User"])
+        cadet = self._create_user("officer_return_cadet", roles=["Cadet"])
+        officer = self._create_user("officer_return_officer", roles=["Police Officer"])
+
+        self.client.force_authenticate(citizen)
+        complaint_resp = self.client.post(
+            reverse("complaint-list-create"),
+            {
+                "title": "Routing complaint",
+                "description": "Initial details",
+                "location": "Zone R",
+                "incident_datetime": timezone.now().isoformat(),
+            },
+            format="json",
+        )
+        self.assertEqual(complaint_resp.status_code, status.HTTP_201_CREATED)
+        complaint_id = complaint_resp.data["id"]
+
+        self.client.force_authenticate(cadet)
+        cadet_approve = self.client.post(
+            reverse("complaint-cadet-review", kwargs={"complaint_id": complaint_id}),
+            {"decision": "approved", "message": "Forward to officer"},
+            format="json",
+        )
+        self.assertEqual(cadet_approve.status_code, status.HTTP_200_OK)
+
+        self.client.force_authenticate(officer)
+        officer_return = self.client.post(
+            reverse("complaint-officer-review", kwargs={"complaint_id": complaint_id}),
+            {"decision": "returned", "message": "Needs more clarification"},
+            format="json",
+        )
+        self.assertEqual(officer_return.status_code, status.HTTP_200_OK)
+        self.assertIsNone(officer_return.data["case"])
+
+        complaint = Complaint.objects.get(id=complaint_id)
+        self.assertEqual(complaint.status, Complaint.Status.RETURNED)
+        self.assertIsNone(complaint.case_id)
+
+        self.client.force_authenticate(cadet)
+        cadet_view = self.client.get(reverse("complaint-detail-update", kwargs={"pk": complaint_id}))
+        self.assertEqual(cadet_view.status_code, status.HTTP_200_OK)
+        self.assertEqual(cadet_view.data["latest_review_step"], "officer")
+        self.assertEqual(cadet_view.data["status"], Complaint.Status.RETURNED)
+
+        cadet_reapprove = self.client.post(
+            reverse("complaint-cadet-review", kwargs={"complaint_id": complaint_id}),
+            {"decision": "approved", "message": "Fixed, re-forwarding"},
+            format="json",
+        )
+        self.assertEqual(cadet_reapprove.status_code, status.HTTP_200_OK)
+        self.assertIsNone(cadet_reapprove.data["complaint"]["case"])
+
+        self.client.force_authenticate(officer)
+        final_officer_approve = self.client.post(
+            reverse("complaint-officer-review", kwargs={"complaint_id": complaint_id}),
+            {"decision": "approved", "message": "Final approval"},
+            format="json",
+        )
+        self.assertEqual(final_officer_approve.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(final_officer_approve.data["case"]["id"])
+
+    def test_scenario_14_cadet_additional_complainant_is_auto_approved(self):
+        citizen = self._create_user("secondary_main_citizen", roles=["Basic User"])
+        secondary = self._create_user("secondary_added_citizen", roles=["Basic User"])
+        cadet = self._create_user("secondary_cadet_user", roles=["Cadet"])
+
+        self.client.force_authenticate(citizen)
+        complaint_resp = self.client.post(
+            reverse("complaint-list-create"),
+            {
+                "title": "Secondary complainants",
+                "description": "Main complainant case",
+                "location": "Zone S",
+                "incident_datetime": timezone.now().isoformat(),
+            },
+            format="json",
+        )
+        self.assertEqual(complaint_resp.status_code, status.HTTP_201_CREATED)
+        complaint_id = complaint_resp.data["id"]
+
+        self.client.force_authenticate(cadet)
+        add_resp = self.client.post(
+            reverse("complaint-add-complainants", kwargs={"complaint_id": complaint_id}),
+            {"complainant_ids": [secondary.id]},
+            format="json",
+        )
+        self.assertEqual(add_resp.status_code, status.HTTP_200_OK)
+
+        complaint = Complaint.objects.get(id=complaint_id)
+        self.assertTrue(complaint.complainants.filter(id=secondary.id).exists())
+        entry = SecondaryComplainant.objects.get(complaint=complaint, user=secondary)
+        self.assertEqual(entry.status, SecondaryComplainant.Status.APPROVED)
+        self.assertEqual(entry.reviewed_by_id, cadet.id)

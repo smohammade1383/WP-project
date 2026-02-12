@@ -22,6 +22,13 @@
   border: 2px solid #dc2626;
 }
 
+.board-item.connect-source {
+  border: 2px solid #b91c1c;
+  box-shadow:
+    0 0 0 3px rgba(220, 38, 38, 0.2),
+    0 12px 28px rgba(185, 28, 28, 0.35);
+}
+
 .board-item.dragging {
   opacity: 0.9;
   transform: scale(1.03) rotate(0.4deg);
@@ -132,7 +139,8 @@
 }
 
 .board-item:hover .connection-point,
-.board-item.selected .connection-point {
+.board-item.selected .connection-point,
+.board-item.connect-source .connection-point {
   opacity: 1;
 }
 

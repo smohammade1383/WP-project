@@ -112,6 +112,7 @@ class EvidencePartialUpdateSerializer(EvidenceWriteSerializer):
     case = serializers.PrimaryKeyRelatedField(queryset=Case.objects.all(), required=False)
     title = serializers.CharField(max_length=200, required=False)
     description = serializers.CharField(required=False)
+    type = serializers.ChoiceField(choices=Evidence.Type.choices, required=False)
 
     def validate(self, attrs):
         evidence = self.context.get("evidence")
