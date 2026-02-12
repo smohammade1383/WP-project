@@ -6,7 +6,15 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from cases.models import Case, Complaint, CrimeSceneWitness, SecondaryComplainant, SuspectCaseProfile
+from cases.models import (
+    CaptainDecision,
+    Case,
+    CaseLog,
+    Complaint,
+    CrimeSceneWitness,
+    SecondaryComplainant,
+    SuspectCaseProfile,
+)
 from users.models import User
 
 
@@ -540,3 +548,50 @@ class CaseFlowAPITests(APITestCase):
 
         case_obj.refresh_from_db()
         self.assertEqual(case_obj.status, Case.Status.ARRESTED)
+
+    def test_comprehensive_report_contains_involved_personnel_and_pending_chief_decisions(self):
+        chief = self._create_user("chief_report", roles=["Chief"])
+        captain = self._create_user("captain_report", roles=["Captain"])
+        sergeant = self._create_user("sergeant_report", roles=["Sergeant"])
+        detective = self._create_user("detective_report", roles=["Detective"])
+        officer = self._create_user("officer_report", roles=["Police Officer"])
+        suspect = self._create_user("suspect_report", roles=["Suspect"])
+
+        case_obj = Case.objects.create(
+            title="Critical waiting chief",
+            description="critical flow",
+            location="HQ",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.WAITING_CHIEF,
+            severity=Case.Severity.CRITICAL,
+            created_by=officer,
+            approved_by=officer,
+        )
+        profile = SuspectCaseProfile.objects.create(
+            case=case_obj,
+            suspect=suspect,
+            arrest_warrant_issued=True,
+            is_arrested=True,
+        )
+        decision = CaptainDecision.objects.create(
+            suspect_profile=profile,
+            captain=captain,
+            is_confirmed=True,
+            chief_confirmed=None,
+            summary="Escalated to chief",
+        )
+        CaseLog.objects.create(case=case_obj, actor=detective, action="suspects_nominated", description="nomination")
+        CaseLog.objects.create(case=case_obj, actor=sergeant, action="submitted_to_captain", description="handoff")
+
+        self.client.force_authenticate(chief)
+        resp = self.client.get(reverse("case-comprehensive-report", kwargs={"case_id": case_obj.id}))
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertIn("involved_personnel", resp.data)
+        self.assertIn("pending_chief_decision_ids", resp.data)
+        self.assertIn(decision.id, resp.data["pending_chief_decision_ids"])
+
+        involved_names = {item["name"] for item in resp.data["involved_personnel"]}
+        self.assertIn(captain.first_name + " " + captain.last_name, involved_names)
+        self.assertIn(sergeant.first_name + " " + sergeant.last_name, involved_names)
+        self.assertIn(detective.first_name + " " + detective.last_name, involved_names)

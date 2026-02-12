@@ -10,6 +10,7 @@ import {
   evidenceApi,
   type DetectiveCase,
   type DetectiveCaseUser,
+  type DetectiveSuspectProfile,
   type EvidenceRecord,
   type EvidenceType,
 } from '../services';
@@ -128,6 +129,16 @@ const parseIds = (raw: string): number[] => {
     .filter((value) => Number.isInteger(value) && value > 0);
 };
 
+const getLatestScoreForRole = (
+  profile: DetectiveSuspectProfile,
+  role: 'detective' | 'sergeant'
+) => {
+  const found = profile.scores
+    .filter((item) => item.scorer_role === role)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return found[0] || null;
+};
+
 const defaultEvidenceFormState = (): EvidenceFormState => ({
   title: '',
   description: '',
@@ -183,6 +194,12 @@ const DetectiveCases = () => {
   const [attachBoardSnapshot, setAttachBoardSnapshot] = useState(true);
   const [submittingNomination, setSubmittingNomination] = useState(false);
 
+  const [suspectProfiles, setSuspectProfiles] = useState<DetectiveSuspectProfile[]>([]);
+  const [loadingSuspectProfiles, setLoadingSuspectProfiles] = useState(false);
+  const [detectiveScoreByProfile, setDetectiveScoreByProfile] = useState<Record<number, string>>({});
+  const [detectiveNoteByProfile, setDetectiveNoteByProfile] = useState<Record<number, string>>({});
+  const [submittingDetectiveScoreProfileId, setSubmittingDetectiveScoreProfileId] = useState<number | null>(null);
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -229,6 +246,11 @@ const DetectiveCases = () => {
     selectedCase.suspects.forEach(pushUser);
     return Array.from(list.values());
   }, [selectedCase]);
+
+  const arrestedSuspectProfiles = useMemo(
+    () => suspectProfiles.filter((profile) => profile.is_arrested),
+    [suspectProfiles]
+  );
 
   const evidenceIdsOnBoard = useMemo(() => {
     const set = new Set<number>();
@@ -363,6 +385,19 @@ const DetectiveCases = () => {
     }
   };
 
+  const loadSuspectProfiles = async (caseId: number) => {
+    try {
+      setLoadingSuspectProfiles(true);
+      const data = await detectiveApi.listSuspectProfiles(caseId);
+      setSuspectProfiles(data);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'خطا در دریافت اطلاعات بازجویی مظنونین'));
+      setSuspectProfiles([]);
+    } finally {
+      setLoadingSuspectProfiles(false);
+    }
+  };
+
   useEffect(() => {
     loadCases();
     loadNotifications();
@@ -373,6 +408,7 @@ const DetectiveCases = () => {
       setEvidenceItems([]);
       setBoardItems([]);
       setBoardLinks([]);
+      setSuspectProfiles([]);
       setConnectingFromId(null);
       setIsConnectingDrag(false);
       draftPointRef.current = null;
@@ -386,12 +422,15 @@ const DetectiveCases = () => {
     }
     loadEvidence(selectedCaseId);
     loadBoard(selectedCaseId);
+    loadSuspectProfiles(selectedCaseId);
   }, [selectedCaseId]);
 
   useEffect(() => {
     setSelectedNomineeIds([]);
     setManualNomineeIds('');
     setNominationSummary('');
+    setDetectiveScoreByProfile({});
+    setDetectiveNoteByProfile({});
   }, [selectedCaseId]);
 
   const resetEvidenceForm = () => {
@@ -867,6 +906,34 @@ const DetectiveCases = () => {
       if (prev.includes(userId)) return prev.filter((id) => id !== userId);
       return [...prev, userId];
     });
+  };
+
+  const handleSubmitDetectiveScore = async (profileId: number) => {
+    if (!selectedCase) {
+      setError('ابتدا یک پرونده انتخاب کنید.');
+      return;
+    }
+    const scoreValue = Number(detectiveScoreByProfile[profileId]);
+    if (!Number.isInteger(scoreValue) || scoreValue < 1 || scoreValue > 10) {
+      setError('نمره بازجویی کارآگاه باید عدد صحیح بین ۱ تا ۱۰ باشد.');
+      return;
+    }
+
+    try {
+      setSubmittingDetectiveScoreProfileId(profileId);
+      setError('');
+      setSuccess('');
+      await detectiveApi.submitDetectiveScore(profileId, {
+        score: scoreValue,
+        notes: (detectiveNoteByProfile[profileId] || '').trim(),
+      });
+      setSuccess(`نمره کارآگاه برای پروفایل #${profileId} ثبت شد.`);
+      await loadSuspectProfiles(selectedCase.id);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'ثبت نمره کارآگاه با خطا مواجه شد.'));
+    } finally {
+      setSubmittingDetectiveScoreProfileId(null);
+    }
   };
 
   const handleNominate = async (event: React.FormEvent) => {
@@ -1350,6 +1417,95 @@ const DetectiveCases = () => {
                       مظنونین منتخب را با خلاصه استدلال به گروهبان ارسال کنید. پس از ارسال، وضعیت پرونده
                       به «در انتظار تایید گروهبان» می‌رود.
                     </p>
+
+                    <section className="detective-interrogation-section">
+                      <h4>بازجویی و امتیاز کارآگاه (۱ تا ۱۰)</h4>
+                      <p className="tab-help">
+                        پس از بازداشت مظنون، کارآگاه نیز باید نمره احتمال گناهکاری را ثبت کند تا پرونده
+                        برای کاپیتان کامل شود.
+                      </p>
+
+                      {loadingSuspectProfiles ? (
+                        <div className="panel-empty">در حال دریافت لیست مظنونین بازداشت‌شده...</div>
+                      ) : arrestedSuspectProfiles.length === 0 ? (
+                        <div className="panel-empty">
+                          هنوز مظنون بازداشت‌شده‌ای برای این پرونده وجود ندارد یا حکم جلب ثبت نشده است.
+                        </div>
+                      ) : (
+                        <div className="detective-interrogation-grid">
+                          {arrestedSuspectProfiles.map((profile) => {
+                            const detectiveScore = getLatestScoreForRole(profile, 'detective');
+                            const sergeantScore = getLatestScoreForRole(profile, 'sergeant');
+                            return (
+                              <article key={profile.id} className="interrogation-card">
+                                <div className="interrogation-head">
+                                  <strong>
+                                    پروفایل #{profile.id} - {profile.suspect.first_name}{' '}
+                                    {profile.suspect.last_name}
+                                  </strong>
+                                  <span>وضعیت: بازداشت‌شده</span>
+                                </div>
+
+                                <div className="interrogation-score-row">
+                                  <span>
+                                    نمره کارآگاه:{' '}
+                                    <strong>{detectiveScore ? detectiveScore.score : 'ثبت نشده'}</strong>
+                                  </span>
+                                  <span>
+                                    نمره گروهبان:{' '}
+                                    <strong>{sergeantScore ? sergeantScore.score : 'ثبت نشده'}</strong>
+                                  </span>
+                                </div>
+
+                                <div className="interrogation-form">
+                                  <label htmlFor={`detective-score-${profile.id}`}>
+                                    نمره شما (۱ تا ۱۰)
+                                  </label>
+                                  <input
+                                    id={`detective-score-${profile.id}`}
+                                    type="number"
+                                    min={1}
+                                    max={10}
+                                    value={detectiveScoreByProfile[profile.id] || ''}
+                                    onChange={(event) =>
+                                      setDetectiveScoreByProfile((prev) => ({
+                                        ...prev,
+                                        [profile.id]: event.target.value,
+                                      }))
+                                    }
+                                    placeholder="مثال: 8"
+                                  />
+
+                                  <label htmlFor={`detective-note-${profile.id}`}>توضیح بازجویی</label>
+                                  <textarea
+                                    id={`detective-note-${profile.id}`}
+                                    rows={3}
+                                    value={detectiveNoteByProfile[profile.id] || ''}
+                                    onChange={(event) =>
+                                      setDetectiveNoteByProfile((prev) => ({
+                                        ...prev,
+                                        [profile.id]: event.target.value,
+                                      }))
+                                    }
+                                    placeholder="جمع‌بندی بازجویی و دلایل امتیاز"
+                                  />
+
+                                  <button
+                                    type="button"
+                                    disabled={submittingDetectiveScoreProfileId === profile.id}
+                                    onClick={() => handleSubmitDetectiveScore(profile.id)}
+                                  >
+                                    {submittingDetectiveScoreProfileId === profile.id
+                                      ? 'در حال ثبت...'
+                                      : 'ثبت نمره کارآگاه'}
+                                  </button>
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </section>
 
                     <form className="handover-form" onSubmit={handleNominate}>
                       <div>

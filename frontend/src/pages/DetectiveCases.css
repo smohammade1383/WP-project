@@ -674,6 +674,85 @@
   max-width: 860px;
 }
 
+.detective-interrogation-section {
+  display: grid;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.detective-interrogation-section h4 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.94rem;
+}
+
+.detective-interrogation-grid {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.interrogation-card {
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.interrogation-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.interrogation-head strong {
+  color: #0f172a;
+  font-size: 0.86rem;
+}
+
+.interrogation-head span {
+  color: #475569;
+  font-size: 0.8rem;
+}
+
+.interrogation-score-row {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  color: #334155;
+  font-size: 0.81rem;
+}
+
+.interrogation-score-row strong {
+  color: #1d4ed8;
+}
+
+.interrogation-form {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.interrogation-form label {
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.interrogation-form input,
+.interrogation-form textarea {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+
+.interrogation-form button {
+  justify-self: start;
+}
+
 .handover-form label {
   display: block;
   margin-bottom: 0.35rem;

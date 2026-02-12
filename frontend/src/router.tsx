@@ -30,6 +30,7 @@ import LegalBailStatus from './pages/LegalBailStatus';
 import CoronerLab from './pages/CoronerLab';
 import SergeantDashboard from './pages/SergeantDashboard';
 import CaptainDashboard from './pages/CaptainDashboard';
+import ChiefDashboard from './pages/ChiefDashboard';
 
 export const router = createBrowserRouter([
   {
@@ -176,23 +177,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'chief/critical-cases',
-        element: (
-          <PlaceholderPage
-            icon="🚩"
-            title="پرونده‌های بحرانی"
-            description="پرونده‌های سطح بحرانی برای تایید نهایی"
-          />
-        ),
+        element: <ChiefDashboard />,
       },
       {
         path: 'chief/stats',
-        element: (
-          <PlaceholderPage
-            icon="📈"
-            title="آمار کلان"
-            description="نمودارهای مدیریتی از وضعیت جرم و جنایت"
-          />
-        ),
+        element: <ChiefDashboard />,
       },
       {
         path: 'coroner/lab',

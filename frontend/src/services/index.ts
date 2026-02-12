@@ -35,7 +35,9 @@ export { detectiveApi } from './detective.api';
 export type {
   DetectiveCase,
   DetectiveCaseUser,
+  DetectiveInterrogationScore,
   DetectiveNotification,
+  DetectiveSuspectProfile,
 } from './detective.api';
 export { sergeantApi } from './sergeant.api';
 export type {
@@ -57,3 +59,13 @@ export type {
 export { evidenceApi } from './evidence.api';
 export type { EvidenceRecord, EvidenceType } from './evidence.api';
 export { coronerApi } from './coroner.api';
+export { chiefApi } from './chief.api';
+export type {
+  ChiefBoardSnapshotItem,
+  ChiefBoardSnapshotLink,
+  ChiefCase,
+  ChiefCaseReport,
+  ChiefReportInvolvedPerson,
+  ChiefReportPerson,
+  ChiefStats,
+} from './chief.api';

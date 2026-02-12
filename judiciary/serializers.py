@@ -56,3 +56,23 @@ class TrialSerializer(serializers.ModelSerializer):
             "title": obj.punishment.title,
             "description": obj.punishment.description,
         }
+
+
+class InvolvedPersonnelSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    rank = serializers.CharField()
+    role = serializers.CharField()
+    action_date = serializers.DateTimeField()
+
+
+class CaseReportSerializer(serializers.Serializer):
+    case = serializers.DictField()
+    complaints = serializers.ListField(child=serializers.DictField())
+    evidence = serializers.ListField(child=serializers.DictField())
+    suspect_profiles = serializers.ListField(child=serializers.DictField())
+    trials = serializers.ListField(child=serializers.DictField())
+    complainants = serializers.ListField(child=serializers.DictField())
+    criminals = serializers.ListField(child=serializers.DictField())
+    involved_personnel = InvolvedPersonnelSerializer(many=True)
+    pending_chief_decision_ids = serializers.ListField(child=serializers.IntegerField())
+    board_snapshot = serializers.DictField(allow_null=True)

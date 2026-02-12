@@ -1,5 +1,4 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -9,7 +8,7 @@ from rest_framework.views import APIView
 from cases.models import Case
 from evidence.serializers import EvidenceSerializer
 from .models import Trial
-from .serializers import TrialSerializer
+from .serializers import CaseReportSerializer, TrialSerializer
 
 
 def has_any_role(user, *roles):
@@ -19,6 +18,55 @@ def has_any_role(user, *roles):
         return True
     expected = set(roles)
     return any(role in expected for role in user.role_names)
+
+
+ROLE_PRIORITY = (
+    "Administrator",
+    "Chief",
+    "Captain",
+    "Sergeant",
+    "Detective",
+    "Police Officer",
+    "Patrol Officer",
+    "Cadet",
+    "Judge",
+    "Coroner",
+    "Criminal",
+    "Suspect",
+    "Witness",
+    "Complainant",
+    "Basic User",
+)
+
+
+def _display_name(user):
+    full = f"{user.first_name} {user.last_name}".strip()
+    return full if full else user.username
+
+
+def _rank_from_roles(user):
+    roles = list(user.role_names)
+    if not roles and user.is_superuser:
+        return "Administrator"
+    for role in ROLE_PRIORITY:
+        if role in roles:
+            return role
+    return roles[0] if roles else "Unassigned"
+
+
+def _track_involved_person(registry, user, action_date):
+    roles = list(user.role_names)
+    if not roles and user.is_superuser:
+        roles = ["Administrator"]
+    payload = {
+        "name": _display_name(user),
+        "rank": _rank_from_roles(user),
+        "role": ", ".join(roles) if roles else "Unassigned",
+        "action_date": action_date,
+    }
+    existing = registry.get(user.id)
+    if existing is None or action_date > existing["action_date"]:
+        registry[user.id] = payload
 
 
 @extend_schema(tags=["Judiciary"], summary="Create trial and verdict", request=TrialSerializer, responses={201: TrialSerializer})
@@ -50,7 +98,7 @@ class TrialCreateAPIView(APIView):
         return Response(TrialSerializer(trial).data, status=status.HTTP_201_CREATED)
 
 
-@extend_schema(tags=["Judiciary"], summary="Comprehensive case report", responses={200: OpenApiTypes.OBJECT})
+@extend_schema(tags=["Judiciary"], summary="Comprehensive case report", responses={200: CaseReportSerializer})
 class CaseComprehensiveReportAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -58,7 +106,16 @@ class CaseComprehensiveReportAPIView(APIView):
         if not has_any_role(request.user, "Judge", "Captain", "Chief", "Administrator"):
             raise PermissionDenied("Only judge/captain/chief can view this report.")
 
-        case_obj = get_object_or_404(Case.objects.select_related("created_by", "approved_by"), id=case_id)
+        case_obj = get_object_or_404(
+            Case.objects.select_related("created_by", "approved_by").prefetch_related(
+                "complainants",
+                "witnesses",
+                "suspects",
+                "logs__actor",
+                "evidences__created_by",
+            ),
+            id=case_id,
+        )
 
         evidence_data = EvidenceSerializer(case_obj.evidences.all(), many=True).data
         complaints = case_obj.complaints.select_related("submitter").all()
@@ -74,8 +131,23 @@ class CaseComprehensiveReportAPIView(APIView):
         ]
 
         suspect_profiles = case_obj.suspect_profiles.select_related("suspect").all()
+        pending_chief_decision_ids = []
         suspect_data = []
         for profile in suspect_profiles:
+            captain_decisions = []
+            for decision in profile.captain_decisions.select_related("captain", "chief").all():
+                captain_decisions.append(
+                    {
+                        "id": decision.id,
+                        "captain": decision.captain.username,
+                        "chief": decision.chief.username if decision.chief else None,
+                        "is_confirmed": decision.is_confirmed,
+                        "chief_confirmed": decision.chief_confirmed,
+                        "summary": decision.summary,
+                    }
+                )
+                if decision.is_confirmed and decision.chief_confirmed is None:
+                    pending_chief_decision_ids.append(decision.id)
             suspect_data.append(
                 {
                     "profile_id": profile.id,
@@ -92,23 +164,112 @@ class CaseComprehensiveReportAPIView(APIView):
                             "role": score.scorer_role,
                             "score": score.score,
                             "notes": score.notes,
+                            "created_at": score.created_at,
                         }
                         for score in profile.scores.select_related("scorer").all()
                     ],
-                    "captain_decisions": [
-                        {
-                            "captain": decision.captain.username,
-                            "is_confirmed": decision.is_confirmed,
-                            "chief_confirmed": decision.chief_confirmed,
-                            "summary": decision.summary,
-                        }
-                        for decision in profile.captain_decisions.select_related("captain").all()
-                    ],
+                    "captain_decisions": captain_decisions,
                 }
             )
 
         trials = case_obj.trials.all()
         trial_payload = TrialSerializer(trials, many=True).data
+
+        involved_registry = {}
+        _track_involved_person(involved_registry, case_obj.created_by, case_obj.created_at)
+        if case_obj.approved_by:
+            _track_involved_person(involved_registry, case_obj.approved_by, case_obj.updated_at)
+
+        for log in case_obj.logs.select_related("actor").all():
+            _track_involved_person(involved_registry, log.actor, log.timestamp)
+
+        for complaint in complaints:
+            _track_involved_person(involved_registry, complaint.submitter, complaint.created_at)
+            for review in complaint.reviews.select_related("reviewer").all():
+                _track_involved_person(involved_registry, review.reviewer, review.created_at)
+
+        for evidence in case_obj.evidences.select_related("created_by").all():
+            _track_involved_person(involved_registry, evidence.created_by, evidence.created_at)
+
+        for profile in suspect_profiles:
+            for score in profile.scores.select_related("scorer").all():
+                _track_involved_person(involved_registry, score.scorer, score.created_at)
+            for decision in profile.captain_decisions.select_related("captain", "chief").all():
+                _track_involved_person(involved_registry, decision.captain, decision.created_at)
+                if decision.chief:
+                    _track_involved_person(involved_registry, decision.chief, decision.created_at)
+
+        for trial in trials.select_related("judge").all():
+            _track_involved_person(involved_registry, trial.judge, trial.created_at)
+
+        board = getattr(case_obj, "board", None)
+        board_snapshot = None
+        if board:
+            _track_involved_person(involved_registry, board.detective, board.created_at)
+            board_snapshot = {
+                "id": board.id,
+                "detective": {
+                    "id": board.detective.id,
+                    "name": _display_name(board.detective),
+                    "rank": _rank_from_roles(board.detective),
+                },
+                "items": [
+                    {
+                        "id": item.id,
+                        "item_type": item.item_type,
+                        "note_text": item.note_text,
+                        "evidence_id": item.evidence_id,
+                        "evidence_title": item.evidence.title if item.evidence_id else "",
+                        "user_id": item.user_id,
+                        "user_name": _display_name(item.user) if item.user_id else "",
+                        "position_x": item.position_x,
+                        "position_y": item.position_y,
+                        "width": item.width,
+                        "height": item.height,
+                    }
+                    for item in board.items.select_related("evidence", "user").all()
+                ],
+                "links": [
+                    {
+                        "id": link.id,
+                        "from_item": link.from_item_id,
+                        "to_item": link.to_item_id,
+                        "description": link.description,
+                    }
+                    for link in board.links.all()
+                ],
+            }
+
+        involved_personnel = sorted(
+            involved_registry.values(),
+            key=lambda row: row["action_date"],
+            reverse=True,
+        )
+
+        complainants_payload = [
+            {
+                "id": person.id,
+                "username": person.username,
+                "name": _display_name(person),
+                "rank": _rank_from_roles(person),
+                "roles": list(person.role_names),
+            }
+            for person in case_obj.complainants.all()
+        ]
+        criminals_payload = []
+        for trial in trials:
+            if trial.verdict != Trial.Verdict.GUILTY or not trial.defendant_id:
+                continue
+            defendant = trial.defendant
+            criminals_payload.append(
+                {
+                    "id": defendant.id,
+                    "username": defendant.username,
+                    "name": _display_name(defendant),
+                    "rank": _rank_from_roles(defendant),
+                    "roles": list(defendant.role_names),
+                }
+            )
 
         response = {
             "case": {
@@ -120,6 +281,8 @@ class CaseComprehensiveReportAPIView(APIView):
                 "severity": case_obj.severity,
                 "status": case_obj.status,
                 "source_type": case_obj.source_type,
+                "created_at": case_obj.created_at,
+                "updated_at": case_obj.updated_at,
                 "created_by": case_obj.created_by.username,
                 "approved_by": case_obj.approved_by.username if case_obj.approved_by else None,
                 "complainants": [person.username for person in case_obj.complainants.all()],
@@ -130,5 +293,12 @@ class CaseComprehensiveReportAPIView(APIView):
             "evidence": evidence_data,
             "suspect_profiles": suspect_data,
             "trials": trial_payload,
+            "complainants": complainants_payload,
+            "criminals": criminals_payload,
+            "involved_personnel": involved_personnel,
+            "pending_chief_decision_ids": sorted(set(pending_chief_decision_ids)),
+            "board_snapshot": board_snapshot,
         }
-        return Response(response)
+        serializer = CaseReportSerializer(data=response)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data)

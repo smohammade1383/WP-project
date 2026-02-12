@@ -42,6 +42,26 @@ export interface DetectiveNotification {
   timestamp: string;
 }
 
+export interface DetectiveInterrogationScore {
+  id: number;
+  scorer_role: 'detective' | 'sergeant';
+  score: number;
+  notes: string;
+  created_at: string;
+  scorer: DetectiveCaseUser;
+}
+
+export interface DetectiveSuspectProfile {
+  id: number;
+  case: number;
+  suspect: DetectiveCaseUser;
+  wanted_since: string;
+  arrest_warrant_issued: boolean;
+  is_arrested: boolean;
+  severe_tracking: boolean;
+  scores: DetectiveInterrogationScore[];
+}
+
 interface NominateSuspectsRequest {
   suspect_ids: number[];
   summary?: string;
@@ -72,5 +92,22 @@ export const detectiveApi = {
   ): Promise<Record<string, unknown>> => {
     return api.post<Record<string, unknown>>(`/cases/${caseId}/suspects/nominate/`, payload);
   },
-};
 
+  listSuspectProfiles: async (caseId: number): Promise<DetectiveSuspectProfile[]> => {
+    const payload = await api.get<DetectiveSuspectProfile[] | { results?: DetectiveSuspectProfile[] }>(
+      `/cases/suspect-profiles/?case=${caseId}`
+    );
+    return toList(payload);
+  },
+
+  submitDetectiveScore: async (
+    profileId: number,
+    payload: { score: number; notes?: string }
+  ): Promise<DetectiveInterrogationScore> => {
+    return api.post<DetectiveInterrogationScore>(`/cases/suspect-profiles/${profileId}/score/`, {
+      scorer_role: 'detective',
+      score: payload.score,
+      notes: payload.notes || '',
+    });
+  },
+};

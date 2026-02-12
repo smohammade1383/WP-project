@@ -1,0 +1,253 @@
+.chief-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.chief-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.chief-header h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.35rem;
+}
+
+.chief-header p {
+  margin: 8px 0 0;
+  color: #475569;
+}
+
+.chief-header button {
+  border: 1px solid #0f766e;
+  background: #ecfdf5;
+  color: #065f46;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chief-header button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.chief-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chief-tabs button {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chief-tabs button.active {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.chief-feedback {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 600;
+}
+
+.chief-feedback.error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.chief-feedback.success {
+  background: #ecfdf5;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.chief-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.section-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.section-top h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.06rem;
+}
+
+.section-top span {
+  color: #334155;
+  font-weight: 600;
+}
+
+.section-empty {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  color: #64748b;
+  border-radius: 9px;
+  padding: 12px;
+}
+
+.stats-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.stats-grid article {
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stats-grid h3 {
+  margin: 0;
+  color: #334155;
+  font-size: 0.92rem;
+}
+
+.stats-grid strong {
+  color: #0f172a;
+  font-size: 1.2rem;
+}
+
+.queue-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.queue-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+  padding: 10px;
+  text-align: right;
+  cursor: pointer;
+}
+
+.queue-card.selected {
+  border-color: #0f766e;
+  background: #ecfdf5;
+}
+
+.queue-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.queue-top h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.96rem;
+}
+
+.queue-top span {
+  border-radius: 999px;
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  padding: 2px 8px;
+  font-size: 0.76rem;
+}
+
+.queue-meta {
+  margin-top: 7px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: #475569;
+  font-size: 0.82rem;
+}
+
+.chief-action-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.chief-action-panel label {
+  color: #334155;
+  font-weight: 600;
+}
+
+.chief-action-panel textarea {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px;
+  font-family: inherit;
+}
+
+.chief-action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chief-action-buttons button {
+  border: none;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chief-action-buttons button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.chief-action-buttons .primary {
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.chief-action-buttons .danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+@media (max-width: 900px) {
+  .chief-page {
+    padding: 12px;
+  }
+}
