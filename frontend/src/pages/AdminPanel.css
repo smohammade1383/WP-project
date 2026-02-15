@@ -62,7 +62,7 @@
 
 .roles-form,
 .roles-list {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--color-surface);
   border-radius: 16px;
   padding: 1.25rem;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
@@ -148,7 +148,7 @@
 
 .secondary-btn {
   background: rgba(15, 23, 42, 0.08);
-  color: #374151;
+  color: var(--color-text-secondary);
   border: 1px solid rgba(15, 23, 42, 0.12);
   padding: 0.55rem 0.95rem;
   border-radius: 10px;

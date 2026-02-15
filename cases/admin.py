@@ -10,6 +10,7 @@ from .models import (
     CrimeSceneWitness,
     Notification,
     Complaint,
+    ComplaintAttachment,
     ComplaintReview,
     DetectiveBoard,
     InterrogationScore,
@@ -34,6 +35,7 @@ class ComplaintAdmin(admin.ModelAdmin):
 
 
 admin.site.register(ComplaintReview)
+admin.site.register(ComplaintAttachment)
 admin.site.register(SecondaryComplainant)
 admin.site.register(CaseLog)
 admin.site.register(CrimeSceneWitness)

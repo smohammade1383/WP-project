@@ -161,6 +161,33 @@ class Complaint(models.Model):
         self.save(update_fields=["invalid_attempt_count", "status", "updated_at"])
 
 
+class ComplaintAttachment(models.Model):
+    complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name="attachments")
+    file = models.FileField(upload_to="complaints/attachments/%Y/%m/")
+    original_name = models.CharField(max_length=255, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="uploaded_complaint_attachments",
+    )
+    promoted_evidence = models.OneToOneField(
+        "evidence.Evidence",
+        on_delete=models.SET_NULL,
+        related_name="source_complaint_attachment",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.original_name and self.file:
+            self.original_name = self.file.name.rsplit("/", 1)[-1]
+        super().save(*args, **kwargs)
+
+
 class ComplaintReview(models.Model):
     class Step(models.TextChoices):
         CADET = "cadet", _("Cadet")

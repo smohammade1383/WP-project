@@ -1,4 +1,5 @@
 from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -319,3 +320,52 @@ class ChecklistRegressionExtraTests(APITestCase):
         )
         self.assertEqual(allowed_resp.status_code, status.HTTP_201_CREATED)
 
+    def test_complaint_attachments_are_promoted_to_case_evidence_after_officer_approval(self):
+        citizen = self._create_user("chk_attach_citizen", roles=["Basic User"])
+        cadet = self._create_user("chk_attach_cadet", roles=["Cadet"])
+        officer = self._create_user("chk_attach_officer", roles=["Police Officer"])
+
+        self.client.force_authenticate(citizen)
+        evidence_file = SimpleUploadedFile(
+            "citizen-photo.jpg",
+            b"fake-image-bytes",
+            content_type="image/jpeg",
+        )
+        create_resp = self.client.post(
+            reverse("complaint-list-create"),
+            {
+                "title": "Complaint with attachment",
+                "description": "Citizen provided media attachment.",
+                "location": "Zone D",
+                "incident_datetime": timezone.now().isoformat(),
+                "attachment_files": [evidence_file],
+            },
+            format="multipart",
+        )
+        self.assertEqual(create_resp.status_code, status.HTTP_201_CREATED)
+        complaint_id = create_resp.data["id"]
+        self.assertEqual(len(create_resp.data["attachments"]), 1)
+
+        self.client.force_authenticate(cadet)
+        cadet_resp = self.client.post(
+            reverse("complaint-cadet-review", kwargs={"complaint_id": complaint_id}),
+            {"decision": "approved", "message": "Looks complete."},
+            format="json",
+        )
+        self.assertEqual(cadet_resp.status_code, status.HTTP_200_OK)
+
+        self.client.force_authenticate(officer)
+        officer_resp = self.client.post(
+            reverse("complaint-officer-review", kwargs={"complaint_id": complaint_id}),
+            {"decision": "approved", "message": "Approved by officer."},
+            format="json",
+        )
+        self.assertEqual(officer_resp.status_code, status.HTTP_200_OK)
+
+        case_id = officer_resp.data["case"]["id"]
+        promoted = Evidence.objects.filter(
+            case_id=case_id,
+            type=Evidence.Type.TRANSCRIPTION,
+            title="citizen-photo.jpg",
+        ).exists()
+        self.assertTrue(promoted)

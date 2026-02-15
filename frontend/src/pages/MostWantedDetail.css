@@ -20,7 +20,7 @@
 }
 
 .back-button {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--color-surface);
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 10px;
   padding: 0.5rem 1rem;
@@ -57,7 +57,7 @@
 
 .photo-placeholder {
   font-size: 3rem;
-  color: #9ca3af;
+  color: var(--color-text-secondary);
   font-weight: 700;
 }
 

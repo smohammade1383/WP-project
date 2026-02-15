@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService, complaintsApi, type Complaint } from '../services';
+import type { ComplaintAttachment } from '../services/complaints.api';
 import './CitizenComplaints.css';
 
 type EditFormState = {
@@ -70,6 +71,11 @@ const CitizenComplaints = () => {
 
   const [editingItem, setEditingItem] = useState<Complaint | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [existingAttachments, setExistingAttachments] = useState<ComplaintAttachment[]>([]);
+  const [newAttachments, setNewAttachments] = useState<File[]>([]);
+  const [removeAttachmentIds, setRemoveAttachmentIds] = useState<number[]>([]);
+  const [showEditAttachmentModal, setShowEditAttachmentModal] = useState(false);
+  const [editAttachmentDraft, setEditAttachmentDraft] = useState<File[]>([]);
   const [editForm, setEditForm] = useState<EditFormState>({
     title: '',
     description: '',
@@ -97,6 +103,15 @@ const CitizenComplaints = () => {
     loadComplaints();
   }, []);
 
+  useEffect(() => {
+    if (!editingItem && !secondaryRequestTarget && !showEditAttachmentModal) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [editingItem, secondaryRequestTarget, showEditAttachmentModal]);
+
   const sortedItems = useMemo(() => {
     return [...items].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -109,7 +124,7 @@ const CitizenComplaints = () => {
 
   const canEdit = (item: Complaint): boolean => {
     if (!isSubmitter(item)) return false;
-    if (item.status !== 'returned') return false;
+    if (item.status !== 'returned' && item.status !== 'submitted') return false;
     return item.invalid_attempt_count < 3;
   };
 
@@ -121,12 +136,46 @@ const CitizenComplaints = () => {
       location: item.location,
       incident_datetime: toLocalDateTime(item.incident_datetime),
     });
+    setExistingAttachments(item.attachments || []);
+    setNewAttachments([]);
+    setRemoveAttachmentIds([]);
+    setEditAttachmentDraft([]);
+    setShowEditAttachmentModal(false);
     setError('');
     setSuccess('');
   };
 
   const closeEdit = () => {
     setEditingItem(null);
+    setExistingAttachments([]);
+    setNewAttachments([]);
+    setRemoveAttachmentIds([]);
+    setEditAttachmentDraft([]);
+    setShowEditAttachmentModal(false);
+  };
+
+  const closeEditAttachmentModal = () => {
+    setShowEditAttachmentModal(false);
+    setEditAttachmentDraft([]);
+  };
+
+  const addDraftAttachmentsToEdit = () => {
+    if (editAttachmentDraft.length === 0) {
+      setError('حداقل یک فایل برای افزودن مدرک انتخاب کنید.');
+      return;
+    }
+    setNewAttachments((prev) => [...prev, ...editAttachmentDraft]);
+    closeEditAttachmentModal();
+  };
+
+  const toggleExistingAttachmentForRemoval = (attachmentId: number) => {
+    setRemoveAttachmentIds((prev) =>
+      prev.includes(attachmentId) ? prev.filter((id) => id !== attachmentId) : [...prev, attachmentId]
+    );
+  };
+
+  const removeNewAttachmentAt = (index: number) => {
+    setNewAttachments((prev) => prev.filter((_, fileIndex) => fileIndex !== index));
   };
 
   const submitEdit = async (event: React.FormEvent) => {
@@ -141,12 +190,15 @@ const CitizenComplaints = () => {
     try {
       setSavingEdit(true);
       setError('');
-      await complaintsApi.update(editingItem.id, {
-        title: editForm.title.trim(),
-        description: editForm.description.trim(),
-        location: editForm.location.trim(),
-        incident_datetime: toIsoString(editForm.incident_datetime),
-      });
+      const payload = new FormData();
+      payload.append('title', editForm.title.trim());
+      payload.append('description', editForm.description.trim());
+      payload.append('location', editForm.location.trim());
+      payload.append('incident_datetime', toIsoString(editForm.incident_datetime));
+      newAttachments.forEach((file) => payload.append('attachment_files', file));
+      removeAttachmentIds.forEach((id) => payload.append('remove_attachment_ids', String(id)));
+
+      await complaintsApi.update(editingItem.id, payload);
       setSuccess('شکایت با موفقیت اصلاح و دوباره ارسال شد.');
       closeEdit();
       await loadComplaints();
@@ -278,6 +330,10 @@ const CitizenComplaints = () => {
                   <span>کد پرونده</span>
                   <strong>{item.case ? `#${item.case}` : 'تشکیل نشده'}</strong>
                 </div>
+                <div>
+                  <span>تعداد مدارک ضمیمه</span>
+                  <strong>{item.attachments.length}</strong>
+                </div>
               </div>
 
               {remainingAttempts(item) <= 1 && item.status !== 'void' && (
@@ -297,13 +353,13 @@ const CitizenComplaints = () => {
                 <div className="complaint-actions-row">
                   {canEdit(item) ? (
                     <button type="button" className="edit-btn" onClick={() => openEdit(item)}>
-                      ویرایش و ارسال مجدد
+                      ویرایش شکایت و مدارک
                     </button>
                   ) : (
                     <span className="read-only-note">
-                      {item.status === 'returned'
-                        ? 'فقط ثبت‌کننده اصلی امکان اصلاح دارد.'
-                        : 'این شکایت قابل ویرایش نیست.'}
+                      {item.status === 'approved' || item.status === 'rejected' || item.status === 'void'
+                        ? 'این شکایت نهایی شده و قابل ویرایش نیست.'
+                        : 'فقط ثبت‌کننده اصلی امکان اصلاح دارد.'}
                     </span>
                   )}
                   {isSubmitter(item) && item.status !== 'void' && (
@@ -381,6 +437,62 @@ const CitizenComplaints = () => {
                 required
               />
 
+              <div className="edit-attachment-header">
+                <label>مدارک شکایت</label>
+                <button
+                  type="button"
+                  className="edit-attachment-add-btn"
+                  onClick={() => {
+                    setError('');
+                    setEditAttachmentDraft([]);
+                    setShowEditAttachmentModal(true);
+                  }}
+                  disabled={savingEdit}
+                >
+                  ثبت مدرک جدید
+                </button>
+              </div>
+
+              <div className="edit-attachment-list">
+                {existingAttachments.map((attachment) => {
+                  const markedForRemoval = removeAttachmentIds.includes(attachment.id);
+                  return (
+                    <div
+                      key={`existing-attachment-${attachment.id}`}
+                      className={`edit-attachment-item ${markedForRemoval ? 'pending-remove' : ''}`}
+                    >
+                      <span>{attachment.original_name}</span>
+                      <button
+                        type="button"
+                        className="edit-attachment-toggle-btn"
+                        onClick={() => toggleExistingAttachmentForRemoval(attachment.id)}
+                        disabled={savingEdit}
+                      >
+                        {markedForRemoval ? 'بازگردانی' : 'حذف'}
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {newAttachments.map((attachment, index) => (
+                  <div key={`new-attachment-${attachment.name}-${index}`} className="edit-attachment-item is-new">
+                    <span>{attachment.name}</span>
+                    <button
+                      type="button"
+                      className="edit-attachment-toggle-btn"
+                      onClick={() => removeNewAttachmentAt(index)}
+                      disabled={savingEdit}
+                    >
+                      حذف
+                    </button>
+                  </div>
+                ))}
+
+                {existingAttachments.length === 0 && newAttachments.length === 0 && (
+                  <div className="edit-attachment-empty">هنوز مدرکی برای این شکایت ثبت نشده است.</div>
+                )}
+              </div>
+
               <div className="edit-form-actions">
                 <button type="button" className="cancel-btn" onClick={closeEdit} disabled={savingEdit}>
                   انصراف
@@ -390,6 +502,43 @@ const CitizenComplaints = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {editingItem && showEditAttachmentModal && (
+        <div className="edit-attachment-modal-overlay" onClick={closeEditAttachmentModal}>
+          <div className="edit-attachment-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="edit-attachment-modal-header">
+              <h3>افزودن مدرک جدید به شکایت</h3>
+              <button type="button" onClick={closeEditAttachmentModal} aria-label="بستن">
+                ×
+              </button>
+            </div>
+            <div className="edit-attachment-modal-body">
+              <label htmlFor="edit-attachment-modal-input">انتخاب فایل(ها)</label>
+              <input
+                id="edit-attachment-modal-input"
+                type="file"
+                multiple
+                onChange={(event) => setEditAttachmentDraft(Array.from(event.target.files || []))}
+              />
+              {editAttachmentDraft.length > 0 && (
+                <div className="edit-attachment-draft-list">
+                  {editAttachmentDraft.map((file, index) => (
+                    <span key={`${file.name}-${file.size}-${index}`}>{file.name}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="edit-attachment-modal-actions">
+              <button type="button" className="cancel-btn" onClick={closeEditAttachmentModal}>
+                انصراف
+              </button>
+              <button type="button" className="save-btn" onClick={addDraftAttachmentsToEdit}>
+                افزودن به لیست مدارک
+              </button>
+            </div>
           </div>
         </div>
       )}

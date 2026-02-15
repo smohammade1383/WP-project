@@ -335,6 +335,22 @@ const CadetComplaintsInbox = () => {
                 <p>{selectedComplaint.description}</p>
               </div>
               <div>
+                <span>ضمیمه‌ها</span>
+                {selectedComplaint.attachments.length > 0 ? (
+                  <ul className="cadet-attachment-list">
+                    {selectedComplaint.attachments.map((attachment) => (
+                      <li key={attachment.id}>
+                        <a href={attachment.file} target="_blank" rel="noreferrer">
+                          {attachment.original_name || `فایل #${attachment.id}`}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>مدرکی ضمیمه نشده است.</p>
+                )}
+              </div>
+              <div>
                 <span>مکان</span>
                 <p>{selectedComplaint.location}</p>
               </div>

@@ -242,6 +242,36 @@ const OfficerComplaintsApproval = () => {
                 <p>{selectedComplaint.description}</p>
               </div>
               <div>
+                <span>ثبت‌کننده</span>
+                <p>
+                  {selectedComplaint.submitter?.first_name} {selectedComplaint.submitter?.last_name}
+                </p>
+              </div>
+              <div>
+                <span>مکان</span>
+                <p>{selectedComplaint.location}</p>
+              </div>
+              <div>
+                <span>زمان وقوع</span>
+                <p>{formatDate(selectedComplaint.incident_datetime)}</p>
+              </div>
+              <div>
+                <span>ضمیمه‌ها</span>
+                {selectedComplaint.attachments.length > 0 ? (
+                  <ul className="officer-attachment-list">
+                    {selectedComplaint.attachments.map((attachment) => (
+                      <li key={attachment.id}>
+                        <a href={attachment.file} target="_blank" rel="noreferrer">
+                          {attachment.original_name || `فایل #${attachment.id}`}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>مدرکی ضمیمه نشده است.</p>
+                )}
+              </div>
+              <div>
                 <span>شاکی‌ها</span>
                 <p>
                   {selectedComplaint.complainants.length > 0

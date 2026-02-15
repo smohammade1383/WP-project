@@ -100,7 +100,7 @@
 
 .tip-description {
   margin: 0.75rem 0;
-  color: #374151;
+  color: var(--color-text-secondary);
   line-height: 1.65;
 }
 

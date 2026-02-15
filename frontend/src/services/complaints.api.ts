@@ -26,6 +26,15 @@ export interface SecondaryComplainant {
   updated_at: string;
 }
 
+export interface ComplaintAttachment {
+  id: number;
+  file: string;
+  original_name: string;
+  uploaded_by: number;
+  promoted_evidence: number | null;
+  created_at: string;
+}
+
 export interface Complaint {
   id: number;
   case: number | null;
@@ -40,6 +49,7 @@ export interface Complaint {
   latest_review_step: 'cadet' | 'officer' | null;
   latest_review_message: string;
   complainants: ComplaintUserBrief[];
+  attachments: ComplaintAttachment[];
   secondary_complainants: SecondaryComplainant[];
   created_at: string;
   updated_at: string;
@@ -50,9 +60,12 @@ export interface CreateComplaintRequest {
   description: string;
   location: string;
   incident_datetime: string;
+  attachment_files?: File[];
 }
 
-export type UpdateComplaintRequest = Partial<CreateComplaintRequest>;
+export interface UpdateComplaintRequest extends Partial<CreateComplaintRequest> {
+  remove_attachment_ids?: number[];
+}
 export type ComplaintDecision = 'approved' | 'returned' | 'rejected';
 
 export interface ComplaintReview {
@@ -95,10 +108,20 @@ export const complaintsApi = {
   list: async (): Promise<Complaint[]> => {
     return api.get<Complaint[]>('/cases/complaints/');
   },
-  create: async (payload: CreateComplaintRequest): Promise<Complaint> => {
+  create: async (payload: CreateComplaintRequest | FormData): Promise<Complaint> => {
+    if (payload instanceof FormData) {
+      return api.post<Complaint>('/cases/complaints/', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
     return api.post<Complaint>('/cases/complaints/', payload);
   },
-  update: async (complaintId: number, payload: UpdateComplaintRequest): Promise<Complaint> => {
+  update: async (complaintId: number, payload: UpdateComplaintRequest | FormData): Promise<Complaint> => {
+    if (payload instanceof FormData) {
+      return api.patch<Complaint>(`/cases/complaints/${complaintId}/`, payload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
     return api.patch<Complaint>(`/cases/complaints/${complaintId}/`, payload);
   },
   addComplainants: async (

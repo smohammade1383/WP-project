@@ -9,6 +9,7 @@ from .models import (
     Case,
     CrimeSceneWitness,
     Complaint,
+    ComplaintAttachment,
     ComplaintReview,
     DetectiveBoard,
     InterrogationScore,
@@ -23,6 +24,22 @@ class UserBriefSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("id", "username", "first_name", "last_name", "national_id")
+
+
+class ComplaintAttachmentSerializer(serializers.ModelSerializer):
+    file = serializers.FileField(read_only=True)
+
+    class Meta:
+        model = ComplaintAttachment
+        fields = (
+            "id",
+            "file",
+            "original_name",
+            "uploaded_by",
+            "promoted_evidence",
+            "created_at",
+        )
+        read_only_fields = fields
 
 
 class CrimeSceneWitnessSerializer(serializers.ModelSerializer):
@@ -118,10 +135,21 @@ class CaseSerializer(serializers.ModelSerializer):
 class ComplaintSerializer(serializers.ModelSerializer):
     submitter = UserBriefSerializer(read_only=True)
     complainants = UserBriefSerializer(many=True, read_only=True)
+    attachments = ComplaintAttachmentSerializer(many=True, read_only=True)
     secondary_complainants = serializers.SerializerMethodField(read_only=True)
     latest_review_decision = serializers.SerializerMethodField(read_only=True)
     latest_review_step = serializers.SerializerMethodField(read_only=True)
     latest_review_message = serializers.SerializerMethodField(read_only=True)
+    attachment_files = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True,
+        required=False,
+    )
+    remove_attachment_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        write_only=True,
+        required=False,
+    )
     complainant_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=User.objects.all(),
@@ -145,7 +173,10 @@ class ComplaintSerializer(serializers.ModelSerializer):
             "latest_review_step",
             "latest_review_message",
             "complainants",
+            "attachments",
             "secondary_complainants",
+            "attachment_files",
+            "remove_attachment_ids",
             "complainant_ids",
             "created_at",
             "updated_at",
@@ -160,12 +191,52 @@ class ComplaintSerializer(serializers.ModelSerializer):
         )
 
     def create(self, validated_data):
+        request = self.context["request"]
         complainants = validated_data.pop("complainant_ids", [])
-        complaint = Complaint.objects.create(submitter=self.context["request"].user, **validated_data)
-        initial_complainants = {self.context["request"].user}
+        attachment_files = validated_data.pop("attachment_files", [])
+        validated_data.pop("remove_attachment_ids", None)
+
+        complaint = Complaint.objects.create(submitter=request.user, **validated_data)
+        initial_complainants = {request.user}
         initial_complainants.update(complainants)
         complaint.complainants.set(initial_complainants)
+        for attachment_file in attachment_files:
+            ComplaintAttachment.objects.create(
+                complaint=complaint,
+                file=attachment_file,
+                uploaded_by=request.user,
+            )
         return complaint
+
+    def update(self, instance, validated_data):
+        request = self.context["request"]
+        complainants = validated_data.pop("complainant_ids", None)
+        attachment_files = validated_data.pop("attachment_files", [])
+        remove_attachment_ids = validated_data.pop("remove_attachment_ids", [])
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if complainants is not None:
+            merged = {instance.submitter}
+            merged.update(complainants)
+            instance.complainants.set(merged)
+
+        for attachment_file in attachment_files:
+            ComplaintAttachment.objects.create(
+                complaint=instance,
+                file=attachment_file,
+                uploaded_by=request.user,
+            )
+
+        if remove_attachment_ids:
+            instance.attachments.filter(
+                id__in=remove_attachment_ids,
+                promoted_evidence__isnull=True,
+            ).delete()
+
+        return instance
 
     def _latest_review(self, obj):
         prefetched = getattr(obj, "_prefetched_objects_cache", {}).get("reviews")

@@ -120,12 +120,12 @@
 
 .status-void {
   background: var(--color-surface-soft);
-  color: #374151;
+  color: var(--color-text-secondary);
 }
 
 .complaint-description {
   margin: 0.75rem 0;
-  color: #374151;
+  color: var(--color-text-secondary);
   line-height: 1.7;
 }
 
@@ -207,7 +207,7 @@
 .secondary-btn-inline {
   border: none;
   border-radius: 10px;
-  background: #e5e7eb;
+  background: var(--color-surface-soft);
   color: var(--color-text);
   padding: 0.5rem 0.9rem;
   font-weight: 700;
@@ -264,7 +264,7 @@
 
 .edit-form label {
   font-size: 0.85rem;
-  color: #374151;
+  color: var(--color-text-secondary);
   font-weight: 700;
 }
 
@@ -274,6 +274,85 @@
   border-radius: 10px;
   padding: 0.6rem 0.7rem;
   font-family: inherit;
+}
+
+.edit-attachment-header {
+  margin-top: 0.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.edit-attachment-header label {
+  margin: 0;
+}
+
+.edit-attachment-add-btn {
+  border: none;
+  border-radius: 9px;
+  padding: 0.4rem 0.72rem;
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.edit-attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.edit-attachment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  border: 1px solid rgba(15, 23, 42, 0.13);
+  background: var(--color-surface-soft);
+  border-radius: 10px;
+  padding: 0.45rem 0.58rem;
+}
+
+.edit-attachment-item span {
+  color: var(--color-text);
+  font-size: 0.83rem;
+  word-break: break-word;
+}
+
+.edit-attachment-item.pending-remove {
+  border-color: rgba(239, 68, 68, 0.32);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.edit-attachment-item.pending-remove span {
+  text-decoration: line-through;
+  color: #b91c1c;
+}
+
+.edit-attachment-item.is-new {
+  border-style: dashed;
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.edit-attachment-toggle-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.28rem 0.58rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(17, 24, 39, 0.1);
+  color: var(--color-text);
+}
+
+.edit-attachment-empty {
+  border: 1px dashed rgba(15, 23, 42, 0.2);
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
 }
 
 .edit-form-actions {
@@ -293,13 +372,94 @@
 }
 
 .cancel-btn {
-  background: #e5e7eb;
+  background: var(--color-surface-soft);
   color: var(--color-text);
 }
 
 .save-btn {
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: #fff;
+}
+
+.edit-attachment-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 11000;
+}
+
+.edit-attachment-modal {
+  width: min(520px, 100%);
+  background: var(--color-surface);
+  border: 1px solid rgba(15, 23, 42, 0.13);
+  border-radius: 14px;
+  padding: 1rem 1.05rem;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.28);
+}
+
+.edit-attachment-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.edit-attachment-modal-header h3 {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.edit-attachment-modal-header button {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.edit-attachment-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.edit-attachment-modal-body label {
+  font-size: 0.84rem;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+}
+
+.edit-attachment-modal-body input[type='file'] {
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 10px;
+  padding: 0.55rem 0.62rem;
+}
+
+.edit-attachment-draft-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.36rem;
+}
+
+.edit-attachment-draft-list span {
+  border: 1px solid rgba(15, 23, 42, 0.13);
+  background: var(--color-surface-soft);
+  border-radius: 9px;
+  color: var(--color-text-secondary);
+  font-size: 0.81rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.edit-attachment-modal-actions {
+  margin-top: 0.8rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.58rem;
 }
 
 @media (max-width: 768px) {
@@ -314,5 +474,10 @@
 
   .new-complaint-btn {
     width: 100%;
+  }
+
+  .edit-attachment-header {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

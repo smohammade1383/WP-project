@@ -114,6 +114,7 @@ def case_queryset_for_user(user):
 def complaint_queryset_for_user(user):
     base = Complaint.objects.all().prefetch_related(
         "complainants",
+        "attachments",
         "reviews",
         "secondary_complainants__user",
         "secondary_complainants__requested_by",
@@ -143,6 +144,33 @@ def ensure_case_from_complaint(complaint):
     if complaint.complainants.exists():
         case_obj.complainants.add(*complaint.complainants.all())
     return case_obj
+
+
+def promote_complaint_attachments_to_case_evidence(complaint, case_obj):
+    from evidence.models import Evidence, TranscriptionEvidence, TranscriptionMedia
+
+    pending_attachments = complaint.attachments.filter(promoted_evidence__isnull=True)
+    for attachment in pending_attachments:
+        created_by = attachment.uploaded_by if attachment.uploaded_by_id else complaint.submitter
+        evidence_obj = Evidence.objects.create(
+            case=case_obj,
+            title=attachment.original_name or f"Complaint attachment #{attachment.id}",
+            description=(
+                f"Attachment submitted with complaint #{complaint.id}."
+            ),
+            type=Evidence.Type.TRANSCRIPTION,
+            created_by=created_by,
+        )
+        transcription = TranscriptionEvidence.objects.create(
+            evidence=evidence_obj,
+            transcript_text=f"Imported from complaint #{complaint.id}.",
+        )
+        TranscriptionMedia.objects.create(
+            transcription=transcription,
+            media_file=attachment.file,
+        )
+        attachment.promoted_evidence = evidence_obj
+        attachment.save(update_fields=["promoted_evidence"])
 
 
 def ensure_board_for_case(case_obj, detective_user):
@@ -500,6 +528,7 @@ class ComplaintOfficerReviewAPIView(APIView):
             case_obj.status = Case.Status.OPEN
             case_obj.approved_by = request.user
             case_obj.save(update_fields=["status", "approved_by", "updated_at"])
+            promote_complaint_attachments_to_case_evidence(complaint, case_obj)
         elif decision == ComplaintReview.Decision.RETURNED:
             complaint.status = Complaint.Status.RETURNED
             complaint.save(update_fields=["status", "updated_at"])
