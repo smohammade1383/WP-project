@@ -17,6 +17,7 @@ import {
 import './DetectiveCases.css';
 
 type DetectiveTab = 'inbox' | 'evidence' | 'board' | 'handover';
+type ConnectionPointKey = 'top' | 'right' | 'bottom' | 'left';
 
 type EvidenceFormState = {
   title: string;
@@ -72,6 +73,9 @@ const evidenceTypeLabelMap: Record<EvidenceType, string> = {
   other: 'سایر موارد',
 };
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_ORIGIN = new URL(API_BASE_URL).origin;
+
 const resolveInitialTab = (pathname: string, queryTab: string | null): DetectiveTab => {
   if (queryTab === 'inbox' || queryTab === 'evidence' || queryTab === 'board' || queryTab === 'handover') {
     return queryTab;
@@ -120,6 +124,29 @@ const isEvidenceReadyForBoard = (evidence: EvidenceRecord): boolean => {
   return getBioValidationStatus(evidence) === 'accepted';
 };
 
+const isImageFilePath = (value: string): boolean => {
+  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(value.split('?')[0]);
+};
+
+const toAbsoluteMediaUrl = (value: string): string => {
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+  const normalized = value.replace(/^\/+/, '');
+  if (normalized.startsWith('media/')) {
+    return new URL(`/${normalized}`, API_ORIGIN).toString();
+  }
+  return new URL(`/media/${normalized}`, API_ORIGIN).toString();
+};
+
+const getEvidencePreviewUrl = (evidence: EvidenceRecord): string | null => {
+  const details = evidence.details as { images?: unknown; media_files?: unknown };
+  const rawFiles = [...(Array.isArray(details.images) ? details.images : []), ...(Array.isArray(details.media_files) ? details.media_files : [])]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  const imagePath = rawFiles.find((value) => isImageFilePath(value));
+  return imagePath ? toAbsoluteMediaUrl(imagePath) : null;
+};
+
 const parseIds = (raw: string): number[] => {
   return raw
     .split(',')
@@ -127,6 +154,10 @@ const parseIds = (raw: string): number[] => {
     .filter(Boolean)
     .map((item) => Number(item))
     .filter((value) => Number.isInteger(value) && value > 0);
+};
+
+const isConnectionPointKey = (value: unknown): value is ConnectionPointKey => {
+  return value === 'top' || value === 'right' || value === 'bottom' || value === 'left';
 };
 
 const getLatestScoreForRole = (
@@ -180,6 +211,12 @@ const DetectiveCases = () => {
   const [connectingFromId, setConnectingFromId] = useState<number | null>(null);
   const [isConnectingDrag, setIsConnectingDrag] = useState(false);
   const [connectionDraftPoint, setConnectionDraftPoint] = useState<{ x: number; y: number } | null>(null);
+  const [connectionSourcePoint, setConnectionSourcePoint] = useState<{ x: number; y: number } | null>(null);
+  const [connectionSourceHandle, setConnectionSourceHandle] = useState<{
+    itemId: number;
+    point: ConnectionPointKey;
+  } | null>(null);
+  const [linkPointMap, setLinkPointMap] = useState<Record<number, { from: ConnectionPointKey; to: ConnectionPointKey }>>({});
   const [boardScale, setBoardScale] = useState(1);
   const [newBoardNote, setNewBoardNote] = useState('');
   const [savingBoard, setSavingBoard] = useState(false);
@@ -266,6 +303,13 @@ const DetectiveCases = () => {
     () => evidenceItems.filter((item) => !evidenceIdsOnBoard.has(item.id)),
     [evidenceItems, evidenceIdsOnBoard]
   );
+
+  const evidencePreviewById = useMemo(() => {
+    return evidenceItems.reduce<Record<number, string | null>>((acc, item) => {
+      acc[item.id] = getEvidencePreviewUrl(item);
+      return acc;
+    }, {});
+  }, [evidenceItems]);
 
   const selectedBoardItem = useMemo(
     () => boardItems.find((item) => item.id === selectedBoardItemId) || null,
@@ -375,11 +419,22 @@ const DetectiveCases = () => {
       setLoadingBoard(true);
       const board = await boardApi.getDetectiveBoard(caseId);
       setBoardItems(board.items || []);
-      setBoardLinks(board.links || []);
+      const links = board.links || [];
+      setBoardLinks(links);
+      setLinkPointMap((prev) => {
+        const next: Record<number, { from: ConnectionPointKey; to: ConnectionPointKey }> = {};
+        links.forEach((link) => {
+          if (prev[link.id]) {
+            next[link.id] = prev[link.id];
+          }
+        });
+        return next;
+      });
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'خطا در بارگذاری تخته کارآگاه'));
       setBoardItems([]);
       setBoardLinks([]);
+      setLinkPointMap({});
     } finally {
       setLoadingBoard(false);
     }
@@ -417,6 +472,9 @@ const DetectiveCases = () => {
         draftFrameRef.current = null;
       }
       setConnectionDraftPoint(null);
+      setConnectionSourcePoint(null);
+      setConnectionSourceHandle(null);
+      setLinkPointMap({});
       setSelectedNomineeIds([]);
       return;
     }
@@ -636,8 +694,20 @@ const DetectiveCases = () => {
     }
     try {
       await boardApi.deleteBoardItem(id);
+      const removedLinkIds = boardLinks
+        .filter((item) => item.from_item === id || item.to_item === id)
+        .map((item) => item.id);
       setBoardItems((prev) => prev.filter((item) => item.id !== id));
       setBoardLinks((prev) => prev.filter((item) => item.from_item !== id && item.to_item !== id));
+      if (removedLinkIds.length > 0) {
+        setLinkPointMap((prev) => {
+          const next = { ...prev };
+          removedLinkIds.forEach((linkId) => {
+            delete next[linkId];
+          });
+          return next;
+        });
+      }
       if (connectingFromId === id) {
         setConnectingFromId(null);
         setIsConnectingDrag(false);
@@ -647,6 +717,8 @@ const DetectiveCases = () => {
           draftFrameRef.current = null;
         }
         setConnectionDraftPoint(null);
+        setConnectionSourcePoint(null);
+        setConnectionSourceHandle(null);
       }
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'حذف آیتم تخته ناموفق بود.'));
@@ -661,6 +733,11 @@ const DetectiveCases = () => {
     try {
       await boardApi.deleteBoardLink(linkId);
       setBoardLinks((prev) => prev.filter((item) => item.id !== linkId));
+      setLinkPointMap((prev) => {
+        const next = { ...prev };
+        delete next[linkId];
+        return next;
+      });
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'حذف اتصال ناموفق بود.'));
     }
@@ -670,6 +747,8 @@ const DetectiveCases = () => {
     if (selectedBoardItemId) {
       setIsConnectingDrag(false);
       setConnectionDraftPoint(null);
+      setConnectionSourcePoint(null);
+      setConnectionSourceHandle(null);
       setConnectingFromId(selectedBoardItemId);
       setSuccess(`آیتم #${selectedBoardItemId} به عنوان مبدا اتصال انتخاب شد. مقصد را انتخاب کنید.`);
       setError('');
@@ -677,7 +756,11 @@ const DetectiveCases = () => {
   };
 
   const handleCreateBoardLink = useCallback(
-    async (fromItem: number, toItem: number) => {
+    async (
+      fromItem: number,
+      toItem: number,
+      points?: { fromPoint?: ConnectionPointKey; toPoint?: ConnectionPointKey }
+    ) => {
       if (!selectedCase || fromItem === toItem) {
         setConnectingFromId(null);
         setIsConnectingDrag(false);
@@ -687,6 +770,8 @@ const DetectiveCases = () => {
           draftFrameRef.current = null;
         }
         setConnectionDraftPoint(null);
+        setConnectionSourcePoint(null);
+        setConnectionSourceHandle(null);
         return;
       }
       const alreadyLinked = boardLinks.some(
@@ -703,6 +788,8 @@ const DetectiveCases = () => {
           draftFrameRef.current = null;
         }
         setConnectionDraftPoint(null);
+        setConnectionSourcePoint(null);
+        setConnectionSourceHandle(null);
         setError('بین این دو آیتم قبلا اتصال ثبت شده است.');
         return;
       }
@@ -716,6 +803,8 @@ const DetectiveCases = () => {
           draftFrameRef.current = null;
         }
         setConnectionDraftPoint(null);
+        setConnectionSourcePoint(null);
+        setConnectionSourceHandle(null);
         return;
       }
       try {
@@ -724,6 +813,12 @@ const DetectiveCases = () => {
           to_item: toItem,
         });
         setBoardLinks((prev) => [...prev, link]);
+        if (points?.fromPoint && points?.toPoint) {
+          setLinkPointMap((prev) => ({
+            ...prev,
+            [link.id]: { from: points.fromPoint as ConnectionPointKey, to: points.toPoint as ConnectionPointKey },
+          }));
+        }
         setConnectingFromId(null);
         setIsConnectingDrag(false);
         draftPointRef.current = null;
@@ -732,6 +827,8 @@ const DetectiveCases = () => {
           draftFrameRef.current = null;
         }
         setConnectionDraftPoint(null);
+        setConnectionSourcePoint(null);
+        setConnectionSourceHandle(null);
         setSuccess('اتصال قرمز با موفقیت ایجاد شد.');
         setError('');
       } catch (err: unknown) {
@@ -744,6 +841,8 @@ const DetectiveCases = () => {
           draftFrameRef.current = null;
         }
         setConnectionDraftPoint(null);
+        setConnectionSourcePoint(null);
+        setConnectionSourceHandle(null);
       }
     },
     [boardLinks, isCaseLocked, selectedCase]
@@ -751,7 +850,12 @@ const DetectiveCases = () => {
 
   const handleConnectRequest = (
     itemId: number,
-    options?: { clientX?: number; clientY?: number; dragStart?: boolean }
+    options?: {
+      clientX?: number;
+      clientY?: number;
+      dragStart?: boolean;
+      point?: ConnectionPointKey;
+    }
   ) => {
     if (isCaseLocked) {
       setError('ویرایش تخته برای این پرونده قفل است.');
@@ -768,7 +872,11 @@ const DetectiveCases = () => {
       if (point) {
         draftPointRef.current = point;
         setConnectionDraftPoint(point);
+        setConnectionSourcePoint(point);
+      } else {
+        setConnectionSourcePoint(null);
       }
+      setConnectionSourceHandle(options.point ? { itemId, point: options.point } : null);
       setError('');
       return;
     }
@@ -781,6 +889,8 @@ const DetectiveCases = () => {
         draftFrameRef.current = null;
       }
       setConnectionDraftPoint(null);
+      setConnectionSourcePoint(null);
+      setConnectionSourceHandle(null);
       setSelectedBoardItemId(itemId);
       setSuccess(`مبدا اتصال روی آیتم #${itemId} تنظیم شد. حالا مقصد را انتخاب کنید.`);
       setError('');
@@ -795,6 +905,8 @@ const DetectiveCases = () => {
         draftFrameRef.current = null;
       }
       setConnectionDraftPoint(null);
+      setConnectionSourcePoint(null);
+      setConnectionSourceHandle(null);
       setSuccess('حالت اتصال لغو شد.');
       return;
     }
@@ -841,19 +953,29 @@ const DetectiveCases = () => {
         window.cancelAnimationFrame(draftFrameRef.current);
         draftFrameRef.current = null;
       }
-      const targetElement = document
+      const connectionPointElement = document
         .elementFromPoint(event.clientX, event.clientY)
-        ?.closest('[data-board-item-id]') as HTMLElement | null;
-
-      const rawId = targetElement?.getAttribute('data-board-item-id');
+        ?.closest('.connection-point[data-item-id]') as HTMLElement | null;
+      const rawId = connectionPointElement?.getAttribute('data-item-id');
+      const rawPoint = connectionPointElement?.getAttribute('data-point');
       const targetId = rawId ? Number(rawId) : null;
+      const targetPoint = isConnectionPointKey(rawPoint) ? rawPoint : undefined;
+
       if (targetId && targetId !== connectingFromId) {
-        handleCreateBoardLink(connectingFromId, targetId);
+        handleCreateBoardLink(connectingFromId, targetId, {
+          fromPoint:
+            connectionSourceHandle && connectionSourceHandle.itemId === connectingFromId
+              ? connectionSourceHandle.point
+              : undefined,
+          toPoint: targetPoint,
+        });
         return;
       }
 
       draftPointRef.current = null;
       setConnectionDraftPoint(null);
+      setConnectionSourcePoint(null);
+      setConnectionSourceHandle(null);
       if (targetId === connectingFromId) {
         setConnectingFromId(null);
       }
@@ -869,7 +991,7 @@ const DetectiveCases = () => {
         draftFrameRef.current = null;
       }
     };
-  }, [connectingFromId, getBoardPointFromClient, handleCreateBoardLink, isConnectingDrag]);
+  }, [connectingFromId, connectionSourceHandle, getBoardPointFromClient, handleCreateBoardLink, isConnectingDrag]);
 
   const handleSaveBoard = async () => {
     if (!selectedCase) return;
@@ -1185,6 +1307,8 @@ const DetectiveCases = () => {
                                     draftFrameRef.current = null;
                                   }
                                   setConnectionDraftPoint(null);
+                                  setConnectionSourcePoint(null);
+                                  setConnectionSourceHandle(null);
                                 }}
                               >
                             لغو اتصال
@@ -1373,12 +1497,15 @@ const DetectiveCases = () => {
                               items={boardItems}
                               scale={boardScale}
                               onDeleteLink={handleDeleteBoardLink}
+                              linkPointMap={linkPointMap}
                               draftLink={
                                 connectingFromId !== null && connectionDraftPoint
                                   ? {
                                       from_item: connectingFromId,
                                       to_x: connectionDraftPoint.x,
                                       to_y: connectionDraftPoint.y,
+                                      from_x: connectionSourcePoint?.x,
+                                      from_y: connectionSourcePoint?.y,
                                     }
                                   : null
                               }
@@ -1395,6 +1522,11 @@ const DetectiveCases = () => {
                                 isSelected={item.id === selectedBoardItemId}
                                 isConnectionSource={item.id === connectingFromId}
                                 scale={boardScale}
+                                evidencePreviewUrl={
+                                  item.item_type === 'evidence' && item.evidence
+                                    ? evidencePreviewById[item.evidence] || null
+                                    : null
+                                }
                               />
                             ))}
 

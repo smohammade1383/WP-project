@@ -9,11 +9,17 @@ interface BoardItemProps {
   onSelect: (id: number, options?: { shiftKey?: boolean; metaKey?: boolean; doubleClick?: boolean }) => void;
   onConnectRequest: (
     id: number,
-    options?: { clientX?: number; clientY?: number; dragStart?: boolean }
+    options?: {
+      clientX?: number;
+      clientY?: number;
+      dragStart?: boolean;
+      point?: 'top' | 'right' | 'bottom' | 'left';
+    }
   ) => void;
   isSelected: boolean;
   isConnectionSource: boolean;
   scale: number;
+  evidencePreviewUrl?: string | null;
 }
 
 const BoardItem = ({
@@ -25,12 +31,18 @@ const BoardItem = ({
   isSelected,
   isConnectionSource,
   scale,
+  evidencePreviewUrl,
 }: BoardItemProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [previewHasError, setPreviewHasError] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const hasMovedRef = useRef(false);
   const itemRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setPreviewHasError(false);
+  }, [evidencePreviewUrl]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -182,7 +194,24 @@ const BoardItem = ({
         </button>
       </div>
       <div className="item-content">
-        {getItemContent()}
+        {item.item_type === 'evidence' ? (
+          <div className="evidence-content">
+            <p className="evidence-summary">{getItemContent()}</p>
+            {Boolean(evidencePreviewUrl) && !previewHasError && (
+              <div className="evidence-preview">
+                <img
+                  src={evidencePreviewUrl || ''}
+                  alt={item.evidence_title || 'پیش نمایش مدرک'}
+                  className="evidence-preview-image"
+                  loading="lazy"
+                  onError={() => setPreviewHasError(true)}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          getItemContent()
+        )}
       </div>
       {/* Connection point indicators */}
       <div
@@ -196,6 +225,7 @@ const BoardItem = ({
             clientX: event.clientX,
             clientY: event.clientY,
             dragStart: true,
+            point: 'top',
           });
         }}
       />
@@ -210,6 +240,7 @@ const BoardItem = ({
             clientX: event.clientX,
             clientY: event.clientY,
             dragStart: true,
+            point: 'right',
           });
         }}
       />
@@ -224,6 +255,7 @@ const BoardItem = ({
             clientX: event.clientX,
             clientY: event.clientY,
             dragStart: true,
+            point: 'bottom',
           });
         }}
       />
@@ -238,6 +270,7 @@ const BoardItem = ({
             clientX: event.clientX,
             clientY: event.clientY,
             dragStart: true,
+            point: 'left',
           });
         }}
       />
