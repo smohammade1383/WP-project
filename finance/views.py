@@ -41,6 +41,10 @@ def has_any_role(user, *roles):
     if user.is_superuser:
         return True
     expected = set(roles)
+    if "Sergeant" in expected:
+        expected.add("Sergent")
+    if "Sergent" in expected:
+        expected.add("Sergeant")
     return any(role in expected for role in user.role_names)
 
 
@@ -56,6 +60,32 @@ def push_notification(*, recipient, message, case_obj=None):
         case=case_obj,
         message=message,
     )
+
+
+def notify_role_recipients(*, role_names, message, case_obj=None, exclude_user_id=None):
+    from users.models import User
+
+    normalized_roles = set(role_names)
+    if "Sergeant" in normalized_roles:
+        normalized_roles.add("Sergent")
+    if "Sergent" in normalized_roles:
+        normalized_roles.add("Sergeant")
+
+    recipients = User.objects.filter(is_active=True).filter(
+        models.Q(groups__name__in=normalized_roles) | models.Q(is_superuser=True)
+    ).distinct()
+    for recipient in recipients:
+        if exclude_user_id and recipient.id == exclude_user_id:
+            continue
+        push_notification(recipient=recipient, message=message, case_obj=case_obj)
+
+
+def notify_case_detective(case_obj, *, message, exclude_user_id=None):
+    if not case_obj:
+        return
+    board = getattr(case_obj, "board", None)
+    if board and board.detective_id and board.detective_id != exclude_user_id:
+        push_notification(recipient=board.detective, message=message, case_obj=case_obj)
 
 
 def resolve_payment_url(request, tx):
@@ -85,6 +115,12 @@ class RewardReportListCreateAPIView(generics.ListCreateAPIView):
             recipient=self.request.user,
             case_obj=report.case,
             message=f"گزارش پاداش #{report.id} ثبت شد و در صف بررسی افسر قرار گرفت.",
+        )
+        notify_role_recipients(
+            role_names=("Police Officer", "Patrol Officer", "Sergeant", "Captain", "Chief", "Administrator"),
+            case_obj=report.case,
+            exclude_user_id=self.request.user.id,
+            message=f"گزارش پاداش جدید #{report.id} ثبت شد و نیاز به بررسی افسر دارد.",
         )
 
 
@@ -148,6 +184,13 @@ class RewardOfficerReviewAPIView(APIView):
             case_obj=report.case,
             message=result_message,
         )
+        if action != "reject":
+            notify_role_recipients(
+                role_names=("Detective", "Administrator"),
+                case_obj=report.case,
+                exclude_user_id=request.user.id,
+                message=f"گزارش پاداش #{report.id} پس از تایید افسر در صف بررسی کارآگاه قرار گرفت.",
+            )
 
         return Response(RewardReportSerializer(report).data)
 
@@ -184,6 +227,12 @@ class RewardDetectiveReviewAPIView(APIView):
                 case_obj=report.case,
                 message=f"گزارش پاداش #{report.id} توسط کارآگاه رد شد.",
             )
+            if report.reviewed_by_officer_id and report.reviewed_by_officer_id != request.user.id:
+                push_notification(
+                    recipient=report.reviewed_by_officer,
+                    case_obj=report.case,
+                    message=f"گزارش پاداش #{report.id} توسط کارآگاه رد شد.",
+                )
             return Response(RewardReportSerializer(report).data)
 
         if not report.suspect_profile:
@@ -213,6 +262,12 @@ class RewardDetectiveReviewAPIView(APIView):
                 f"گزارش پاداش #{report.id} تایید شد. کد رهگیری: {report.unique_code} | مبلغ: {report.reward_amount:,} ریال"
             ),
         )
+        if report.reviewed_by_officer_id and report.reviewed_by_officer_id != request.user.id:
+            push_notification(
+                recipient=report.reviewed_by_officer,
+                case_obj=report.case,
+                message=f"گزارش پاداش #{report.id} توسط کارآگاه تایید نهایی شد.",
+            )
         return Response(RewardReportSerializer(report).data)
 
 
@@ -417,6 +472,23 @@ class PaymentCallbackAPIView(APIView):
                     f"{'موفق' if tx.status == PaymentTransaction.Status.PAID else 'ناموفق'} تغییر کرد."
                 ),
             )
+        notify_case_detective(
+            tx.case,
+            exclude_user_id=tx.payer_id,
+            message=(
+                f"وضعیت تراکنش مالی پرونده #{tx.case_id}: "
+                f"{'موفق' if tx.status == PaymentTransaction.Status.PAID else 'ناموفق'}."
+            ),
+        )
+        notify_role_recipients(
+            role_names=("Sergeant", "Administrator"),
+            case_obj=tx.case,
+            exclude_user_id=tx.payer_id,
+            message=(
+                f"وضعیت تراکنش مالی پرونده #{tx.case_id} برای مظنون "
+                f"{'موفق' if tx.status == PaymentTransaction.Status.PAID else 'ناموفق'} ثبت شد."
+            ),
+        )
 
         return Response(PaymentTransactionSerializer(tx).data)
 

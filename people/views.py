@@ -36,6 +36,10 @@ def has_any_role(user, *roles):
     if user.is_superuser:
         return True
     expected = set(roles)
+    if "Sergeant" in expected:
+        expected.add("Sergent")
+    if "Sergent" in expected:
+        expected.add("Sergeant")
     return any(role in expected for role in user.role_names)
 
 
@@ -47,6 +51,21 @@ def push_notification(*, recipient, message, case_obj=None):
         case=case_obj,
         message=message,
     )
+
+
+def notify_role_recipients(*, role_names, message, case_obj=None, exclude_user_id=None):
+    normalized_roles = set(role_names)
+    if "Sergeant" in normalized_roles:
+        normalized_roles.add("Sergent")
+    if "Sergent" in normalized_roles:
+        normalized_roles.add("Sergeant")
+    recipients = User.objects.filter(is_active=True).filter(
+        Q(groups__name__in=normalized_roles) | Q(is_superuser=True)
+    ).distinct()
+    for recipient in recipients:
+        if exclude_user_id and recipient.id == exclude_user_id:
+            continue
+        push_notification(recipient=recipient, message=message, case_obj=case_obj)
 
 
 def _refresh_severe_tracking(profiles):
@@ -143,6 +162,12 @@ class CitizenTipListCreateAPIView(APIView):
             case_obj=tip.case,
             message=f"گزارش مردمی #{tip.id} با موفقیت ثبت شد و در صف بررسی افسر قرار گرفت.",
         )
+        notify_role_recipients(
+            role_names=("Police Officer", "Patrol Officer", "Sergeant", "Captain", "Chief", "Administrator"),
+            case_obj=tip.case,
+            exclude_user_id=request.user.id,
+            message=f"گزارش مردمی جدید #{tip.id} ثبت شد و نیاز به بررسی افسر دارد.",
+        )
         return Response(CitizenTipSerializer(tip).data, status=status.HTTP_201_CREATED)
 
 
@@ -182,6 +207,13 @@ class CitizenTipOfficerReviewAPIView(APIView):
                 f"{' و به صف کارآگاه رفت.' if approved else ''}"
             ),
         )
+        if approved:
+            notify_role_recipients(
+                role_names=("Detective", "Administrator"),
+                case_obj=tip.case,
+                exclude_user_id=request.user.id,
+                message=f"گزارش مردمی #{tip.id} پس از تایید افسر، در صف بررسی کارآگاه قرار گرفت.",
+            )
         return Response(CitizenTipSerializer(tip).data)
 
 
@@ -212,4 +244,13 @@ class CitizenTipDetectiveReviewAPIView(APIView):
                 f"گزارش مردمی #{tip.id} توسط کارآگاه {'تایید نهایی' if approved else 'رد'} شد."
             ),
         )
+        if tip.officer_reviewer_id and tip.officer_reviewer_id != request.user.id:
+            push_notification(
+                recipient=tip.officer_reviewer,
+                case_obj=tip.case,
+                message=(
+                    f"نتیجه نهایی کارآگاه برای گزارش مردمی #{tip.id}: "
+                    f"{'تایید' if approved else 'رد'}."
+                ),
+            )
         return Response(CitizenTipSerializer(tip).data)

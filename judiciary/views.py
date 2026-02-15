@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -17,6 +18,10 @@ def has_any_role(user, *roles):
     if user.is_superuser:
         return True
     expected = set(roles)
+    if "Sergeant" in expected:
+        expected.add("Sergent")
+    if "Sergent" in expected:
+        expected.add("Sergeant")
     return any(role in expected for role in user.role_names)
 
 
@@ -28,6 +33,23 @@ def push_notification(*, recipient, message, case_obj=None):
         case=case_obj,
         message=message,
     )
+
+
+def notify_role_recipients(*, role_names, message, case_obj=None, exclude_user_id=None):
+    from users.models import User
+
+    normalized_roles = set(role_names)
+    if "Sergeant" in normalized_roles:
+        normalized_roles.add("Sergent")
+    if "Sergent" in normalized_roles:
+        normalized_roles.add("Sergeant")
+    recipients = User.objects.filter(is_active=True).filter(
+        Q(groups__name__in=normalized_roles) | Q(is_superuser=True)
+    ).distinct()
+    for recipient in recipients:
+        if exclude_user_id and recipient.id == exclude_user_id:
+            continue
+        push_notification(recipient=recipient, message=message, case_obj=case_obj)
 
 
 ROLE_PRIORITY = (
@@ -134,6 +156,12 @@ class TrialCreateAPIView(APIView):
                 case_obj=case_obj,
                 message=f"رای دادگاه پرونده #{case_obj.id} ثبت شد: {verdict_label}.",
             )
+        notify_role_recipients(
+            role_names=("Captain", "Chief", "Sergeant", "Administrator"),
+            case_obj=case_obj,
+            exclude_user_id=request.user.id,
+            message=f"رای دادگاه پرونده #{case_obj.id} ثبت شد: {verdict_label}.",
+        )
         return Response(TrialSerializer(trial).data, status=status.HTTP_201_CREATED)
 
 

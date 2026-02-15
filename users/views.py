@@ -22,6 +22,14 @@ from .serializers import (
 from .models import User
 
 
+def push_notification(*, recipient, message):
+    if not recipient or not getattr(recipient, "is_active", False):
+        return
+    from cases.models import Notification
+
+    Notification.objects.create(recipient=recipient, message=message)
+
+
 class CSRFTokenAPIView(APIView):
     """
     Get CSRF token for making state-changing requests
@@ -148,6 +156,16 @@ class AdminUserDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminUserSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
 
+    def update(self, request, *args, **kwargs):
+        user_obj = self.get_object()
+        response = super().update(request, *args, **kwargs)
+        if user_obj.id != request.user.id:
+            push_notification(
+                recipient=user_obj,
+                message="اطلاعات حساب کاربری شما توسط مدیر سامانه ویرایش شد.",
+            )
+        return response
+
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()
         if user.id == request.user.id:
@@ -172,6 +190,11 @@ class UserRoleManagementAPIView(APIView):
         user = generics.get_object_or_404(User, id=user_id)
         roles = Group.objects.filter(name__in=serializer.validated_data["role_names"])
         user.groups.add(*roles)
+        role_names = sorted(roles.values_list("name", flat=True))
+        push_notification(
+            recipient=user,
+            message=f"نقش(های) جدید به حساب شما افزوده شد: {', '.join(role_names)}.",
+        )
         return Response({"detail": "Roles added.", "roles": user.role_names})
 
     def delete(self, request, user_id):
@@ -180,6 +203,11 @@ class UserRoleManagementAPIView(APIView):
         user = generics.get_object_or_404(User, id=user_id)
         roles = Group.objects.filter(name__in=serializer.validated_data["role_names"])
         user.groups.remove(*roles)
+        role_names = sorted(roles.values_list("name", flat=True))
+        push_notification(
+            recipient=user,
+            message=f"نقش(های) زیر از حساب شما حذف شد: {', '.join(role_names)}.",
+        )
         return Response({"detail": "Roles removed.", "roles": user.role_names})
 
 
