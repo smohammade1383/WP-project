@@ -8,12 +8,12 @@
 
 .officer-crime-scene-header h1 {
   margin: 0 0 0.45rem;
-  color: #111827;
+  color: var(--color-text);
 }
 
 .officer-crime-scene-header p {
   margin: 0 0 1rem;
-  color: #4b5563;
+  color: var(--color-text-secondary);
   line-height: 1.7;
 }
 
@@ -37,7 +37,7 @@
 }
 
 .crime-scene-form {
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 14px;
   padding: 1rem 1.1rem;
@@ -83,7 +83,7 @@
   border: 1px dashed #d1d5db;
   border-radius: 12px;
   padding: 0.75rem;
-  background: #fafafa;
+  background: var(--color-surface-soft);
 }
 
 .crime-scene-witness-header {
@@ -97,7 +97,7 @@
 .crime-scene-witness-header h3 {
   margin: 0;
   font-size: 0.95rem;
-  color: #111827;
+  color: var(--color-text);
 }
 
 .crime-scene-witness-list {
@@ -123,7 +123,7 @@
 
 .details-btn {
   background: #e5e7eb;
-  color: #1f2937;
+  color: var(--color-text);
 }
 
 .return-btn {
@@ -156,7 +156,7 @@
   margin-top: 1rem;
   border-radius: 12px;
   border: 1px solid #bfdbfe;
-  background: #eff6ff;
+  background: var(--color-surface-muted);
   padding: 0.85rem 0.95rem;
 }
 

@@ -8,12 +8,12 @@
 
 .citizen-new-complaint-header h1 {
   margin: 0 0 0.45rem;
-  color: #111827;
+  color: var(--color-text);
 }
 
 .citizen-new-complaint-header p {
   margin: 0 0 1rem;
-  color: #4b5563;
+  color: var(--color-text-secondary);
 }
 
 .new-complaint-feedback {
@@ -35,7 +35,7 @@
 }
 
 .new-complaint-form {
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 14px;
   padding: 1rem 1.1rem;
@@ -77,7 +77,7 @@
 
 .secondary-btn {
   background: #e5e7eb;
-  color: #1f2937;
+  color: var(--color-text);
 }
 
 .primary-btn {

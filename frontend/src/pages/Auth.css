@@ -7,7 +7,8 @@
 }
 
 .auth-container {
-  background: white;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-2xl);
   padding: var(--spacing-2xl);
@@ -45,12 +46,12 @@
 }
 
 .auth-error {
-  background-color: #fef2f2;
-  border: 1px solid #dc2626;
+  background-color: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.45);
   border-radius: var(--radius-md);
   padding: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
-  color: #dc2626;
+  color: #ef4444;
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
@@ -92,7 +93,7 @@
 }
 
 .required {
-  color: #dc2626;
+  color: #ef4444;
   margin-right: 4px;
 }
 
@@ -108,30 +109,30 @@
 .form-group input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .form-group input:disabled {
-  background-color: #f3f4f6;
+  background-color: var(--color-surface-soft);
   cursor: not-allowed;
 }
 
 .form-group input.input-error {
-  border-color: #dc2626;
+  border-color: #ef4444;
 }
 
 .form-group input.input-error:focus {
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
 }
 
 .field-error {
-  color: #dc2626;
+  color: #ef4444;
   font-size: 0.875rem;
   margin-top: -4px;
 }
 
 .auth-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
   color: white;
   padding: var(--spacing-md) var(--spacing-xl);
   border: none;
@@ -176,7 +177,20 @@
 }
 
 .switch-button:hover {
-  color: #764ba2;
+  color: var(--color-primary-hover);
+}
+
+:root[data-theme='dark'] .auth-button {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3730a3 100%);
+}
+
+:root[data-theme='dark'] .auth-error {
+  background-color: rgba(239, 68, 68, 0.16);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+:root[data-theme='dark'] .form-group input:disabled {
+  color: var(--color-text-secondary);
 }
 
 /* Responsive */

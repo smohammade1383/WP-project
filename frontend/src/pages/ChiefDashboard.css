@@ -11,21 +11,21 @@
   align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 14px;
 }
 
 .chief-header h1 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 1.35rem;
 }
 
 .chief-header p {
   margin: 8px 0 0;
-  color: #475569;
+  color: var(--color-text-secondary);
 }
 
 .chief-header button {
@@ -50,9 +50,9 @@
 }
 
 .chief-tabs button {
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #334155;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text-secondary);
   border-radius: 999px;
   padding: 7px 12px;
   font-weight: 600;
@@ -87,8 +87,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 12px;
 }
@@ -103,19 +103,19 @@
 
 .section-top h2 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 1.06rem;
 }
 
 .section-top span {
-  color: #334155;
+  color: var(--color-text-secondary);
   font-weight: 600;
 }
 
 .section-empty {
-  border: 1px dashed #cbd5e1;
-  background: #f8fafc;
-  color: #64748b;
+  border: 1px dashed var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text-secondary);
   border-radius: 9px;
   padding: 12px;
 }
@@ -127,9 +127,9 @@
 }
 
 .stats-grid article {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 9px;
-  background: #f8fafc;
+  background: var(--color-surface-soft);
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -138,12 +138,12 @@
 
 .stats-grid h3 {
   margin: 0;
-  color: #334155;
+  color: var(--color-text-secondary);
   font-size: 0.92rem;
 }
 
 .stats-grid strong {
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 1.2rem;
 }
 
@@ -153,9 +153,9 @@
 }
 
 .queue-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 9px;
-  background: #f8fafc;
+  background: var(--color-surface-soft);
   padding: 10px;
   text-align: right;
   cursor: pointer;
@@ -176,7 +176,7 @@
 
 .queue-top h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 0.96rem;
 }
 
@@ -194,7 +194,7 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  color: #475569;
+  color: var(--color-text-secondary);
   font-size: 0.82rem;
 }
 
@@ -206,12 +206,12 @@
 }
 
 .chief-action-panel label {
-  color: #334155;
+  color: var(--color-text-secondary);
   font-weight: 600;
 }
 
 .chief-action-panel textarea {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 8px;
   font-family: inherit;

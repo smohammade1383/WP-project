@@ -18,7 +18,7 @@ trap cleanup SIGINT SIGTERM
 
 # Start backend
 echo "🐍 Starting Django Backend on port 8000..."
-cd /Users/apple/Documents/GitHub/WP-project
+cd /Users/wishuwerehere/Documents/daneshgah/term5/WEB/project/WP-project
 source venv/bin/activate
 echo "🔧 Running database migrations..."
 python manage.py migrate --noinput
@@ -31,7 +31,7 @@ sleep 3
 
 # Start frontend
 echo "⚛️  Starting React Frontend on port 5173..."
-cd /Users/apple/Documents/GitHub/WP-project/frontend
+cd /Users/wishuwerehere/Documents/daneshgah/term5/WEB/project/WP-project/frontend
 npm run dev &
 FRONTEND_PID=$!
 

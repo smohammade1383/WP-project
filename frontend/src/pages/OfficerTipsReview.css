@@ -16,16 +16,16 @@
 
 .officer-tips-header h1 {
   margin: 0 0 0.45rem;
-  color: #111827;
+  color: var(--color-text);
 }
 
 .officer-tips-header p {
   margin: 0;
-  color: #4b5563;
+  color: var(--color-text-secondary);
 }
 
 .tips-summary {
-  background: #f5f3ff;
+  background: var(--color-surface-muted);
   color: #6d28d9;
   border: 1px solid #ddd6fe;
   border-radius: 12px;
@@ -55,7 +55,7 @@
 
 .tips-loading,
 .tips-empty {
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 14px;
   padding: 1rem 1.1rem;
@@ -71,7 +71,7 @@
 }
 
 .tip-card {
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 14px;
   padding: 1rem 1.1rem;
@@ -94,7 +94,7 @@
   padding: 0.3rem 0.75rem;
   font-size: 0.78rem;
   font-weight: 700;
-  background: #ede9fe;
+  background: var(--color-surface-muted);
   color: #6d28d9;
 }
 
@@ -108,7 +108,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 0.7rem;
-  background: #f9fafb;
+  background: var(--color-surface-soft);
   border-radius: 12px;
   padding: 0.7rem;
 }
@@ -116,11 +116,11 @@
 .tip-meta span {
   display: block;
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--color-text-secondary);
 }
 
 .tip-meta strong {
-  color: #111827;
+  color: var(--color-text);
 }
 
 .tip-actions {

@@ -16,12 +16,12 @@
 .coroner-header h1 {
   margin: 0;
   font-size: 1.5rem;
-  color: #0f172a;
+  color: var(--color-text);
 }
 
 .coroner-header p {
   margin: 0.4rem 0 0;
-  color: #475569;
+  color: var(--color-text-secondary);
 }
 
 .coroner-header button {
@@ -60,9 +60,9 @@
 }
 
 .coroner-filters button {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #334155;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   border-radius: 999px;
   padding: 0.38rem 0.75rem;
   font-size: 0.8rem;
@@ -76,11 +76,11 @@
 }
 
 .coroner-empty {
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--color-border);
   border-radius: 10px;
   text-align: center;
   padding: 1rem;
-  color: #64748b;
+  color: var(--color-text-secondary);
 }
 
 .coroner-grid {
@@ -90,9 +90,9 @@
 }
 
 .coroner-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 12px;
-  background: #fff;
+  background: var(--color-surface);
   padding: 0.85rem;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
   display: grid;
@@ -108,7 +108,7 @@
 
 .coroner-card-top h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 0.92rem;
 }
 
@@ -135,7 +135,7 @@
 
 .coroner-card p {
   margin: 0;
-  color: #334155;
+  color: var(--color-text-secondary);
   font-size: 0.84rem;
 }
 
@@ -143,12 +143,12 @@
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  color: #64748b;
+  color: var(--color-text-secondary);
   font-size: 0.74rem;
 }
 
 .coroner-details {
-  border-top: 1px dashed #e2e8f0;
+  border-top: 1px dashed var(--color-border);
   padding-top: 0.55rem;
   display: grid;
   gap: 0.45rem;
@@ -156,12 +156,12 @@
 
 .coroner-details strong {
   font-size: 0.76rem;
-  color: #334155;
+  color: var(--color-text-secondary);
 }
 
 .coroner-details p {
   margin: 0.2rem 0 0;
-  color: #475569;
+  color: var(--color-text-secondary);
   font-size: 0.78rem;
 }
 
@@ -190,22 +190,22 @@
   width: min(620px, 96vw);
   max-height: 92vh;
   overflow: auto;
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
 }
 
 .coroner-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-border);
   padding: 0.8rem 0.9rem;
 }
 
 .coroner-modal-header h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
 }
 
 .coroner-modal-header button {
@@ -222,7 +222,7 @@
 }
 
 .coroner-modal-form label {
-  color: #334155;
+  color: var(--color-text-secondary);
   font-size: 0.82rem;
   display: grid;
   gap: 0.35rem;
@@ -231,7 +231,7 @@
 .coroner-modal-form input,
 .coroner-modal-form select,
 .coroner-modal-form textarea {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 0.5rem 0.6rem;
   font-family: inherit;
@@ -240,7 +240,7 @@
 
 .evidence-title {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-weight: 600;
 }
 
@@ -262,8 +262,8 @@
 
 .coroner-modal-actions button.cancel {
   border-color: #94a3b8;
-  background: #fff;
-  color: #334155;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 900px) {

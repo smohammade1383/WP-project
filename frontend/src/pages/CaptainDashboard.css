@@ -11,26 +11,26 @@
   align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 16px;
 }
 
 .captain-header h1 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 1.4rem;
 }
 
 .captain-header p {
   margin: 8px 0 0;
-  color: #475569;
+  color: var(--color-text-secondary);
 }
 
 .captain-header button {
   border: 1px solid #6366f1;
-  background: #eef2ff;
+  background: var(--color-surface-muted);
   color: #3730a3;
   border-radius: 10px;
   padding: 8px 12px;
@@ -77,18 +77,18 @@
 
 .section-top h2 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
 }
 
 .section-top span {
-  color: #334155;
+  color: var(--color-text-secondary);
   font-weight: 600;
 }
 
 .section-empty {
-  border: 1px dashed #cbd5e1;
-  background: #f8fafc;
-  color: #475569;
+  border: 1px dashed var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text-secondary);
   border-radius: 10px;
   padding: 14px;
 }
@@ -103,8 +103,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   border-radius: 12px;
   padding: 12px;
 }
@@ -118,7 +118,7 @@
 
 .card-title-row h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 1rem;
 }
 
@@ -126,7 +126,7 @@
   border-radius: 999px;
   padding: 4px 10px;
   background: #f1f5f9;
-  color: #334155;
+  color: var(--color-text-secondary);
   font-size: 0.8rem;
   white-space: nowrap;
 }
@@ -136,12 +136,12 @@
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
-  color: #475569;
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
 }
 
 .decision-support {
-  border-top: 1px dashed #cbd5e1;
+  border-top: 1px dashed var(--color-border);
   padding-top: 10px;
   display: flex;
   flex-direction: column;
@@ -150,12 +150,12 @@
 
 .decision-support h4 {
   margin: 0;
-  color: #1e293b;
+  color: var(--color-text);
 }
 
 .muted {
   margin: 0;
-  color: #64748b;
+  color: var(--color-text-secondary);
 }
 
 .score-grid {
@@ -165,7 +165,7 @@
 }
 
 .score-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 8px;
   display: flex;
@@ -174,11 +174,11 @@
 }
 
 .score-card strong {
-  color: #0f172a;
+  color: var(--color-text);
 }
 
 .score-card > span {
-  color: #64748b;
+  color: var(--color-text-secondary);
   font-size: 0.84rem;
 }
 
@@ -190,11 +190,11 @@
 }
 
 .score-row label {
-  color: #475569;
+  color: var(--color-text-secondary);
 }
 
 .score-row span {
-  color: #0f172a;
+  color: var(--color-text);
   font-weight: 700;
 }
 
@@ -206,11 +206,11 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #334155;
+  color: var(--color-text-secondary);
 }
 
 .field-label textarea {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 8px;
   font: inherit;
@@ -248,8 +248,8 @@
 }
 
 .read-only-link .secondary {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: var(--color-surface-soft);
+  color: var(--color-text);
 }
 
 .captain-modal-overlay {
@@ -267,9 +267,9 @@
   width: min(900px, 100%);
   max-height: 86vh;
   overflow: auto;
-  background: #ffffff;
+  background: var(--color-surface);
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -285,13 +285,13 @@
 
 .modal-header h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
 }
 
 .modal-header button {
   border: none;
   background: transparent;
-  color: #334155;
+  color: var(--color-text-secondary);
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
@@ -304,7 +304,7 @@
 }
 
 .evidence-item {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 10px;
   display: flex;
@@ -314,12 +314,12 @@
 
 .evidence-item h4 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
 }
 
 .evidence-item p {
   margin: 0;
-  color: #334155;
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 900px) {

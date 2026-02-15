@@ -11,8 +11,8 @@
   align-items: flex-start;
   gap: 16px;
   flex-wrap: wrap;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 16px;
 }
@@ -20,12 +20,12 @@
 .sergeant-header h1 {
   margin: 0;
   font-size: 1.4rem;
-  color: #0f172a;
+  color: var(--color-text);
 }
 
 .sergeant-header p {
   margin: 8px 0 0;
-  color: #475569;
+  color: var(--color-text-secondary);
 }
 
 .sergeant-header button {
@@ -50,9 +50,9 @@
 }
 
 .sergeant-tabs button {
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #0f172a;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text);
   border-radius: 999px;
   padding: 8px 14px;
   cursor: pointer;
@@ -99,19 +99,19 @@
 
 .section-top h2 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 1.12rem;
 }
 
 .section-top span {
-  color: #334155;
+  color: var(--color-text-secondary);
   font-weight: 600;
 }
 
 .section-empty {
-  border: 1px dashed #cbd5e1;
-  background: #f8fafc;
-  color: #475569;
+  border: 1px dashed var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text-secondary);
   border-radius: 12px;
   padding: 16px;
 }
@@ -120,15 +120,15 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 14px;
 }
 
 .sub-section h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
 }
 
 .sergeant-grid {
@@ -138,9 +138,9 @@
 }
 
 .sergeant-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -157,7 +157,7 @@
 .card-title-row h3,
 .card-title-row h4 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 1rem;
 }
 
@@ -165,7 +165,7 @@
   border-radius: 999px;
   padding: 4px 10px;
   background: #f1f5f9;
-  color: #334155;
+  color: var(--color-text-secondary);
   font-size: 0.8rem;
   white-space: nowrap;
 }
@@ -185,7 +185,7 @@
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
-  color: #475569;
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
 }
 
@@ -214,8 +214,8 @@
 }
 
 .card-actions .secondary {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: var(--color-surface-soft);
+  color: var(--color-text);
 }
 
 .card-actions .danger {
@@ -226,7 +226,7 @@
 .suspect-list {
   margin: 0;
   padding: 0 16px 0 0;
-  color: #334155;
+  color: var(--color-text-secondary);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -243,12 +243,12 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #334155;
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
 }
 
 .field-label textarea {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 8px;
   font: inherit;
@@ -278,7 +278,7 @@
 
 .score-form,
 .bail-form {
-  border-top: 1px dashed #cbd5e1;
+  border-top: 1px dashed var(--color-border);
   padding-top: 10px;
   display: flex;
   flex-direction: column;
@@ -291,14 +291,14 @@
   flex-direction: column;
   gap: 6px;
   font-size: 0.9rem;
-  color: #334155;
+  color: var(--color-text-secondary);
 }
 
 .score-form input,
 .score-form textarea,
 .bail-form input,
 .bail-form select {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 8px;
   font: inherit;
@@ -306,7 +306,7 @@
 
 .bail-form h5 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 0.95rem;
 }
 
@@ -352,9 +352,9 @@
   width: min(1120px, 100%);
   max-height: min(92vh, 920px);
   overflow: auto;
-  background: #ffffff;
+  background: var(--color-surface);
   border-radius: 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   box-shadow: 0 28px 60px rgba(15, 23, 42, 0.28);
   display: flex;
   flex-direction: column;
@@ -367,24 +367,24 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: 10px;
 }
 
 .operation-detail-header h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
 }
 
 .operation-detail-header p {
   margin: 6px 0 0;
-  color: #475569;
+  color: var(--color-text-secondary);
 }
 
 .operation-detail-header .secondary {
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #0f172a;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text);
   border-radius: 10px;
   padding: 8px 12px;
   font-weight: 600;
@@ -407,7 +407,7 @@
   border: 1px solid #dbeafe;
   border-radius: 12px;
   padding: 10px;
-  background: #f8fbff;
+  background: var(--color-surface-soft);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -415,13 +415,13 @@
 
 .operation-evidence-card h5 {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 0.96rem;
 }
 
 .operation-evidence-card p {
   margin: 0;
-  color: #334155;
+  color: var(--color-text-secondary);
   line-height: 1.45;
 }
 
@@ -437,12 +437,12 @@
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  color: #334155;
+  color: var(--color-text-secondary);
   font-size: 0.86rem;
 }
 
 .detail-kv-row strong {
-  color: #0f172a;
+  color: var(--color-text);
   word-break: break-word;
   text-align: left;
 }
@@ -453,7 +453,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #334155;
+  color: var(--color-text-secondary);
 }
 
 .operation-link-list {
@@ -463,18 +463,18 @@
 }
 
 .operation-link-row {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 9px;
   padding: 8px 10px;
   display: flex;
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-  color: #334155;
+  color: var(--color-text-secondary);
 }
 
 .operation-link-row strong {
-  color: #0f172a;
+  color: var(--color-text);
 }
 
 @media (max-width: 900px) {

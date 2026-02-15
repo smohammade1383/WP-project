@@ -16,12 +16,12 @@
 
 .citizen-rewards-header h1 {
   margin: 0 0 0.45rem;
-  color: #111827;
+  color: var(--color-text);
 }
 
 .citizen-rewards-header p {
   margin: 0;
-  color: #4b5563;
+  color: var(--color-text-secondary);
 }
 
 .new-report-btn {
@@ -45,7 +45,7 @@
 
 .rewards-loading,
 .rewards-empty {
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 14px;
   padding: 1rem 1.1rem;
@@ -61,7 +61,7 @@
 }
 
 .reward-card {
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 14px;
   padding: 1rem 1.1rem;
@@ -87,7 +87,7 @@
 }
 
 .status-submitted {
-  background: #eff6ff;
+  background: var(--color-surface-muted);
   color: #1d4ed8;
 }
 
@@ -116,7 +116,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 0.7rem;
-  background: #f9fafb;
+  background: var(--color-surface-soft);
   border-radius: 12px;
   padding: 0.7rem;
 }
@@ -126,13 +126,13 @@
 .reward-amount span {
   display: block;
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--color-text-secondary);
 }
 
 .reward-meta strong,
 .reward-token strong,
 .reward-amount strong {
-  color: #111827;
+  color: var(--color-text);
 }
 
 .reward-token,

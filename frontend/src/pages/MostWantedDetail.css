@@ -16,7 +16,7 @@
 
 .wanted-detail-header h1 {
   margin: 0;
-  color: #1f2937;
+  color: var(--color-text);
 }
 
 .back-button {
@@ -30,7 +30,7 @@
 }
 
 .wanted-detail-card {
-  background: white;
+  background: var(--color-surface);
   border-radius: 18px;
   padding: 1.5rem;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
@@ -40,7 +40,7 @@
 }
 
 .detail-photo {
-  background: #f3f4f6;
+  background: var(--color-surface-soft);
   border-radius: 14px;
   overflow: hidden;
   height: 320px;
@@ -70,12 +70,12 @@
 
 .detail-title h2 {
   margin: 0;
-  color: #111827;
+  color: var(--color-text);
 }
 
 .detail-subtitle {
   margin: 0.25rem 0 0;
-  color: #6b7280;
+  color: var(--color-text-secondary);
 }
 
 .severity-tag {
@@ -89,7 +89,7 @@
 
 .detail-description {
   margin: 1rem 0;
-  color: #4b5563;
+  color: var(--color-text-secondary);
   line-height: 1.7;
 }
 
@@ -97,7 +97,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 1rem;
-  background: #f9fafb;
+  background: var(--color-surface-soft);
   padding: 1rem;
   border-radius: 14px;
 }
@@ -105,17 +105,17 @@
 .detail-item span {
   display: block;
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   margin-bottom: 0.3rem;
 }
 
 .detail-item strong {
-  color: #111827;
+  color: var(--color-text);
   font-size: 1rem;
 }
 
 .wanted-detail-error {
-  background: white;
+  background: var(--color-surface);
   border-radius: 14px;
   padding: 2rem;
   text-align: center;
