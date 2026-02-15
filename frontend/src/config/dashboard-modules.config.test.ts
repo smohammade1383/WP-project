@@ -19,13 +19,14 @@ describe('dashboard modules config', () => {
     expect(moduleIds).toContain('detective-cases');
     expect(moduleIds).toContain('detective-board');
     expect(moduleIds).toContain('detective-rewards');
+    expect(moduleIds).toContain('reward-verification');
     expect(moduleIds).not.toContain('coroner-lab');
   });
 
   it('checks module access using role mapping', () => {
     expect(hasModuleAccess('officer-crime-scene', ['Sergeant'])).toBe(true);
+    expect(hasModuleAccess('reward-verification', ['Cadet'])).toBe(true);
     expect(hasModuleAccess('judge-bench', ['Sergeant'])).toBe(false);
     expect(hasModuleAccess('unknown-module-id', ['Administrator'])).toBe(false);
   });
 });
-

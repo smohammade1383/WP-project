@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from cases.models import Case, SuspectCaseProfile
+from cases.models import Case, DetectiveBoard, SuspectCaseProfile
 from evidence.models import Evidence
 from finance.models import RewardReport
 from users.models import User
@@ -94,6 +94,7 @@ class WantedRewardFlowTests(APITestCase):
         case_obj, profile = self._create_case_and_profile(
             officer, suspect, Case.Severity.LEVEL_2, wanted_days=35
         )
+        DetectiveBoard.objects.create(case=case_obj, detective=detective)
 
         self.client.force_authenticate(citizen)
         create_resp = self.client.post(
@@ -184,6 +185,7 @@ class WantedRewardFlowTests(APITestCase):
         suspect = self._create_user("verify_suspect", roles=["Suspect"])
 
         case_obj, profile = self._create_case_and_profile(officer, suspect, Case.Severity.LEVEL_2, wanted_days=33)
+        DetectiveBoard.objects.create(case=case_obj, detective=detective)
 
         self.client.force_authenticate(citizen)
         create_resp = self.client.post(
@@ -227,4 +229,3 @@ class WantedRewardFlowTests(APITestCase):
         self.assertEqual(ok.status_code, status.HTTP_200_OK)
         self.assertEqual(ok.data["tracking_code"], tracking_code)
         self.assertEqual(ok.data["reporter"]["national_id"], citizen.national_id)
-

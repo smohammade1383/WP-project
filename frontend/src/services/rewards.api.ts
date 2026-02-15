@@ -18,11 +18,12 @@ export interface RewardReporter {
 export interface RewardReport {
   id: number;
   reporter?: RewardReporter;
+  assigned_detective?: RewardReporter | null;
   case: number | null;
   suspect_profile: number | null;
   description: string;
   status: RewardReportStatus;
-  unique_code: string;
+  unique_code: string | null;
   tracking_code?: string;
   reward_amount: number;
   reviewed_by_officer?: number | null;

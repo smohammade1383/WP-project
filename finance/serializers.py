@@ -14,6 +14,7 @@ class FinanceUserBriefSerializer(serializers.ModelSerializer):
 
 class RewardReportSerializer(serializers.ModelSerializer):
     reporter = FinanceUserBriefSerializer(read_only=True)
+    assigned_detective = FinanceUserBriefSerializer(read_only=True)
     tracking_code = serializers.CharField(source="unique_code", read_only=True)
 
     class Meta:
@@ -27,6 +28,7 @@ class RewardReportSerializer(serializers.ModelSerializer):
             "status",
             "reviewed_by_officer",
             "reviewed_by_detective",
+            "assigned_detective",
             "unique_code",
             "tracking_code",
             "reward_amount",
@@ -38,6 +40,7 @@ class RewardReportSerializer(serializers.ModelSerializer):
             "status",
             "reviewed_by_officer",
             "reviewed_by_detective",
+            "assigned_detective",
             "unique_code",
             "tracking_code",
             "reward_amount",
@@ -85,7 +88,7 @@ class RewardVerificationSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"detail": "Either unique_code or tracking_code must be provided."}
             )
-        attrs["resolved_code"] = unique_code or tracking_code
+        attrs["resolved_code"] = (unique_code or tracking_code).upper()
         return attrs
 
 

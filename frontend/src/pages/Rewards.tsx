@@ -10,8 +10,11 @@ const Rewards = () => {
     return <Navigate to="/citizen/rewards" replace />;
   }
   if (hasAnyRole(roles, ['Detective'])) return <Navigate to="/detective/rewards" replace />;
-  if (hasAnyRole(roles, ['Police Officer', 'Patrol Officer', 'Sergeant', 'Sergent', 'Captain', 'Chief'])) {
+  if (hasAnyRole(roles, ['Police Officer', 'Patrol Officer'])) {
     return <Navigate to="/officer/tips" replace />;
+  }
+  if (hasAnyRole(roles, ['Cadet', 'Sergeant', 'Sergent', 'Captain', 'Chief'])) {
+    return <Navigate to="/finance/reward-verification" replace />;
   }
   if (hasAnyRole(roles, ['Administrator'])) return <Navigate to="/admin" replace />;
 

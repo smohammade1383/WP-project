@@ -36,16 +36,31 @@ class RewardReport(models.Model):
         blank=True,
         related_name="detective_reward_reviews",
     )
-    unique_code = models.CharField(max_length=24, unique=True, blank=True)
+    assigned_detective = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_reward_reports",
+    )
+    unique_code = models.CharField(max_length=24, unique=True, null=True, blank=True)
     reward_amount = models.BigIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
         if self.status == self.Status.APPROVED:
             if not self.unique_code:
-                self.unique_code = secrets.token_hex(8).upper()
+                # Keep generating until we get a truly unique tracking code.
+                while True:
+                    candidate = secrets.token_hex(8).upper()
+                    if not RewardReport.objects.filter(unique_code=candidate).exists():
+                        self.unique_code = candidate
+                        break
             if self.suspect_profile:
                 self.reward_amount = self.suspect_profile.ranking_score * 20_000_000
+            elif self.case_id:
+                profiles = list(self.case.suspect_profiles.all())
+                self.reward_amount = max((profile.reward_amount for profile in profiles), default=0)
         super().save(*args, **kwargs)
 
 

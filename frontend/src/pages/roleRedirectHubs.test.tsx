@@ -23,9 +23,14 @@ const renderHub = (element: ReactElement) => {
         <Route path="/coroner/lab" element={<div>route-coroner-lab</div>} />
         <Route path="/legal-bail" element={<div>route-legal-bail</div>} />
         <Route path="/detective/rewards" element={<div>route-detective-rewards</div>} />
+        <Route
+          path="/finance/reward-verification"
+          element={<div>route-reward-verification</div>}
+        />
         <Route path="/judge/bench" element={<div>route-judge-bench</div>} />
         <Route path="/sergeant/operations" element={<div>route-sergeant-operations</div>} />
         <Route path="/admin" element={<div>route-admin</div>} />
+        <Route path="/officer/tips" element={<div>route-officer-tips</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -76,6 +81,18 @@ describe('Role redirect hubs', () => {
     authService.setUserData({ id: 6, username: 'detective', role_names: ['Detective'] });
     renderHub(<Rewards />);
     expect(screen.getByText('route-detective-rewards')).toBeInTheDocument();
+  });
+
+  it('redirects cadet from /rewards to reward verification', () => {
+    authService.setUserData({ id: 10, username: 'cadet', role_names: ['Cadet'] });
+    renderHub(<Rewards />);
+    expect(screen.getByText('route-reward-verification')).toBeInTheDocument();
+  });
+
+  it('redirects officer from /rewards to officer tips inbox', () => {
+    authService.setUserData({ id: 11, username: 'officer', role_names: ['Police Officer'] });
+    renderHub(<Rewards />);
+    expect(screen.getByText('route-officer-tips')).toBeInTheDocument();
   });
 
   it('redirects judge from /trials to judge bench', () => {

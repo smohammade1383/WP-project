@@ -24,7 +24,7 @@ export type {
   OfficerReviewResponse,
 } from './complaints.api';
 export { rewardsApi } from './rewards.api';
-export type { RewardReport, RewardReportStatus } from './rewards.api';
+export type { RewardReport, RewardReportStatus, RewardReporter } from './rewards.api';
 export { paymentsApi } from './payments.api';
 export type { PaymentTransaction, PaymentStatus, TransactionType } from './payments.api';
 export { crimeSceneApi } from './crime-scene.api';

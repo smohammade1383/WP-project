@@ -16,6 +16,7 @@ import Notifications from './pages/Notifications';
 import Trials from './pages/Trials';
 import Finance from './pages/Finance';
 import Rewards from './pages/Rewards';
+import RewardVerification from './pages/RewardVerification';
 import AdminPanel from './pages/AdminPanel';
 import Users from './pages/Users';
 import MyCases from './pages/MyCases';
@@ -104,6 +105,10 @@ export const router = createBrowserRouter([
       {
         path: 'rewards',
         element: <Rewards />,
+      },
+      {
+        path: 'finance/reward-verification',
+        element: <RewardVerification />,
       },
       {
         path: 'admin',

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ProtectedModule from '../components/ProtectedModule';
 import { rewardsApi, type RewardReport } from '../services';
 import './OfficerTipsReview.css';
@@ -38,6 +39,7 @@ const getReporterName = (item: RewardReport): string => {
 };
 
 const OfficerTipsReview = () => {
+  const navigate = useNavigate();
   const [reports, setReports] = useState<RewardReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -94,7 +96,16 @@ const OfficerTipsReview = () => {
             <h1>گزارش‌های مردمی</h1>
             <p>گزارش‌های دریافتی درباره مظنونین تحت تعقیب را بررسی کنید.</p>
           </div>
-          <div className="tips-summary">در انتظار بررسی: {pendingReports.length}</div>
+          <div className="tips-header-actions">
+            <div className="tips-summary">در انتظار بررسی: {pendingReports.length}</div>
+            <button
+              type="button"
+              className="tips-verify-btn"
+              onClick={() => navigate('/finance/reward-verification')}
+            >
+              استعلام پاداش
+            </button>
+          </div>
         </div>
 
         {(error || success) && (

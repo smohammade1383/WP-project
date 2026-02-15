@@ -88,6 +88,16 @@ def notify_case_detective(case_obj, *, message, exclude_user_id=None):
         push_notification(recipient=board.detective, message=message, case_obj=case_obj)
 
 
+def get_responsible_detective(report):
+    case_obj = report.case or (report.suspect_profile.case if report.suspect_profile_id else None)
+    if not case_obj:
+        return None, None
+    board = getattr(case_obj, "board", None)
+    if not board or not board.detective_id:
+        return case_obj, None
+    return case_obj, board.detective
+
+
 def resolve_payment_url(request, tx):
     if tx.return_url:
         if tx.return_url.startswith(("http://", "https://")):
@@ -105,9 +115,31 @@ class RewardReportListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        base = RewardReport.objects.select_related(
+            "reporter",
+            "suspect_profile",
+            "case",
+            "assigned_detective",
+        )
         if is_police_staff(self.request.user):
-            return RewardReport.objects.all().select_related("reporter", "suspect_profile", "case")
-        return RewardReport.objects.filter(reporter=self.request.user).select_related("reporter", "suspect_profile", "case")
+            if has_any_role(
+                self.request.user,
+                "Detective",
+            ) and not has_any_role(
+                self.request.user,
+                "Administrator",
+                "Chief",
+                "Captain",
+                "Sergeant",
+                "Police Officer",
+                "Patrol Officer",
+            ):
+                return base.filter(
+                    models.Q(assigned_detective=self.request.user)
+                    | models.Q(reviewed_by_detective=self.request.user)
+                ).distinct()
+            return base
+        return base.filter(reporter=self.request.user)
 
     def perform_create(self, serializer):
         report = serializer.save(reporter=self.request.user, status=RewardReport.Status.OFFICER_REVIEW)
@@ -171,26 +203,37 @@ class RewardOfficerReviewAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         action = serializer.validated_data["action"]
+        case_obj, responsible_detective = get_responsible_detective(report)
         report.reviewed_by_officer = request.user
         if action == "reject":
             report.status = RewardReport.Status.REJECTED
+            report.assigned_detective = None
             result_message = f"گزارش پاداش #{report.id} توسط افسر رد شد."
         else:
+            if not case_obj:
+                raise ValidationError({"case": "گزارش باید به یک پرونده معتبر متصل باشد."})
+            if not responsible_detective:
+                raise ValidationError(
+                    {"detail": "برای این پرونده کارآگاه مسئول تعریف نشده است. ابتدا کارآگاه پرونده را تعیین کنید."}
+                )
             report.status = RewardReport.Status.DETECTIVE_REVIEW
-            result_message = f"گزارش پاداش #{report.id} توسط افسر تایید و به صف کارآگاه ارسال شد."
-        report.save(update_fields=["reviewed_by_officer", "status"])
+            report.assigned_detective = responsible_detective
+            result_message = (
+                f"گزارش پاداش #{report.id} توسط افسر تایید و برای کارآگاه مسئول پرونده ارسال شد."
+            )
+        report.save(update_fields=["reviewed_by_officer", "status", "assigned_detective"])
         push_notification(
             recipient=report.reporter,
-            case_obj=report.case,
+            case_obj=case_obj or report.case,
             message=result_message,
         )
         if action != "reject":
-            notify_role_recipients(
-                role_names=("Detective", "Administrator"),
-                case_obj=report.case,
-                exclude_user_id=request.user.id,
-                message=f"گزارش پاداش #{report.id} پس از تایید افسر در صف بررسی کارآگاه قرار گرفت.",
-            )
+            if responsible_detective and responsible_detective.id != request.user.id:
+                push_notification(
+                    recipient=responsible_detective,
+                    case_obj=case_obj,
+                    message=f"گزارش پاداش #{report.id} برای بررسی شما ارجاع شد.",
+                )
 
         return Response(RewardReportSerializer(report).data)
 
@@ -218,10 +261,39 @@ class RewardDetectiveReviewAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         action = serializer.validated_data["action"]
 
+        related_case, responsible_detective = get_responsible_detective(report)
+        if not related_case:
+            raise ValidationError({"case": "A related case is required to finalize this report."})
+
+        is_admin = has_any_role(request.user, "Administrator")
+        expected_detective = report.assigned_detective or responsible_detective
+        if not expected_detective and not is_admin:
+            raise ValidationError(
+                {"detail": "No responsible detective is assigned to this case yet."}
+            )
+        if (
+            expected_detective
+            and request.user.id != expected_detective.id
+            and not is_admin
+        ):
+            raise PermissionDenied("Only the assigned detective can finalize this reward report.")
+
+        if report.case_id != related_case.id:
+            report.case = related_case
+        if not report.assigned_detective_id and expected_detective:
+            report.assigned_detective = expected_detective
+
         report.reviewed_by_detective = request.user
         if action == "reject":
             report.status = RewardReport.Status.REJECTED
-            report.save(update_fields=["reviewed_by_detective", "status"])
+            report.save(
+                update_fields=[
+                    "reviewed_by_detective",
+                    "status",
+                    "case",
+                    "assigned_detective",
+                ]
+            )
             push_notification(
                 recipient=report.reporter,
                 case_obj=report.case,
@@ -235,18 +307,17 @@ class RewardDetectiveReviewAPIView(APIView):
                 )
             return Response(RewardReportSerializer(report).data)
 
-        if not report.suspect_profile:
-            raise ValidationError({"suspect_profile": "An associated suspect profile is required for reward approval."})
-
-        related_case = report.case or report.suspect_profile.case
-        if not related_case:
-            raise ValidationError({"case": "A related case is required to finalize this report."})
-
-        if report.case_id != related_case.id:
-            report.case = related_case
-
         report.status = RewardReport.Status.APPROVED
-        report.save(update_fields=["reviewed_by_detective", "status", "unique_code", "reward_amount", "case"])
+        report.save(
+            update_fields=[
+                "reviewed_by_detective",
+                "status",
+                "unique_code",
+                "reward_amount",
+                "case",
+                "assigned_detective",
+            ]
+        )
         Evidence.objects.create(
             case=related_case,
             title=f"Informant Report #{report.id}",

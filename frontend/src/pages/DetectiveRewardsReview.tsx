@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ProtectedModule from '../components/ProtectedModule';
-import { rewardsApi, type RewardReport } from '../services';
+import { rewardsApi, type RewardReport, type RewardReporter } from '../services';
 import './DetectiveRewardsReview.css';
 
 const statusLabelMap: Record<string, string> = {
@@ -39,7 +40,14 @@ const reporterName = (item: RewardReport): string => {
   return fullName || item.reporter.username;
 };
 
+const personName = (person?: RewardReporter | null): string => {
+  if (!person) return '-';
+  const fullName = `${person.first_name || ''} ${person.last_name || ''}`.trim();
+  return fullName || person.username;
+};
+
 const DetectiveRewardsReview = () => {
+  const navigate = useNavigate();
   const [reports, setReports] = useState<RewardReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -99,7 +107,16 @@ const DetectiveRewardsReview = () => {
             <h1>تاییدیه پاداش</h1>
             <p>گزارش‌های مردمی ارجاع‌شده از افسر را تایید یا رد کنید.</p>
           </div>
-          <span className="queue-count">در صف کارآگاه: {detectiveQueue.length}</span>
+          <div className="detective-header-actions">
+            <span className="queue-count">در صف کارآگاه: {detectiveQueue.length}</span>
+            <button
+              type="button"
+              className="verify-link-btn"
+              onClick={() => navigate('/finance/reward-verification')}
+            >
+              استعلام پاداش
+            </button>
+          </div>
         </header>
 
         {(error || success) && (
@@ -128,6 +145,7 @@ const DetectiveRewardsReview = () => {
                   <span>کد ملی: {item.reporter?.national_id || '-'}</span>
                   <span>پرونده: {item.case ? `#${item.case}` : '-'}</span>
                   <span>پروفایل مظنون: {item.suspect_profile ? `#${item.suspect_profile}` : '-'}</span>
+                  <span>کارآگاه مسئول: {personName(item.assigned_detective)}</span>
                   <span>تاریخ ثبت: {formatDate(item.created_at)}</span>
                 </div>
                 <div className="detective-reward-actions">
@@ -179,4 +197,3 @@ const DetectiveRewardsReview = () => {
 };
 
 export default DetectiveRewardsReview;
-

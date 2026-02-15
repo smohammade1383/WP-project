@@ -34,6 +34,23 @@
   white-space: nowrap;
 }
 
+.tips-header-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tips-verify-btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+  border-radius: 10px;
+  padding: 0.55rem 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .tips-feedback {
   border-radius: 12px;
   padding: 0.75rem 0.95rem;
@@ -167,5 +184,10 @@
 
   .tips-summary {
     text-align: center;
+  }
+
+  .tips-header-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }
