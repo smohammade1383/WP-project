@@ -34,6 +34,7 @@ from .serializers import (
     CaptainDecisionCreateSerializer,
     CaptainDecisionSerializer,
     CaseSerializer,
+    CitizenCaseSummarySerializer,
     ChiefDecisionSerializer,
     ComplaintDecisionSerializer,
     ComplaintReviewSerializer,
@@ -307,6 +308,30 @@ class CaseRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
         if not is_police_staff(user):
             raise PermissionDenied("Only police roles can modify cases.")
         serializer.save()
+
+
+@extend_schema_view(
+    get=extend_schema(tags=["Cases"], summary="List safe case summaries for regular users"),
+)
+class CitizenCaseSummaryListAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        queryset = (
+            Case.objects.all()
+            .annotate(
+                my_evidence_count=Count(
+                    "evidences",
+                    filter=Q(evidences__created_by=user),
+                    distinct=True,
+                ),
+                total_evidence_count=Count("evidences", distinct=True),
+            )
+            .order_by("-updated_at", "-id")
+        )
+        serializer = CitizenCaseSummarySerializer(queryset, many=True, context={"request": request})
+        return Response(serializer.data)
 
 
 @extend_schema_view(
@@ -880,6 +905,10 @@ class BoardItemListCreateAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         evidence = serializer.validated_data.get("evidence")
+        if evidence and evidence.officer_review_status != evidence.OfficerReviewStatus.APPROVED:
+            raise ValidationError(
+                {"evidence": "Evidence must be approved by officer before adding to detective board."}
+            )
         if evidence and evidence.type == "bio_medical":
             bio = getattr(evidence, "bio_medical", None)
             if not bio or bio.validation_status != "accepted":

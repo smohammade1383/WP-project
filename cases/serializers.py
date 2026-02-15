@@ -539,6 +539,73 @@ class BreakdownStatsSerializer(serializers.Serializer):
     by_status = serializers.DictField(child=serializers.IntegerField())
 
 
+class CitizenCaseSummarySerializer(serializers.ModelSerializer):
+    case_code = serializers.SerializerMethodField()
+    my_role = serializers.SerializerMethodField()
+    general_summary = serializers.SerializerMethodField()
+    my_evidence_count = serializers.IntegerField(read_only=True)
+    total_evidence_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Case
+        fields = (
+            "id",
+            "case_code",
+            "title",
+            "source_type",
+            "status",
+            "severity",
+            "incident_datetime",
+            "created_at",
+            "updated_at",
+            "my_role",
+            "general_summary",
+            "my_evidence_count",
+            "total_evidence_count",
+        )
+
+    def get_case_code(self, obj):
+        return f"C-{obj.created_at.year}-{obj.id:05d}"
+
+    def get_my_role(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return "viewer"
+        if obj.created_by_id == user.id:
+            return "case_owner"
+        if obj.complainants.filter(id=user.id).exists():
+            return "complainant"
+        if obj.witnesses.filter(id=user.id).exists():
+            return "witness"
+        if obj.suspects.filter(id=user.id).exists():
+            return "suspect"
+        return "viewer"
+
+    def get_general_summary(self, obj):
+        status_map = {
+            Case.Status.DRAFT: "پرونده ثبت اولیه شده و هنوز وارد فرایند بررسی نشده است.",
+            Case.Status.PENDING_CADET: "پرونده در حال بررسی اولیه توسط کارآموز است.",
+            Case.Status.NEEDS_COMPLAINANT_UPDATE: "پرونده نیاز به تکمیل اطلاعات توسط شاکی دارد.",
+            Case.Status.PENDING_OFFICER: "پرونده در صف بررسی افسر پلیس قرار دارد.",
+            Case.Status.OPEN: "پرونده فعال است و در مرحله بررسی قرار دارد.",
+            Case.Status.WARRANT_PENDING: "پرونده در مرحله بررسی درخواست دستگیری است.",
+            Case.Status.ARRESTED: "در این پرونده دستگیری انجام شده و بررسی تکمیلی در جریان است.",
+            Case.Status.WAITING_CAPTAIN: "پرونده منتظر تصمیم کاپیتان است.",
+            Case.Status.WAITING_CHIEF: "پرونده منتظر تایید رئیس پلیس است.",
+            Case.Status.IN_COURT: "پرونده به مرجع قضایی ارسال شده است.",
+            Case.Status.CLOSED: "پرونده با تصمیم نهایی بسته شده است.",
+            Case.Status.VOID: "پرونده باطل شده و ادامه فرایند ندارد.",
+        }
+        base = status_map.get(obj.status, "پرونده در حال پردازش است.")
+        source_suffix = (
+            " منبع ثبت: شکایت کاربر."
+            if obj.source_type == Case.SourceType.COMPLAINT
+            else " منبع ثبت: گزارش صحنه جرم."
+        )
+        return f"{base}{source_suffix}"
+
+
 class NotificationSerializer(serializers.ModelSerializer):
     case_id = serializers.IntegerField(source="case.id", read_only=True)
     case_title = serializers.CharField(source="case.title", read_only=True)

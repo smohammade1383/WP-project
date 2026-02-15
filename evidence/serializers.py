@@ -20,6 +20,10 @@ class EvidenceUserBriefSerializer(serializers.ModelSerializer):
 
 class EvidenceSerializer(serializers.ModelSerializer):
     created_by = EvidenceUserBriefSerializer(read_only=True)
+    officer_reviewer = EvidenceUserBriefSerializer(read_only=True)
+    case_title = serializers.CharField(source="case.title", read_only=True)
+    case_status = serializers.CharField(source="case.status", read_only=True)
+    case_severity = serializers.IntegerField(source="case.severity", read_only=True)
     details = serializers.SerializerMethodField()
 
     class Meta:
@@ -27,10 +31,17 @@ class EvidenceSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "case",
+            "case_title",
+            "case_status",
+            "case_severity",
             "title",
             "description",
             "type",
             "created_by",
+            "officer_review_status",
+            "officer_reviewer",
+            "officer_reviewed_at",
+            "officer_review_message",
             "created_at",
             "details",
         )
@@ -129,4 +140,19 @@ class EvidencePartialUpdateSerializer(EvidenceWriteSerializer):
                         {"non_field_errors": "Exactly one of license_plate or serial_number must be provided."}
                     )
 
+        return attrs
+
+
+class EvidenceOfficerReviewSerializer(serializers.Serializer):
+    decision = serializers.ChoiceField(
+        choices=[
+            (Evidence.OfficerReviewStatus.APPROVED, "approved"),
+            (Evidence.OfficerReviewStatus.REJECTED, "rejected"),
+        ]
+    )
+    message = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        if attrs["decision"] == Evidence.OfficerReviewStatus.REJECTED and not attrs.get("message", "").strip():
+            raise serializers.ValidationError({"message": "Rejection reason is required."})
         return attrs

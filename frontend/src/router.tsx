@@ -26,6 +26,7 @@ import CadetComplaintsInbox from './pages/CadetComplaintsInbox';
 import OfficerComplaintsApproval from './pages/OfficerComplaintsApproval';
 import OfficerCrimeSceneCreate from './pages/OfficerCrimeSceneCreate';
 import OfficerTipsReview from './pages/OfficerTipsReview';
+import OfficerEvidenceReview from './pages/OfficerEvidenceReview';
 import LegalBailStatus from './pages/LegalBailStatus';
 import CoronerLab from './pages/CoronerLab';
 import SergeantDashboard from './pages/SergeantDashboard';
@@ -139,6 +140,10 @@ export const router = createBrowserRouter([
       {
         path: 'officer/tips',
         element: <OfficerTipsReview />,
+      },
+      {
+        path: 'officer/evidence-review',
+        element: <OfficerEvidenceReview />,
       },
       {
         path: 'officer/crime-scene',

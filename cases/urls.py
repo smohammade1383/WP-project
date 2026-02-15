@@ -12,6 +12,7 @@ from .views import (
     CaseBreakdownStatsAPIView,
     CaseListCreateAPIView,
     CaseRetrieveUpdateAPIView,
+    CitizenCaseSummaryListAPIView,
     ChiefDecisionAPIView,
     ComplaintAddComplainantsAPIView,
     ComplaintCadetReviewAPIView,
@@ -41,6 +42,7 @@ from .views import (
 urlpatterns = [
     path("", CaseListCreateAPIView.as_view(), name="case-list-create"),
     path("<int:pk>/", CaseRetrieveUpdateAPIView.as_view(), name="case-detail-update"),
+    path("my-cases/summary/", CitizenCaseSummaryListAPIView.as_view(), name="citizen-case-summary-list"),
 
     path("complaints/", ComplaintListCreateAPIView.as_view(), name="complaint-list-create"),
     path("complaints/<int:pk>/", ComplaintRetrieveUpdateAPIView.as_view(), name="complaint-detail-update"),

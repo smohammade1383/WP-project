@@ -92,6 +92,15 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
     allowedRoles: ['Basic User', 'Complainant', 'Witness'],
     color: '#E67E22',
   },
+  {
+    id: 'citizen-case-evidence',
+    title: 'پرونده‌ها و ثبت مدرک',
+    description: 'مشاهده پرونده‌های قابل‌دسترسی و ارسال مدرک تکمیلی',
+    icon: '🗂️',
+    route: '/my-cases',
+    allowedRoles: ['Basic User', 'Complainant', 'Witness'],
+    color: '#2563EB',
+  },
 
   // Cadet Modules
   {
@@ -122,6 +131,15 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
     route: '/officer/tips',
     allowedRoles: ['Police Officer', 'Patrol Officer', 'Sergeant', 'Captain', 'Chief', 'Administrator'],
     color: '#0EA5E9',
+  },
+  {
+    id: 'officer-evidence-review',
+    title: 'تأیید مدارک',
+    description: 'بررسی و تایید/رد مدارک ارسالی کاربران',
+    icon: '📑',
+    route: '/officer/evidence-review',
+    allowedRoles: ['Police Officer', 'Patrol Officer', 'Sergeant', 'Captain', 'Chief', 'Administrator'],
+    color: '#2563EB',
   },
   {
     id: 'officer-crime-scene',

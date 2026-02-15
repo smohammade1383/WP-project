@@ -1,0 +1,370 @@
+.officer-evidence-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  direction: rtl;
+  text-align: right;
+}
+
+.officer-evidence-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.officer-evidence-header h1 {
+  margin: 0 0 0.4rem;
+  color: var(--color-text);
+}
+
+.officer-evidence-header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.officer-evidence-summary {
+  background: var(--color-surface-muted);
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 0.65rem 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.officer-evidence-search {
+  margin-bottom: 0.9rem;
+}
+
+.officer-evidence-search input {
+  width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 12px;
+  padding: 0.72rem 0.95rem;
+  font-family: inherit;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.officer-evidence-feedback {
+  border-radius: 12px;
+  padding: 0.75rem 0.95rem;
+  margin-bottom: 1rem;
+  font-size: 0.92rem;
+}
+
+.officer-evidence-feedback.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.officer-evidence-feedback.success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #166534;
+}
+
+.officer-evidence-empty {
+  background: var(--color-surface);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  padding: 1.1rem;
+}
+
+.officer-evidence-empty h3 {
+  margin-top: 0;
+}
+
+.officer-evidence-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.officer-evidence-card {
+  background: var(--color-surface);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.officer-evidence-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.officer-evidence-card-header h3 {
+  margin: 0;
+}
+
+.officer-evidence-type {
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.officer-evidence-description {
+  margin: 0.75rem 0;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+}
+
+.officer-evidence-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.7rem;
+  background: var(--color-surface-soft);
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.officer-evidence-meta span {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.officer-evidence-meta strong {
+  color: var(--color-text);
+}
+
+.officer-evidence-actions {
+  margin-top: 0.8rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.officer-evidence-actions .details-btn,
+.officer-evidence-actions .approve-btn,
+.officer-evidence-actions .return-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.officer-evidence-actions .details-btn {
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+
+.officer-evidence-actions .approve-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #fff;
+}
+
+.officer-evidence-actions .return-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+}
+
+.officer-evidence-actions button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.officer-evidence-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 10000;
+}
+
+.officer-evidence-modal {
+  width: min(780px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+}
+
+.officer-evidence-modal.reject {
+  width: min(560px, 100%);
+}
+
+.officer-evidence-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.7rem;
+}
+
+.officer-evidence-modal-header h3 {
+  margin: 0;
+}
+
+.officer-evidence-modal-header button {
+  border: none;
+  background: transparent;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+}
+
+.officer-evidence-modal-content {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.officer-evidence-modal-block {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  background: var(--color-surface-soft);
+}
+
+.officer-evidence-modal-block h4 {
+  margin: 0 0 0.45rem;
+  color: var(--color-text);
+}
+
+.officer-evidence-modal-block p {
+  margin: 0.28rem 0;
+  color: var(--color-text);
+  line-height: 1.65;
+}
+
+.officer-evidence-media-list {
+  margin-top: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.officer-evidence-media-list a {
+  padding: 0.35rem 0.62rem;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  text-decoration: none;
+  font-size: 0.83rem;
+  font-weight: 600;
+}
+
+.officer-evidence-image-grid {
+  margin-top: 0.65rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.55rem;
+}
+
+.officer-evidence-image-grid a {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+}
+
+.officer-evidence-image-grid img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  display: block;
+}
+
+.officer-evidence-kv-grid {
+  margin-top: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.5rem;
+}
+
+.officer-evidence-kv-grid div {
+  background: var(--color-surface);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+}
+
+.officer-evidence-kv-grid span {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--color-text-secondary);
+}
+
+.officer-evidence-kv-grid strong {
+  color: var(--color-text);
+}
+
+.officer-evidence-reject-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.officer-evidence-reject-form label {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+}
+
+.officer-evidence-reject-form textarea {
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 10px;
+  padding: 0.65rem 0.7rem;
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.officer-evidence-modal-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.officer-evidence-modal-actions .details-btn,
+.officer-evidence-modal-actions .return-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.officer-evidence-modal-actions .details-btn {
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+
+.officer-evidence-modal-actions .return-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+}
+
+.officer-evidence-modal-actions button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .officer-evidence-page {
+    padding: 1rem;
+  }
+
+  .officer-evidence-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .officer-evidence-summary {
+    text-align: center;
+  }
+}

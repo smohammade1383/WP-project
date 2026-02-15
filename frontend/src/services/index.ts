@@ -57,7 +57,7 @@ export type {
   CaptainUserBrief,
 } from './captain.api';
 export { evidenceApi } from './evidence.api';
-export type { EvidenceRecord, EvidenceType } from './evidence.api';
+export type { EvidenceOfficerReviewPayload, EvidenceRecord, EvidenceType } from './evidence.api';
 export { coronerApi } from './coroner.api';
 export { chiefApi } from './chief.api';
 export type {
@@ -73,3 +73,5 @@ export { judgeApi } from './judge.api';
 export type { JudgeCase, TrialSubmissionPayload } from './judge.api';
 export { notificationsApi } from './notifications.api';
 export type { UserNotification } from './notifications.api';
+export { myCasesApi } from './my-cases.api';
+export type { CitizenCaseSummary } from './my-cases.api';

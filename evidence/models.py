@@ -11,11 +11,31 @@ class Evidence(models.Model):
         IDENTITY_DOCUMENT = "identity_document", "Identity Document"
         OTHER = "other", "Other"
 
+    class OfficerReviewStatus(models.TextChoices):
+        PENDING = "pending", "Pending Officer Review"
+        APPROVED = "approved", "Approved By Officer"
+        REJECTED = "rejected", "Rejected By Officer"
+
     case = models.ForeignKey("cases.Case", on_delete=models.CASCADE, related_name="evidences")
     title = models.CharField(max_length=200)
     description = models.TextField()
     type = models.CharField(max_length=30, choices=Type.choices)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    officer_review_status = models.CharField(
+        max_length=20,
+        choices=OfficerReviewStatus.choices,
+        default=OfficerReviewStatus.APPROVED,
+        db_index=True,
+    )
+    officer_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="officer_reviewed_evidences",
+    )
+    officer_reviewed_at = models.DateTimeField(null=True, blank=True)
+    officer_review_message = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
