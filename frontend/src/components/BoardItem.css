@@ -101,6 +101,11 @@
   color: #dc2626;
 }
 
+.item-delete-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .item-content {
   padding: 12px;
   font-size: 13px;

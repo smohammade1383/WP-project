@@ -20,6 +20,8 @@ export interface BoardLink {
   board: number;
   from_item: number;
   to_item: number;
+  from_point?: 'top' | 'right' | 'bottom' | 'left';
+  to_point?: 'top' | 'right' | 'bottom' | 'left';
   description?: string;
 }
 
@@ -66,6 +68,8 @@ export interface UpdateBoardItemRequest {
 export interface CreateBoardLinkRequest {
   from_item: number;
   to_item: number;
+  from_point?: 'top' | 'right' | 'bottom' | 'left';
+  to_point?: 'top' | 'right' | 'bottom' | 'left';
   description?: string;
 }
 

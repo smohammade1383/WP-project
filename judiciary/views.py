@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from cases.models import Case
+from cases.models import Case, Notification
 from evidence.serializers import EvidenceSerializer
 from .models import Trial
 from .serializers import CaseReportSerializer, TrialSerializer
@@ -18,6 +18,16 @@ def has_any_role(user, *roles):
         return True
     expected = set(roles)
     return any(role in expected for role in user.role_names)
+
+
+def push_notification(*, recipient, message, case_obj=None):
+    if not recipient or not getattr(recipient, "is_active", False):
+        return
+    Notification.objects.create(
+        recipient=recipient,
+        case=case_obj,
+        message=message,
+    )
 
 
 ROLE_PRIORITY = (
@@ -95,6 +105,35 @@ class TrialCreateAPIView(APIView):
         if trial.verdict == Trial.Verdict.GUILTY:
             case_obj.status = Case.Status.CLOSED
             case_obj.save(update_fields=["status", "updated_at"])
+        verdict_map = {
+            Trial.Verdict.PENDING: "در انتظار رای نهایی",
+            Trial.Verdict.INNOCENT: "بی‌گناه",
+            Trial.Verdict.GUILTY: "گناهکار",
+        }
+        verdict_label = verdict_map.get(trial.verdict, trial.verdict)
+        if case_obj.created_by_id != request.user.id:
+            push_notification(
+                recipient=case_obj.created_by,
+                case_obj=case_obj,
+                message=(
+                    f"رای دادگاه برای پرونده #{case_obj.id} ثبت شد: {verdict_label}."
+                ),
+            )
+        if trial.defendant_id and trial.defendant_id != request.user.id:
+            push_notification(
+                recipient=trial.defendant,
+                case_obj=case_obj,
+                message=(
+                    f"وضعیت پرونده قضایی شما (#{case_obj.id}) ثبت شد: {verdict_label}."
+                ),
+            )
+        board = getattr(case_obj, "board", None)
+        if board and board.detective_id and board.detective_id != request.user.id:
+            push_notification(
+                recipient=board.detective,
+                case_obj=case_obj,
+                message=f"رای دادگاه پرونده #{case_obj.id} ثبت شد: {verdict_label}.",
+            )
         return Response(TrialSerializer(trial).data, status=status.HTTP_201_CREATED)
 
 

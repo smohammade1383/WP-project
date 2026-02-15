@@ -24,6 +24,13 @@
   margin: 0;
 }
 
+.notifications-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .unread-badge {
   background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
   color: white;
@@ -34,9 +41,41 @@
   box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
 }
 
+.mark-all-btn,
+.mark-read-btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+  border-radius: 10px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mark-all-btn:hover:not(:disabled),
+.mark-read-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.mark-all-btn:disabled,
+.mark-read-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .notifications-content {
   display: grid;
   gap: 2rem;
+}
+
+.notifications-error {
+  background: color-mix(in srgb, #ef4444 12%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, #ef4444 40%, var(--color-border));
+  color: var(--color-text);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
 }
 
 .no-notifications {
@@ -153,6 +192,10 @@
   font-size: 0.75rem;
   font-weight: 600;
   margin-top: 0.75rem;
+}
+
+.mark-read-btn {
+  margin-top: 0.6rem;
 }
 
 .notifications-info {

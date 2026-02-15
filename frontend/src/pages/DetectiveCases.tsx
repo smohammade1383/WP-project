@@ -156,10 +156,6 @@ const parseIds = (raw: string): number[] => {
     .filter((value) => Number.isInteger(value) && value > 0);
 };
 
-const isConnectionPointKey = (value: unknown): value is ConnectionPointKey => {
-  return value === 'top' || value === 'right' || value === 'bottom' || value === 'left';
-};
-
 const getLatestScoreForRole = (
   profile: DetectiveSuspectProfile,
   role: 'detective' | 'sergeant'
@@ -216,7 +212,6 @@ const DetectiveCases = () => {
     itemId: number;
     point: ConnectionPointKey;
   } | null>(null);
-  const [linkPointMap, setLinkPointMap] = useState<Record<number, { from: ConnectionPointKey; to: ConnectionPointKey }>>({});
   const [boardScale, setBoardScale] = useState(1);
   const [newBoardNote, setNewBoardNote] = useState('');
   const [savingBoard, setSavingBoard] = useState(false);
@@ -265,6 +260,13 @@ const DetectiveCases = () => {
     []
   );
   const isCaseLocked = Boolean(selectedCase && lockedStatuses.has(selectedCase.status));
+  const boardStructureLockedStatuses = useMemo(
+    () => new Set(['WarrantPending', 'Arrested', 'WaitingCaptain', 'WaitingChief', 'InCourt', 'Closed', 'Void']),
+    []
+  );
+  const isBoardStructureLocked = Boolean(selectedCase && boardStructureLockedStatuses.has(selectedCase.status));
+  const movableBoardStatuses = useMemo(() => new Set(['Open', 'WarrantPending']), []);
+  const canMoveBoardItems = Boolean(selectedCase && movableBoardStatuses.has(selectedCase.status));
 
   const notificationTotal = useMemo(
     () => Object.values(notificationsByCase).reduce((acc, value) => acc + value, 0),
@@ -419,22 +421,11 @@ const DetectiveCases = () => {
       setLoadingBoard(true);
       const board = await boardApi.getDetectiveBoard(caseId);
       setBoardItems(board.items || []);
-      const links = board.links || [];
-      setBoardLinks(links);
-      setLinkPointMap((prev) => {
-        const next: Record<number, { from: ConnectionPointKey; to: ConnectionPointKey }> = {};
-        links.forEach((link) => {
-          if (prev[link.id]) {
-            next[link.id] = prev[link.id];
-          }
-        });
-        return next;
-      });
+      setBoardLinks(board.links || []);
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'خطا در بارگذاری تخته کارآگاه'));
       setBoardItems([]);
       setBoardLinks([]);
-      setLinkPointMap({});
     } finally {
       setLoadingBoard(false);
     }
@@ -474,7 +465,6 @@ const DetectiveCases = () => {
       setConnectionDraftPoint(null);
       setConnectionSourcePoint(null);
       setConnectionSourceHandle(null);
-      setLinkPointMap({});
       setSelectedNomineeIds([]);
       return;
     }
@@ -600,7 +590,7 @@ const DetectiveCases = () => {
 
   const handleAddBoardNote = async () => {
     if (!selectedCase || !newBoardNote.trim()) return;
-    if (isCaseLocked) {
+    if (isBoardStructureLocked) {
       setError('ویرایش تخته برای این پرونده قفل است.');
       return;
     }
@@ -623,7 +613,7 @@ const DetectiveCases = () => {
 
   const handleAddEvidenceToBoard = async (evidenceId: number) => {
     if (!selectedCase) return;
-    if (isCaseLocked) {
+    if (isBoardStructureLocked) {
       setError('ویرایش تخته برای این پرونده قفل است.');
       return;
     }
@@ -654,7 +644,7 @@ const DetectiveCases = () => {
 
   const handleAddPersonToBoard = async (userId: number, itemType: 'witness' | 'suspect') => {
     if (!selectedCase) return;
-    if (isCaseLocked) {
+    if (isBoardStructureLocked) {
       setError('ویرایش تخته برای این پرونده قفل است.');
       return;
     }
@@ -675,7 +665,7 @@ const DetectiveCases = () => {
   };
 
   const handleUpdateBoardItemPosition = async (id: number, position: { x: number; y: number }) => {
-    if (isCaseLocked) return;
+    if (!canMoveBoardItems) return;
     try {
       const updated = await boardApi.updateBoardItem(id, {
         position_x: position.x,
@@ -688,26 +678,14 @@ const DetectiveCases = () => {
   };
 
   const handleDeleteBoardItem = async (id: number) => {
-    if (isCaseLocked) {
+    if (isBoardStructureLocked) {
       setError('ویرایش تخته برای این پرونده قفل است.');
       return;
     }
     try {
       await boardApi.deleteBoardItem(id);
-      const removedLinkIds = boardLinks
-        .filter((item) => item.from_item === id || item.to_item === id)
-        .map((item) => item.id);
       setBoardItems((prev) => prev.filter((item) => item.id !== id));
       setBoardLinks((prev) => prev.filter((item) => item.from_item !== id && item.to_item !== id));
-      if (removedLinkIds.length > 0) {
-        setLinkPointMap((prev) => {
-          const next = { ...prev };
-          removedLinkIds.forEach((linkId) => {
-            delete next[linkId];
-          });
-          return next;
-        });
-      }
       if (connectingFromId === id) {
         setConnectingFromId(null);
         setIsConnectingDrag(false);
@@ -726,18 +704,13 @@ const DetectiveCases = () => {
   };
 
   const handleDeleteBoardLink = async (linkId: number) => {
-    if (isCaseLocked) {
+    if (isBoardStructureLocked) {
       setError('ویرایش تخته برای این پرونده قفل است.');
       return;
     }
     try {
       await boardApi.deleteBoardLink(linkId);
       setBoardLinks((prev) => prev.filter((item) => item.id !== linkId));
-      setLinkPointMap((prev) => {
-        const next = { ...prev };
-        delete next[linkId];
-        return next;
-      });
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'حذف اتصال ناموفق بود.'));
     }
@@ -793,7 +766,7 @@ const DetectiveCases = () => {
         setError('بین این دو آیتم قبلا اتصال ثبت شده است.');
         return;
       }
-      if (isCaseLocked) {
+      if (isBoardStructureLocked) {
         setError('ویرایش تخته برای این پرونده قفل است.');
         setConnectingFromId(null);
         setIsConnectingDrag(false);
@@ -811,14 +784,10 @@ const DetectiveCases = () => {
         const link = await boardApi.createBoardLink(selectedCase.id, {
           from_item: fromItem,
           to_item: toItem,
+          from_point: points?.fromPoint,
+          to_point: points?.toPoint,
         });
         setBoardLinks((prev) => [...prev, link]);
-        if (points?.fromPoint && points?.toPoint) {
-          setLinkPointMap((prev) => ({
-            ...prev,
-            [link.id]: { from: points.fromPoint as ConnectionPointKey, to: points.toPoint as ConnectionPointKey },
-          }));
-        }
         setConnectingFromId(null);
         setIsConnectingDrag(false);
         draftPointRef.current = null;
@@ -845,7 +814,7 @@ const DetectiveCases = () => {
         setConnectionSourceHandle(null);
       }
     },
-    [boardLinks, isCaseLocked, selectedCase]
+    [boardLinks, isBoardStructureLocked, selectedCase]
   );
 
   const handleConnectRequest = (
@@ -857,7 +826,7 @@ const DetectiveCases = () => {
       point?: ConnectionPointKey;
     }
   ) => {
-    if (isCaseLocked) {
+    if (isBoardStructureLocked) {
       setError('ویرایش تخته برای این پرونده قفل است.');
       return;
     }
@@ -959,7 +928,10 @@ const DetectiveCases = () => {
       const rawId = connectionPointElement?.getAttribute('data-item-id');
       const rawPoint = connectionPointElement?.getAttribute('data-point');
       const targetId = rawId ? Number(rawId) : null;
-      const targetPoint = isConnectionPointKey(rawPoint) ? rawPoint : undefined;
+      const targetPoint: ConnectionPointKey | undefined =
+        rawPoint === 'top' || rawPoint === 'right' || rawPoint === 'bottom' || rawPoint === 'left'
+          ? rawPoint
+          : undefined;
 
       if (targetId && targetId !== connectingFromId) {
         handleCreateBoardLink(connectingFromId, targetId, {
@@ -1194,7 +1166,7 @@ const DetectiveCases = () => {
                   <div className="summary-badges">
                     <span>{severityLabelMap[selectedCase.severity] || `سطح ${selectedCase.severity}`}</span>
                     <span>{statusLabelMap[selectedCase.status] || selectedCase.status}</span>
-                    {isCaseLocked && <span className="locked">ویرایش قفل شده</span>}
+                    {isBoardStructureLocked && <span className="locked">ویرایش ساختاری قفل شده</span>}
                   </div>
                 </section>
 
@@ -1291,7 +1263,7 @@ const DetectiveCases = () => {
                           خروجی تصویری
                         </button>
                         {selectedBoardItemId && !connectingFromId && (
-                          <button type="button" onClick={handleStartConnection} disabled={isCaseLocked}>
+                          <button type="button" onClick={handleStartConnection} disabled={isBoardStructureLocked}>
                             شروع اتصال قرمز
                           </button>
                         )}
@@ -1354,7 +1326,7 @@ const DetectiveCases = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleAddEvidenceToBoard(item.id)}
-                                  disabled={isCaseLocked || !isEvidenceReadyForBoard(item)}
+                                  disabled={isBoardStructureLocked || !isEvidenceReadyForBoard(item)}
                                   title={
                                     isEvidenceReadyForBoard(item)
                                       ? ''
@@ -1377,7 +1349,7 @@ const DetectiveCases = () => {
                             onChange={(event) => setNewBoardNote(event.target.value)}
                             placeholder="مثال: اثر انگشت روی دسته چاقو یافت شد."
                           />
-                          <button type="button" onClick={handleAddBoardNote} disabled={isCaseLocked}>
+                          <button type="button" onClick={handleAddBoardNote} disabled={isBoardStructureLocked}>
                             افزودن یادداشت
                           </button>
                         </div>
@@ -1396,14 +1368,14 @@ const DetectiveCases = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleAddPersonToBoard(person.id, 'witness')}
-                                    disabled={isCaseLocked}
+                                    disabled={isBoardStructureLocked}
                                   >
                                     شاهد
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleAddPersonToBoard(person.id, 'suspect')}
-                                    disabled={isCaseLocked}
+                                    disabled={isBoardStructureLocked}
                                   >
                                     مظنون
                                   </button>
@@ -1469,7 +1441,7 @@ const DetectiveCases = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteBoardLink(link.id)}
-                                    disabled={isCaseLocked}
+                                    disabled={isBoardStructureLocked}
                                   >
                                     حذف
                                   </button>
@@ -1497,7 +1469,6 @@ const DetectiveCases = () => {
                               items={boardItems}
                               scale={boardScale}
                               onDeleteLink={handleDeleteBoardLink}
-                              linkPointMap={linkPointMap}
                               draftLink={
                                 connectingFromId !== null && connectionDraftPoint
                                   ? {
@@ -1506,6 +1477,10 @@ const DetectiveCases = () => {
                                       to_y: connectionDraftPoint.y,
                                       from_x: connectionSourcePoint?.x,
                                       from_y: connectionSourcePoint?.y,
+                                      from_point:
+                                        connectionSourceHandle && connectionSourceHandle.itemId === connectingFromId
+                                          ? connectionSourceHandle.point
+                                          : undefined,
                                     }
                                   : null
                               }
@@ -1522,6 +1497,9 @@ const DetectiveCases = () => {
                                 isSelected={item.id === selectedBoardItemId}
                                 isConnectionSource={item.id === connectingFromId}
                                 scale={boardScale}
+                                dragDisabled={!canMoveBoardItems}
+                                connectionsDisabled={isBoardStructureLocked}
+                                deleteDisabled={isBoardStructureLocked}
                                 evidencePreviewUrl={
                                   item.item_type === 'evidence' && item.evidence
                                     ? evidencePreviewById[item.evidence] || null

@@ -71,3 +71,5 @@ export type {
 } from './chief.api';
 export { judgeApi } from './judge.api';
 export type { JudgeCase, TrialSubmissionPayload } from './judge.api';
+export { notificationsApi } from './notifications.api';
+export type { UserNotification } from './notifications.api';

@@ -20,6 +20,9 @@ interface BoardItemProps {
   isConnectionSource: boolean;
   scale: number;
   evidencePreviewUrl?: string | null;
+  dragDisabled?: boolean;
+  connectionsDisabled?: boolean;
+  deleteDisabled?: boolean;
 }
 
 const BoardItem = ({
@@ -32,6 +35,9 @@ const BoardItem = ({
   isConnectionSource,
   scale,
   evidencePreviewUrl,
+  dragDisabled = false,
+  connectionsDisabled = false,
+  deleteDisabled = false,
 }: BoardItemProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -45,6 +51,7 @@ const BoardItem = ({
   }, [evidencePreviewUrl]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (dragDisabled) return;
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('.item-delete-btn, .connection-point')) {
       return;
@@ -175,6 +182,7 @@ const BoardItem = ({
         top: `${item.position_y}px`,
         width: `${item.width}px`,
         minHeight: `${item.height}px`,
+        cursor: dragDisabled ? 'default' : undefined,
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={() => onSelect(item.id, { doubleClick: true })}
@@ -184,8 +192,10 @@ const BoardItem = ({
         <span className="item-title">{getItemTitle()}</span>
         <button
           className="item-delete-btn"
+          disabled={deleteDisabled}
           onClick={(e) => {
             e.stopPropagation();
+            if (deleteDisabled) return;
             onDelete(item.id);
           }}
           title="حذف"
@@ -214,66 +224,70 @@ const BoardItem = ({
         )}
       </div>
       {/* Connection point indicators */}
-      <div
-        className="connection-point connection-point-top"
-        data-item-id={item.id}
-        data-point="top"
-        onMouseDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onConnectRequest(item.id, {
-            clientX: event.clientX,
-            clientY: event.clientY,
-            dragStart: true,
-            point: 'top',
-          });
-        }}
-      />
-      <div
-        className="connection-point connection-point-right"
-        data-item-id={item.id}
-        data-point="right"
-        onMouseDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onConnectRequest(item.id, {
-            clientX: event.clientX,
-            clientY: event.clientY,
-            dragStart: true,
-            point: 'right',
-          });
-        }}
-      />
-      <div
-        className="connection-point connection-point-bottom"
-        data-item-id={item.id}
-        data-point="bottom"
-        onMouseDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onConnectRequest(item.id, {
-            clientX: event.clientX,
-            clientY: event.clientY,
-            dragStart: true,
-            point: 'bottom',
-          });
-        }}
-      />
-      <div
-        className="connection-point connection-point-left"
-        data-item-id={item.id}
-        data-point="left"
-        onMouseDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onConnectRequest(item.id, {
-            clientX: event.clientX,
-            clientY: event.clientY,
-            dragStart: true,
-            point: 'left',
-          });
-        }}
-      />
+      {!connectionsDisabled && (
+        <>
+          <div
+            className="connection-point connection-point-top"
+            data-item-id={item.id}
+            data-point="top"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onConnectRequest(item.id, {
+                clientX: event.clientX,
+                clientY: event.clientY,
+                dragStart: true,
+                point: 'top',
+              });
+            }}
+          />
+          <div
+            className="connection-point connection-point-right"
+            data-item-id={item.id}
+            data-point="right"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onConnectRequest(item.id, {
+                clientX: event.clientX,
+                clientY: event.clientY,
+                dragStart: true,
+                point: 'right',
+              });
+            }}
+          />
+          <div
+            className="connection-point connection-point-bottom"
+            data-item-id={item.id}
+            data-point="bottom"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onConnectRequest(item.id, {
+                clientX: event.clientX,
+                clientY: event.clientY,
+                dragStart: true,
+                point: 'bottom',
+              });
+            }}
+          />
+          <div
+            className="connection-point connection-point-left"
+            data-item-id={item.id}
+            data-point="left"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onConnectRequest(item.id, {
+                clientX: event.clientX,
+                clientY: event.clientY,
+                dragStart: true,
+                point: 'left',
+              });
+            }}
+          />
+        </>
+      )}
     </div>
   );
 };

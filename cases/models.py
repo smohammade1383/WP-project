@@ -308,9 +308,25 @@ class BoardItem(models.Model):
 
 
 class BoardLink(models.Model):
+    class ConnectionPoint(models.TextChoices):
+        TOP = "top", _("Top")
+        RIGHT = "right", _("Right")
+        BOTTOM = "bottom", _("Bottom")
+        LEFT = "left", _("Left")
+
     board = models.ForeignKey(DetectiveBoard, on_delete=models.CASCADE, related_name="links")
     from_item = models.ForeignKey(BoardItem, on_delete=models.CASCADE, related_name="out_links")
     to_item = models.ForeignKey(BoardItem, on_delete=models.CASCADE, related_name="in_links")
+    from_point = models.CharField(
+        max_length=10,
+        choices=ConnectionPoint.choices,
+        default=ConnectionPoint.RIGHT,
+    )
+    to_point = models.CharField(
+        max_length=10,
+        choices=ConnectionPoint.choices,
+        default=ConnectionPoint.LEFT,
+    )
     description = models.TextField(blank=True)
 
     def clean(self):

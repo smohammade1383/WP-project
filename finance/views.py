@@ -10,7 +10,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from cases.models import Case
+from cases.models import Case, Notification
 from evidence.models import Evidence
 from .models import PaymentTransaction, RewardReport
 from .serializers import (
@@ -48,6 +48,16 @@ def is_police_staff(user):
     return has_any_role(user, *POLICE_ROLES)
 
 
+def push_notification(*, recipient, message, case_obj=None):
+    if not recipient or not getattr(recipient, "is_active", False):
+        return
+    Notification.objects.create(
+        recipient=recipient,
+        case=case_obj,
+        message=message,
+    )
+
+
 def resolve_payment_url(request, tx):
     if tx.return_url:
         if tx.return_url.startswith(("http://", "https://")):
@@ -70,7 +80,12 @@ class RewardReportListCreateAPIView(generics.ListCreateAPIView):
         return RewardReport.objects.filter(reporter=self.request.user).select_related("reporter", "suspect_profile", "case")
 
     def perform_create(self, serializer):
-        serializer.save(reporter=self.request.user, status=RewardReport.Status.OFFICER_REVIEW)
+        report = serializer.save(reporter=self.request.user, status=RewardReport.Status.OFFICER_REVIEW)
+        push_notification(
+            recipient=self.request.user,
+            case_obj=report.case,
+            message=f"گزارش پاداش #{report.id} ثبت شد و در صف بررسی افسر قرار گرفت.",
+        )
 
 
 @extend_schema_view(
@@ -123,9 +138,16 @@ class RewardOfficerReviewAPIView(APIView):
         report.reviewed_by_officer = request.user
         if action == "reject":
             report.status = RewardReport.Status.REJECTED
+            result_message = f"گزارش پاداش #{report.id} توسط افسر رد شد."
         else:
             report.status = RewardReport.Status.DETECTIVE_REVIEW
+            result_message = f"گزارش پاداش #{report.id} توسط افسر تایید و به صف کارآگاه ارسال شد."
         report.save(update_fields=["reviewed_by_officer", "status"])
+        push_notification(
+            recipient=report.reporter,
+            case_obj=report.case,
+            message=result_message,
+        )
 
         return Response(RewardReportSerializer(report).data)
 
@@ -157,6 +179,11 @@ class RewardDetectiveReviewAPIView(APIView):
         if action == "reject":
             report.status = RewardReport.Status.REJECTED
             report.save(update_fields=["reviewed_by_detective", "status"])
+            push_notification(
+                recipient=report.reporter,
+                case_obj=report.case,
+                message=f"گزارش پاداش #{report.id} توسط کارآگاه رد شد.",
+            )
             return Response(RewardReportSerializer(report).data)
 
         if not report.suspect_profile:
@@ -179,6 +206,13 @@ class RewardDetectiveReviewAPIView(APIView):
             created_by=request.user,
         )
         report.refresh_from_db()
+        push_notification(
+            recipient=report.reporter,
+            case_obj=report.case,
+            message=(
+                f"گزارش پاداش #{report.id} تایید شد. کد رهگیری: {report.unique_code} | مبلغ: {report.reward_amount:,} ریال"
+            ),
+        )
         return Response(RewardReportSerializer(report).data)
 
 
@@ -274,6 +308,14 @@ class PaymentInitiateAPIView(APIView):
         )
 
         payment_url = resolve_payment_url(request, tx)
+        if tx.payer_id:
+            push_notification(
+                recipient=tx.payer,
+                case_obj=tx.case,
+                message=(
+                    f"تراکنش {tx.get_transaction_type_display()} #{tx.id} به مبلغ {tx.amount:,} ریال ایجاد شد."
+                ),
+            )
         return Response(
             {
                 "transaction": PaymentTransactionSerializer(tx).data,
@@ -356,6 +398,25 @@ class PaymentCallbackAPIView(APIView):
             tx.status = PaymentTransaction.Status.FAILED
             tx.paid_at = None
         tx.save(update_fields=["status", "paid_at", "callback_payload"])
+
+        if tx.payer_id:
+            push_notification(
+                recipient=tx.payer,
+                case_obj=tx.case,
+                message=(
+                    f"وضعیت تراکنش #{tx.id}: {'موفق' if tx.status == PaymentTransaction.Status.PAID else 'ناموفق'}."
+                ),
+            )
+        suspect_user = tx.suspect_profile.suspect if tx.suspect_profile_id else None
+        if suspect_user and suspect_user.id != tx.payer_id:
+            push_notification(
+                recipient=suspect_user,
+                case_obj=tx.case,
+                message=(
+                    f"وضعیت تراکنش مرتبط با پرونده شما (#{tx.id}) به "
+                    f"{'موفق' if tx.status == PaymentTransaction.Status.PAID else 'ناموفق'} تغییر کرد."
+                ),
+            )
 
         return Response(PaymentTransactionSerializer(tx).data)
 

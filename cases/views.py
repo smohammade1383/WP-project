@@ -20,6 +20,7 @@ from .models import (
     ComplaintReview,
     DetectiveBoard,
     InterrogationScore,
+    Notification,
     SecondaryComplainant,
     SuspectCaseProfile,
 )
@@ -40,6 +41,7 @@ from .serializers import (
     CrimeSceneCaseCreateSerializer,
     DetectiveBoardSerializer,
     InterrogationScoreSerializer,
+    NotificationSerializer,
     SergeantDecisionSerializer,
     SubmitToCaptainSerializer,
     SecondaryComplainantRequestSerializer,
@@ -63,6 +65,21 @@ POLICE_ROLES = {
     "Cadet",
 }
 
+BOARD_STRUCTURE_LOCKED_STATUSES = {
+    Case.Status.WARRANT_PENDING,
+    Case.Status.ARRESTED,
+    Case.Status.WAITING_CAPTAIN,
+    Case.Status.WAITING_CHIEF,
+    Case.Status.IN_COURT,
+    Case.Status.CLOSED,
+    Case.Status.VOID,
+}
+
+BOARD_MOVE_ALLOWED_STATUSES = {
+    Case.Status.OPEN,
+    Case.Status.WARRANT_PENDING,
+}
+
 
 def has_any_role(user, *roles):
     if not user or not user.is_authenticated:
@@ -70,11 +87,82 @@ def has_any_role(user, *roles):
     if user.is_superuser:
         return True
     expected = set(roles)
+    if "Sergeant" in expected:
+        expected.add("Sergent")
+    if "Sergent" in expected:
+        expected.add("Sergeant")
     return any(role in expected for role in user.role_names)
 
 
 def is_police_staff(user):
     return has_any_role(user, *POLICE_ROLES)
+
+
+def is_board_structure_locked(case_obj):
+    return case_obj.status in BOARD_STRUCTURE_LOCKED_STATUSES
+
+
+def can_move_board_items(case_obj):
+    return case_obj.status in BOARD_MOVE_ALLOWED_STATUSES
+
+
+def push_notification(*, recipient, message, case_obj=None, evidence=None):
+    if not recipient or not getattr(recipient, "is_active", False):
+        return
+    Notification.objects.create(
+        recipient=recipient,
+        case=case_obj,
+        evidence=evidence,
+        message=message,
+    )
+
+
+def latest_reviewer_for_step(complaint, step):
+    return (
+        complaint.reviews.filter(step=step)
+        .select_related("reviewer")
+        .order_by("-created_at")
+        .first()
+    )
+
+
+def get_case_detective(case_obj):
+    board = getattr(case_obj, "board", None)
+    if board and board.detective_id:
+        return board.detective
+    nomination_log = (
+        case_obj.logs.filter(action="suspects_nominated")
+        .select_related("actor")
+        .order_by("-timestamp")
+        .first()
+    )
+    return nomination_log.actor if nomination_log else None
+
+
+def latest_submitter_to_captain(case_obj):
+    submit_log = (
+        case_obj.logs.filter(action="submitted_to_captain")
+        .select_related("actor")
+        .order_by("-timestamp")
+        .first()
+    )
+    return submit_log.actor if submit_log else None
+
+
+def push_role_notification(*, role_names, message, case_obj=None, evidence=None, exclude_user_id=None):
+    normalized_roles = set(role_names)
+    if "Sergeant" in normalized_roles:
+        normalized_roles.add("Sergent")
+    if "Sergent" in normalized_roles:
+        normalized_roles.add("Sergeant")
+
+    recipients = User.objects.filter(is_active=True).filter(
+        Q(groups__name__in=normalized_roles) | Q(is_superuser=True)
+    ).distinct()
+    for recipient in recipients:
+        if exclude_user_id and recipient.id == exclude_user_id:
+            continue
+        push_notification(recipient=recipient, message=message, case_obj=case_obj, evidence=evidence)
 
 
 def can_access_case(user, case_obj):
@@ -397,6 +485,43 @@ class ComplaintSecondaryComplainantReviewAPIView(APIView):
         entry.review_message = message
         entry.save(update_fields=["status", "reviewed_by", "review_message", "updated_at"])
 
+        if decision == "approved":
+            push_notification(
+                recipient=entry.user,
+                case_obj=complaint.case,
+                message=(
+                    f"درخواست شاکی فرعی شما در شکایت #{complaint.id} تایید شد."
+                    f"{' توضیح: ' + message if message else ''}"
+                ),
+            )
+            if complaint.submitter_id != request.user.id:
+                push_notification(
+                    recipient=complaint.submitter,
+                    case_obj=complaint.case,
+                    message=(
+                        f"شاکی فرعی {entry.user.username} برای شکایت #{complaint.id} تایید شد."
+                        f"{' توضیح: ' + message if message else ''}"
+                    ),
+                )
+        else:
+            push_notification(
+                recipient=entry.user,
+                case_obj=complaint.case,
+                message=(
+                    f"درخواست شاکی فرعی شما در شکایت #{complaint.id} رد شد."
+                    f"{' توضیح: ' + message if message else ''}"
+                ),
+            )
+            if complaint.submitter_id != request.user.id:
+                push_notification(
+                    recipient=complaint.submitter,
+                    case_obj=complaint.case,
+                    message=(
+                        f"شاکی فرعی {entry.user.username} برای شکایت #{complaint.id} رد شد."
+                        f"{' توضیح: ' + message if message else ''}"
+                    ),
+                )
+
         return Response(
             {
                 "entry": SecondaryComplainantSerializer(entry).data,
@@ -446,12 +571,28 @@ class ComplaintCadetReviewAPIView(APIView):
                     Case.Status.VOID if complaint.status == Complaint.Status.VOID else Case.Status.NEEDS_COMPLAINANT_UPDATE
                 )
                 complaint.case.save(update_fields=["status", "updated_at"])
+            push_notification(
+                recipient=complaint.submitter,
+                case_obj=complaint.case,
+                message=(
+                    f"شکایت #{complaint.id} توسط کارآموز برای تکمیل برگشت داده شد."
+                    f"{' توضیح: ' + message if message else ''}"
+                ),
+            )
         elif decision == ComplaintReview.Decision.REJECTED:
             complaint.status = Complaint.Status.REJECTED
             complaint.save(update_fields=["status", "updated_at"])
             if complaint.case_id:
                 complaint.case.status = Case.Status.VOID
                 complaint.case.save(update_fields=["status", "updated_at"])
+            push_notification(
+                recipient=complaint.submitter,
+                case_obj=complaint.case,
+                message=(
+                    f"شکایت #{complaint.id} توسط کارآموز رد شد."
+                    f"{' توضیح: ' + message if message else ''}"
+                ),
+            )
         else:
             # Cadet approval only advances the complaint to officer review.
             # Case creation must happen only after officer approval.
@@ -460,6 +601,14 @@ class ComplaintCadetReviewAPIView(APIView):
             if complaint.case_id:
                 complaint.case.status = Case.Status.PENDING_OFFICER
                 complaint.case.save(update_fields=["status", "updated_at"])
+            push_notification(
+                recipient=complaint.submitter,
+                case_obj=complaint.case,
+                message=(
+                    f"شکایت #{complaint.id} توسط کارآموز تایید شد و برای بررسی افسر ارسال شد."
+                    f"{' توضیح: ' + message if message else ''}"
+                ),
+            )
 
         return Response(
             {
@@ -529,18 +678,70 @@ class ComplaintOfficerReviewAPIView(APIView):
             case_obj.approved_by = request.user
             case_obj.save(update_fields=["status", "approved_by", "updated_at"])
             promote_complaint_attachments_to_case_evidence(complaint, case_obj)
+            push_notification(
+                recipient=complaint.submitter,
+                case_obj=case_obj,
+                message=(
+                    f"شکایت #{complaint.id} توسط افسر تایید شد و پرونده #{case_obj.id} ایجاد/فعال شد."
+                    f"{' توضیح: ' + message if message else ''}"
+                ),
+            )
+            cadet_review = latest_reviewer_for_step(complaint, ComplaintReview.Step.CADET)
+            if cadet_review and cadet_review.reviewer_id != request.user.id:
+                push_notification(
+                    recipient=cadet_review.reviewer,
+                    case_obj=case_obj,
+                    message=f"شکایت #{complaint.id} پس از بررسی افسر تایید نهایی شد.",
+                )
         elif decision == ComplaintReview.Decision.RETURNED:
             complaint.status = Complaint.Status.RETURNED
             complaint.save(update_fields=["status", "updated_at"])
             if case_obj:
                 case_obj.status = Case.Status.PENDING_CADET
                 case_obj.save(update_fields=["status", "updated_at"])
+            cadet_review = latest_reviewer_for_step(complaint, ComplaintReview.Step.CADET)
+            if cadet_review and cadet_review.reviewer_id != request.user.id:
+                push_notification(
+                    recipient=cadet_review.reviewer,
+                    case_obj=case_obj,
+                    message=(
+                        f"پرونده/شکایت #{complaint.id} توسط افسر برگشت داده شد و نیاز به بررسی مجدد کارآموز دارد."
+                        f"{' توضیح: ' + message if message else ''}"
+                    ),
+                )
+            if complaint.submitter_id != request.user.id:
+                push_notification(
+                    recipient=complaint.submitter,
+                    case_obj=case_obj,
+                    message=(
+                        f"شکایت #{complaint.id} توسط افسر برگشت داده شد و در صف بررسی مجدد قرار گرفت."
+                        f"{' توضیح: ' + message if message else ''}"
+                    ),
+                )
         else:
             complaint.status = Complaint.Status.REJECTED
             complaint.save(update_fields=["status", "updated_at"])
             if case_obj:
                 case_obj.status = Case.Status.VOID
                 case_obj.save(update_fields=["status", "updated_at"])
+            cadet_review = latest_reviewer_for_step(complaint, ComplaintReview.Step.CADET)
+            if cadet_review and cadet_review.reviewer_id != request.user.id:
+                push_notification(
+                    recipient=cadet_review.reviewer,
+                    case_obj=case_obj,
+                    message=(
+                        f"شکایت #{complaint.id} توسط افسر رد نهایی شد."
+                        f"{' توضیح: ' + message if message else ''}"
+                    ),
+                )
+            push_notification(
+                recipient=complaint.submitter,
+                case_obj=case_obj,
+                message=(
+                    f"شکایت #{complaint.id} توسط افسر رد شد."
+                    f"{' توضیح: ' + message if message else ''}"
+                ),
+            )
 
         return Response(
             {
@@ -625,6 +826,12 @@ class CrimeSceneCaseApproveAPIView(APIView):
         case_obj.status = Case.Status.OPEN
         case_obj.approved_by = request.user
         case_obj.save(update_fields=["status", "approved_by", "updated_at"])
+        if case_obj.created_by_id != request.user.id:
+            push_notification(
+                recipient=case_obj.created_by,
+                case_obj=case_obj,
+                message=f"پرونده صحنه جرم #{case_obj.id} توسط مافوق تایید شد.",
+            )
         return Response(CaseSerializer(case_obj, context={"request": request}).data)
 
 
@@ -665,6 +872,8 @@ class BoardItemListCreateAPIView(APIView):
         case_obj = get_object_or_404(Case, id=case_id)
         if not has_any_role(request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can manage board items.")
+        if is_board_structure_locked(case_obj):
+            raise PermissionDenied("Board structure is locked for this case status.")
         board = ensure_board_for_case(case_obj, request.user)
 
         serializer = BoardItemSerializer(data=request.data)
@@ -691,11 +900,20 @@ class BoardItemRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVie
     def perform_update(self, serializer):
         if not has_any_role(self.request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can update board items.")
+        case_obj = serializer.instance.board.case
+        changed_fields = set(serializer.validated_data.keys())
+        if is_board_structure_locked(case_obj):
+            if not can_move_board_items(case_obj):
+                raise PermissionDenied("Board item updates are locked for this case status.")
+            if not changed_fields.issubset({"position_x", "position_y"}):
+                raise PermissionDenied("Only board item position can be changed in this case status.")
         serializer.save()
 
     def perform_destroy(self, instance):
         if not has_any_role(self.request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can delete board items.")
+        if is_board_structure_locked(instance.board.case):
+            raise PermissionDenied("Board structure is locked for this case status.")
         instance.delete()
 
 
@@ -719,6 +937,8 @@ class BoardLinkListCreateAPIView(APIView):
         case_obj = get_object_or_404(Case, id=case_id)
         if not has_any_role(request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can manage board links.")
+        if is_board_structure_locked(case_obj):
+            raise PermissionDenied("Board structure is locked for this case status.")
         board = ensure_board_for_case(case_obj, request.user)
         serializer = BoardLinkSerializer(data=request.data, context={"board": board})
         serializer.is_valid(raise_exception=True)
@@ -735,6 +955,8 @@ class BoardLinkDestroyAPIView(generics.DestroyAPIView):
     def perform_destroy(self, instance):
         if not has_any_role(self.request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can delete board links.")
+        if is_board_structure_locked(instance.board.case):
+            raise PermissionDenied("Board structure is locked for this case status.")
         instance.delete()
 
 
@@ -755,6 +977,8 @@ class BoardConnectionListCreateAPIView(generics.ListCreateAPIView):
         if not has_any_role(self.request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can manage board connections.")
         case_obj = get_object_or_404(Case, id=self.kwargs["case_id"])
+        if is_board_structure_locked(case_obj):
+            raise PermissionDenied("Board structure is locked for this case status.")
         board = ensure_board_for_case(case_obj, self.request.user)
         serializer.save(board=board)
 
@@ -768,6 +992,8 @@ class BoardConnectionDestroyAPIView(generics.DestroyAPIView):
     def perform_destroy(self, instance):
         if not has_any_role(self.request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can delete board connections.")
+        if is_board_structure_locked(instance.board.case):
+            raise PermissionDenied("Board structure is locked for this case status.")
         instance.delete()
 
 
@@ -799,6 +1025,15 @@ class SuspectNominationAPIView(APIView):
         case_obj.status = Case.Status.WARRANT_PENDING
         case_obj.save(update_fields=["status", "updated_at"])
         CaseLog.objects.create(case=case_obj, actor=request.user, action="suspects_nominated", description=summary)
+        push_role_notification(
+            role_names=("Sergeant", "Administrator"),
+            case_obj=case_obj,
+            exclude_user_id=request.user.id,
+            message=(
+                f"کارآگاه برای پرونده #{case_obj.id} مظنون معرفی کرد و منتظر تصمیم گروهبان است."
+                f"{' توضیح: ' + summary if summary else ''}"
+            ),
+        )
 
         return Response(SuspectCaseProfileSerializer(profiles, many=True).data)
 
@@ -835,6 +1070,26 @@ class SergeantDecisionAPIView(APIView):
             action="sergeant_decision",
             description=message or ("approved" if approved else "rejected"),
         )
+        detective_user = get_case_detective(case_obj)
+        if detective_user and detective_user.id != request.user.id:
+            if approved:
+                push_notification(
+                    recipient=detective_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"مظنون‌های معرفی‌شده در پرونده #{case_obj.id} توسط گروهبان تایید شدند."
+                        f"{' توضیح: ' + message if message else ''}"
+                    ),
+                )
+            else:
+                push_notification(
+                    recipient=detective_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"درخواست معرفی مظنون برای پرونده #{case_obj.id} توسط گروهبان رد شد و پرونده به کارآگاه برگشت."
+                        f"{' توضیح: ' + message if message else ''}"
+                    ),
+                )
         return Response({"case_id": case_obj.id, "approved": approved, "message": message})
 
 
@@ -919,6 +1174,8 @@ class CaptainDecisionCreateAPIView(APIView):
             is_confirmed=is_confirmed,
             summary=summary,
         )
+        submitter_user = latest_submitter_to_captain(case_obj)
+        detective_user = get_case_detective(case_obj)
 
         if case_obj.severity == Case.Severity.CRITICAL and has_any_role(request.user, "Chief", "Administrator"):
             decision.chief = request.user
@@ -931,6 +1188,24 @@ class CaptainDecisionCreateAPIView(APIView):
                 action="chief_auto_decision",
                 description="critical case finalized by chief role at captain step",
             )
+            if submitter_user and submitter_user.id != request.user.id:
+                push_notification(
+                    recipient=submitter_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"پرونده بحرانی #{case_obj.id} توسط رئیس پلیس {'تایید' if is_confirmed else 'رد'} شد."
+                        f"{' توضیح: ' + summary if summary else ''}"
+                    ),
+                )
+            if detective_user and detective_user.id != request.user.id:
+                push_notification(
+                    recipient=detective_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"پرونده بحرانی #{case_obj.id} توسط رئیس پلیس {'تایید' if is_confirmed else 'رد'} شد."
+                        f"{' توضیح: ' + summary if summary else ''}"
+                    ),
+                )
         elif case_obj.severity == Case.Severity.CRITICAL:
             if is_confirmed:
                 case_obj.status = Case.Status.WAITING_CHIEF
@@ -940,6 +1215,30 @@ class CaptainDecisionCreateAPIView(APIView):
                     action="captain_escalate_chief",
                     description=summary or "Escalated to chief for critical confirmation.",
                 )
+                if submitter_user and submitter_user.id != request.user.id:
+                    push_notification(
+                        recipient=submitter_user,
+                        case_obj=case_obj,
+                        message=(
+                            f"پرونده بحرانی #{case_obj.id} توسط کاپیتان تایید و برای رئیس پلیس ارسال شد."
+                            f"{' توضیح: ' + summary if summary else ''}"
+                        ),
+                    )
+                if detective_user and detective_user.id != request.user.id:
+                    push_notification(
+                        recipient=detective_user,
+                        case_obj=case_obj,
+                        message=(
+                            f"پرونده بحرانی #{case_obj.id} توسط کاپیتان تایید و برای رئیس پلیس ارسال شد."
+                            f"{' توضیح: ' + summary if summary else ''}"
+                        ),
+                    )
+                push_role_notification(
+                    role_names=("Chief", "Administrator"),
+                    case_obj=case_obj,
+                    exclude_user_id=request.user.id,
+                    message=f"پرونده بحرانی #{case_obj.id} در صف تایید رئیس پلیس قرار گرفت.",
+                )
             else:
                 case_obj.status = Case.Status.ARRESTED
                 CaseLog.objects.create(
@@ -948,6 +1247,24 @@ class CaptainDecisionCreateAPIView(APIView):
                     action="captain_reject",
                     description=summary or "Returned to sergeant queue for review.",
                 )
+                if submitter_user and submitter_user.id != request.user.id:
+                    push_notification(
+                        recipient=submitter_user,
+                        case_obj=case_obj,
+                        message=(
+                            f"پرونده #{case_obj.id} توسط کاپیتان رد شد و به صف گروهبان برگشت."
+                            f"{' توضیح: ' + summary if summary else ''}"
+                        ),
+                    )
+                if detective_user and detective_user.id != request.user.id:
+                    push_notification(
+                        recipient=detective_user,
+                        case_obj=case_obj,
+                        message=(
+                            f"پرونده #{case_obj.id} توسط کاپیتان رد شد و به صف گروهبان برگشت."
+                            f"{' توضیح: ' + summary if summary else ''}"
+                        ),
+                    )
         elif is_confirmed:
             case_obj.status = Case.Status.IN_COURT
             CaseLog.objects.create(
@@ -956,6 +1273,24 @@ class CaptainDecisionCreateAPIView(APIView):
                 action="captain_prosecute",
                 description=summary or "Sent to court.",
             )
+            if submitter_user and submitter_user.id != request.user.id:
+                push_notification(
+                    recipient=submitter_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"پرونده #{case_obj.id} توسط کاپیتان تایید و به دادگاه ارسال شد."
+                        f"{' توضیح: ' + summary if summary else ''}"
+                    ),
+                )
+            if detective_user and detective_user.id != request.user.id:
+                push_notification(
+                    recipient=detective_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"پرونده #{case_obj.id} توسط کاپیتان تایید و به دادگاه ارسال شد."
+                        f"{' توضیح: ' + summary if summary else ''}"
+                    ),
+                )
         else:
             case_obj.status = Case.Status.ARRESTED
             CaseLog.objects.create(
@@ -964,6 +1299,24 @@ class CaptainDecisionCreateAPIView(APIView):
                 action="captain_reject",
                 description=summary or "Returned to sergeant queue for review.",
             )
+            if submitter_user and submitter_user.id != request.user.id:
+                push_notification(
+                    recipient=submitter_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"پرونده #{case_obj.id} توسط کاپیتان رد شد و به صف گروهبان برگشت."
+                        f"{' توضیح: ' + summary if summary else ''}"
+                    ),
+                )
+            if detective_user and detective_user.id != request.user.id:
+                push_notification(
+                    recipient=detective_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"پرونده #{case_obj.id} توسط کاپیتان رد شد و به صف گروهبان برگشت."
+                        f"{' توضیح: ' + summary if summary else ''}"
+                    ),
+                )
         case_obj.save(update_fields=["status", "updated_at"])
 
         return Response(CaptainDecisionSerializer(decision).data, status=status.HTTP_201_CREATED)
@@ -998,6 +1351,8 @@ class ChiefDecisionAPIView(APIView):
         if note:
             decision.summary = f"{decision.summary}\nChief note: {note}".strip()
         decision.save(update_fields=["chief", "chief_confirmed", "summary"])
+        submitter_user = latest_submitter_to_captain(case_obj)
+        detective_user = get_case_detective(case_obj)
 
         if decision.is_confirmed and decision.chief_confirmed:
             case_obj.status = Case.Status.IN_COURT
@@ -1007,6 +1362,33 @@ class ChiefDecisionAPIView(APIView):
                 action="chief_confirmed",
                 description="Chief confirmed captain decision and sent to court.",
             )
+            if decision.captain_id and decision.captain_id != request.user.id:
+                push_notification(
+                    recipient=decision.captain,
+                    case_obj=case_obj,
+                    message=(
+                        f"تصمیم پرونده بحرانی #{case_obj.id} توسط رئیس پلیس تایید و به دادگاه ارسال شد."
+                        f"{' توضیح: ' + note if note else ''}"
+                    ),
+                )
+            if submitter_user and submitter_user.id != request.user.id:
+                push_notification(
+                    recipient=submitter_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"پرونده بحرانی #{case_obj.id} توسط رئیس پلیس تایید و به دادگاه ارسال شد."
+                        f"{' توضیح: ' + note if note else ''}"
+                    ),
+                )
+            if detective_user and detective_user.id != request.user.id:
+                push_notification(
+                    recipient=detective_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"پرونده بحرانی #{case_obj.id} توسط رئیس پلیس تایید و به دادگاه ارسال شد."
+                        f"{' توضیح: ' + note if note else ''}"
+                    ),
+                )
         else:
             case_obj.status = Case.Status.ARRESTED
             CaseLog.objects.create(
@@ -1015,6 +1397,33 @@ class ChiefDecisionAPIView(APIView):
                 action="chief_rejected",
                 description="Chief rejected captain decision and returned to sergeant queue.",
             )
+            if decision.captain_id and decision.captain_id != request.user.id:
+                push_notification(
+                    recipient=decision.captain,
+                    case_obj=case_obj,
+                    message=(
+                        f"تصمیم پرونده بحرانی #{case_obj.id} توسط رئیس پلیس رد شد و پرونده از دادگاه به صف گروهبان برگشت."
+                        f"{' توضیح: ' + note if note else ''}"
+                    ),
+                )
+            if submitter_user and submitter_user.id != request.user.id:
+                push_notification(
+                    recipient=submitter_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"پرونده بحرانی #{case_obj.id} توسط رئیس پلیس رد شد و به صف گروهبان برگشت."
+                        f"{' توضیح: ' + note if note else ''}"
+                    ),
+                )
+            if detective_user and detective_user.id != request.user.id:
+                push_notification(
+                    recipient=detective_user,
+                    case_obj=case_obj,
+                    message=(
+                        f"پرونده بحرانی #{case_obj.id} توسط رئیس پلیس رد شد و به صف گروهبان برگشت."
+                        f"{' توضیح: ' + note if note else ''}"
+                    ),
+                )
         case_obj.save(update_fields=["status", "updated_at"])
 
         return Response(CaptainDecisionSerializer(decision).data)
@@ -1083,6 +1492,40 @@ class DetectiveNotificationListAPIView(APIView):
             for log in notifications
         ]
         return Response(data)
+
+
+@extend_schema(tags=["Notifications"], summary="List current user notifications", responses={200: NotificationSerializer(many=True)})
+class NotificationListAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        queryset = (
+            Notification.objects.filter(recipient=request.user)
+            .select_related("case", "evidence")
+            .order_by("-created_at")
+        )
+        return Response(NotificationSerializer(queryset, many=True).data)
+
+
+@extend_schema(tags=["Notifications"], summary="Mark single notification as read", responses={200: NotificationSerializer})
+class NotificationMarkReadAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, notification_id):
+        notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
+        if not notification.is_read:
+            notification.is_read = True
+            notification.save(update_fields=["is_read"])
+        return Response(NotificationSerializer(notification).data)
+
+
+@extend_schema(tags=["Notifications"], summary="Mark all user notifications as read", responses={200: OpenApiTypes.OBJECT})
+class NotificationMarkAllReadAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        updated = Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+        return Response({"updated": updated})
 
 
 @extend_schema(
@@ -1175,6 +1618,12 @@ class SergeantSubmitToCaptainAPIView(APIView):
             actor=request.user,
             action="submitted_to_captain",
             description=message or "Submitted by sergeant to captain queue.",
+        )
+        push_role_notification(
+            role_names=("Captain", "Administrator"),
+            case_obj=case_obj,
+            exclude_user_id=request.user.id,
+            message=f"پرونده #{case_obj.id} برای تصمیم نهایی در صف کاپیتان قرار گرفت.",
         )
 
         return Response(

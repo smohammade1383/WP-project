@@ -26,6 +26,9 @@ from .views import (
     DetectiveBoardDetailAPIView,
     DetectiveNotificationListAPIView,
     InterrogationScoreCreateAPIView,
+    NotificationListAPIView,
+    NotificationMarkAllReadAPIView,
+    NotificationMarkReadAPIView,
     SergeantDecisionAPIView,
     SergeantSubmitToCaptainAPIView,
     SuspectProfileListAPIView,
@@ -82,6 +85,9 @@ urlpatterns = [
     path("suspect-profiles/<int:profile_id>/wanted/", SuspectWantedUpdateAPIView.as_view(), name="suspect-wanted-update"),
 
     path("notifications/detective/", DetectiveNotificationListAPIView.as_view(), name="detective-notifications"),
+    path("notifications/", NotificationListAPIView.as_view(), name="notifications-list"),
+    path("notifications/read-all/", NotificationMarkAllReadAPIView.as_view(), name="notifications-read-all"),
+    path("notifications/<int:notification_id>/read/", NotificationMarkReadAPIView.as_view(), name="notifications-mark-read"),
     path("wanted/severe-tracking/", SevereTrackingListAPIView.as_view(), name="severe-tracking-list"),
 
     path("stats/aggregated/", AggregatedStatsAPIView.as_view(), name="aggregated-stats"),

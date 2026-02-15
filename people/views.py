@@ -6,7 +6,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from cases.models import Case, SuspectCaseProfile
+from cases.models import Case, Notification, SuspectCaseProfile
 from .models import CitizenTip
 from .serializers import (
     AggregatedStatsSerializer,
@@ -37,6 +37,16 @@ def has_any_role(user, *roles):
         return True
     expected = set(roles)
     return any(role in expected for role in user.role_names)
+
+
+def push_notification(*, recipient, message, case_obj=None):
+    if not recipient or not getattr(recipient, "is_active", False):
+        return
+    Notification.objects.create(
+        recipient=recipient,
+        case=case_obj,
+        message=message,
+    )
 
 
 def _refresh_severe_tracking(profiles):
@@ -128,6 +138,11 @@ class CitizenTipListCreateAPIView(APIView):
         serializer = CitizenTipSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         tip = serializer.save(reporter=request.user, status=CitizenTip.Status.OFFICER_REVIEW)
+        push_notification(
+            recipient=request.user,
+            case_obj=tip.case,
+            message=f"گزارش مردمی #{tip.id} با موفقیت ثبت شد و در صف بررسی افسر قرار گرفت.",
+        )
         return Response(CitizenTipSerializer(tip).data, status=status.HTTP_201_CREATED)
 
 
@@ -159,6 +174,14 @@ class CitizenTipOfficerReviewAPIView(APIView):
         tip.officer_reviewer = request.user
         tip.status = CitizenTip.Status.DETECTIVE_REVIEW if approved else CitizenTip.Status.OFFICER_REVIEW
         tip.save(update_fields=["officer_reviewer", "status"])
+        push_notification(
+            recipient=tip.reporter,
+            case_obj=tip.case,
+            message=(
+                f"گزارش مردمی #{tip.id} توسط افسر {'تایید' if approved else 'رد'} شد."
+                f"{' و به صف کارآگاه رفت.' if approved else ''}"
+            ),
+        )
         return Response(CitizenTipSerializer(tip).data)
 
 
@@ -182,4 +205,11 @@ class CitizenTipDetectiveReviewAPIView(APIView):
         tip.detective_reviewer = request.user
         tip.status = CitizenTip.Status.APPROVED if approved else CitizenTip.Status.OFFICER_REVIEW
         tip.save(update_fields=["detective_reviewer", "status"])
+        push_notification(
+            recipient=tip.reporter,
+            case_obj=tip.case,
+            message=(
+                f"گزارش مردمی #{tip.id} توسط کارآگاه {'تایید نهایی' if approved else 'رد'} شد."
+            ),
+        )
         return Response(CitizenTipSerializer(tip).data)

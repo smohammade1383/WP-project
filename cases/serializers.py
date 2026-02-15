@@ -13,6 +13,7 @@ from .models import (
     ComplaintReview,
     DetectiveBoard,
     InterrogationScore,
+    Notification,
     SecondaryComplainant,
     SuspectCaseProfile,
 )
@@ -382,7 +383,7 @@ class BoardItemSerializer(serializers.ModelSerializer):
 class BoardLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = BoardLink
-        fields = ("id", "board", "from_item", "to_item", "description")
+        fields = ("id", "board", "from_item", "to_item", "from_point", "to_point", "description")
         read_only_fields = ("board",)
 
     def validate(self, attrs):
@@ -536,3 +537,21 @@ class ChiefDecisionSerializer(serializers.Serializer):
 class BreakdownStatsSerializer(serializers.Serializer):
     by_severity = serializers.DictField(child=serializers.IntegerField())
     by_status = serializers.DictField(child=serializers.IntegerField())
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    case_id = serializers.IntegerField(source="case.id", read_only=True)
+    case_title = serializers.CharField(source="case.title", read_only=True)
+    evidence_id = serializers.IntegerField(source="evidence.id", read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = (
+            "id",
+            "message",
+            "is_read",
+            "created_at",
+            "case_id",
+            "case_title",
+            "evidence_id",
+        )
