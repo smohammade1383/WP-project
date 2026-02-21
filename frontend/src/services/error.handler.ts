@@ -60,13 +60,44 @@ export class ErrorHandler {
     const payload =
       typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : null;
 
+    const readString = (value: unknown): string | null => {
+      if (typeof value === 'string' && value.trim()) return value;
+      if (Array.isArray(value) && value.length > 0) {
+        const first = value[0];
+        if (typeof first === 'string' && first.trim()) return first;
+      }
+      if (value && typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+        if (typeof record.message === 'string' && record.message.trim()) return record.message;
+      }
+      return null;
+    };
+
     // Try to get message from response data
-    if (typeof payload?.message === 'string' && payload.message.trim()) {
-      return payload.message;
+    const topMessage = readString(payload?.message);
+    if (topMessage) {
+      return topMessage;
     }
 
-    if (typeof payload?.detail === 'string' && payload.detail.trim()) {
-      return payload.detail;
+    const detailMessage = readString(payload?.detail);
+    if (detailMessage) {
+      return detailMessage;
+    }
+
+    if (payload?.errors) {
+      const errorsMessage = readString(payload.errors);
+      if (errorsMessage) {
+        return errorsMessage;
+      }
+    }
+
+    if (payload) {
+      for (const value of Object.values(payload)) {
+        const candidate = readString(value);
+        if (candidate) {
+          return candidate;
+        }
+      }
     }
 
     // Default messages based on status code

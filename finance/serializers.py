@@ -128,7 +128,7 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
 
 class PaymentInitiateSerializer(serializers.Serializer):
     suspect_profile = serializers.PrimaryKeyRelatedField(queryset=PaymentTransaction._meta.get_field("suspect_profile").related_model.objects.all())
-    amount = serializers.IntegerField(min_value=1)
+    amount = serializers.IntegerField(min_value=1, max_value=2_000_000_000)
     transaction_type = serializers.ChoiceField(choices=PaymentTransaction.TransactionType.choices)
     return_url = serializers.URLField(required=False, allow_blank=True)
     sergeant_approved = serializers.BooleanField(required=False, default=False)
@@ -140,7 +140,7 @@ class BailRequestSerializer(serializers.Serializer):
         queryset=SuspectCaseProfile.objects.select_related("case", "suspect").all(),
         required=False,
     )
-    amount = serializers.IntegerField(min_value=1, required=False)
+    amount = serializers.IntegerField(min_value=1, max_value=2_000_000_000, required=False)
     description = serializers.CharField(required=False, allow_blank=True, max_length=255)
     return_url = serializers.URLField(required=False, allow_blank=True)
     sergeant_approved = serializers.BooleanField(required=False, default=False)

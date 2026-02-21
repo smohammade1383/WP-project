@@ -180,3 +180,173 @@ class PaymentPolicyRulesTests(APITestCase):
         self.assertEqual(allowed.status_code, status.HTTP_201_CREATED)
         self.assertIn("authority", allowed.data)
         self.assertIn("start_url", allowed.data)
+
+    @patch("finance.views.zarinpal_request_payment")
+    def test_sergeant_cannot_pay_transaction_owned_by_suspect(self, mocked_request):
+        mocked_request.return_value = {
+            "data": {
+                "code": 100,
+                "authority": "A000000000000000000000000000000997",
+            }
+        }
+
+        _, suspect, profile = self._create_profile(severity=Case.Severity.LEVEL_2, arrested=True)
+        sergeant = self._create_user("sergeant_cannot_pay", roles=["Sergeant"])
+
+        profile.case.assigned_sergeant = sergeant
+        profile.case.save(update_fields=["assigned_sergeant", "updated_at"])
+
+        self.client.force_authenticate(sergeant)
+        init_resp = self.client.post(
+            reverse("payment-initiate"),
+            {
+                "suspect_profile": profile.id,
+                "amount": 1_700_000,
+                "transaction_type": PaymentTransaction.TransactionType.BAIL,
+            },
+            format="json",
+        )
+        self.assertEqual(init_resp.status_code, status.HTTP_201_CREATED)
+        tx_id = init_resp.data["transaction"]["id"]
+
+        bail_denied = self.client.post(
+            reverse("bail-request"),
+            {"transaction_id": tx_id},
+            format="json",
+        )
+        self.assertEqual(bail_denied.status_code, status.HTTP_403_FORBIDDEN)
+
+        start_denied = self.client.post(
+            reverse("payment-start", kwargs={"transaction_id": tx_id}),
+            {},
+            format="json",
+        )
+        self.assertEqual(start_denied.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(suspect)
+        suspect_allowed = self.client.post(
+            reverse("bail-request"),
+            {"transaction_id": tx_id},
+            format="json",
+        )
+        self.assertEqual(suspect_allowed.status_code, status.HTTP_201_CREATED)
+
+    def test_paid_bail_does_not_force_rearrest_or_rescoring_for_captain_handoff(self):
+        officer, suspect, profile = self._create_profile(severity=Case.Severity.LEVEL_2, arrested=True)
+        detective = self._create_user("detective_bail_flow", roles=["Detective"])
+        sergeant = self._create_user("sergeant_bail_flow", roles=["Sergeant"])
+
+        case_obj = profile.case
+        case_obj.assigned_detective = detective
+        case_obj.assigned_sergeant = sergeant
+        case_obj.status = Case.Status.ARRESTED
+        case_obj.save(update_fields=["assigned_detective", "assigned_sergeant", "status", "updated_at"])
+
+        profile.arrest_warrant_issued = True
+        profile.save(update_fields=["arrest_warrant_issued"])
+
+        self.client.force_authenticate(detective)
+        detective_score = self.client.post(
+            reverse("suspect-score", kwargs={"profile_id": profile.id}),
+            {"scorer_role": "detective", "score": 8, "notes": "Detective score before payment"},
+            format="json",
+        )
+        self.assertEqual(detective_score.status_code, status.HTTP_201_CREATED)
+
+        self.client.force_authenticate(sergeant)
+        sergeant_score = self.client.post(
+            reverse("suspect-score", kwargs={"profile_id": profile.id}),
+            {"scorer_role": "sergeant", "score": 7, "notes": "Sergeant score before payment"},
+            format="json",
+        )
+        self.assertEqual(sergeant_score.status_code, status.HTTP_201_CREATED)
+
+        init_resp = self.client.post(
+            reverse("payment-initiate"),
+            {
+                "suspect_profile": profile.id,
+                "amount": 1_400_000,
+                "transaction_type": PaymentTransaction.TransactionType.BAIL,
+            },
+            format="json",
+        )
+        self.assertEqual(init_resp.status_code, status.HTTP_201_CREATED)
+        tx_ref = init_resp.data["transaction"]["gateway_reference"]
+
+        self.client.force_authenticate(None)
+        callback_resp = self.client.post(
+            reverse("payment-callback"),
+            {
+                "gateway_reference": tx_ref,
+                "status": "paid",
+                "payload": {"provider": "simulated", "trace": "ok"},
+            },
+            format="json",
+        )
+        self.assertEqual(callback_resp.status_code, status.HTTP_200_OK)
+
+        profile.refresh_from_db()
+        self.assertFalse(profile.is_arrested)
+        self.assertFalse(profile.is_bail_allowed)
+        self.assertIsNone(profile.bail_amount)
+
+        self.client.force_authenticate(sergeant)
+        submit_resp = self.client.post(
+            reverse("submit-to-captain", kwargs={"case_id": case_obj.id}),
+            {"message": "Scores are already complete, proceed after bail payment"},
+            format="json",
+        )
+        self.assertEqual(submit_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(submit_resp.data["case"]["status"], Case.Status.WAITING_CAPTAIN)
+        self.assertEqual(submit_resp.data["submitted_profiles"], 1)
+
+    def test_sergeant_cannot_reconfigure_bail_after_successful_payment(self):
+        _, suspect, profile = self._create_profile(severity=Case.Severity.LEVEL_2, arrested=True)
+        sergeant = self._create_user("sergeant_no_rebill", roles=["Sergeant"])
+        case_obj = profile.case
+        case_obj.assigned_sergeant = sergeant
+        case_obj.save(update_fields=["assigned_sergeant", "updated_at"])
+
+        self.client.force_authenticate(sergeant)
+        init_resp = self.client.post(
+            reverse("payment-initiate"),
+            {
+                "suspect_profile": profile.id,
+                "amount": 1_800_000,
+                "transaction_type": PaymentTransaction.TransactionType.BAIL,
+            },
+            format="json",
+        )
+        self.assertEqual(init_resp.status_code, status.HTTP_201_CREATED)
+        tx_ref = init_resp.data["transaction"]["gateway_reference"]
+
+        self.client.force_authenticate(None)
+        paid_resp = self.client.post(
+            reverse("payment-callback"),
+            {
+                "gateway_reference": tx_ref,
+                "status": "paid",
+                "payload": {"provider": "simulated", "trace": "paid"},
+            },
+            format="json",
+        )
+        self.assertEqual(paid_resp.status_code, status.HTTP_200_OK)
+
+        self.client.force_authenticate(sergeant)
+        denied_policy = self.client.post(
+            reverse("suspect-bail-policy", kwargs={"profile_id": profile.id}),
+            {"is_bail_allowed": True, "bail_amount": 2_000_000},
+            format="json",
+        )
+        self.assertEqual(denied_policy.status_code, status.HTTP_400_BAD_REQUEST)
+
+        denied_initiate = self.client.post(
+            reverse("payment-initiate"),
+            {
+                "suspect_profile": profile.id,
+                "amount": 2_000_000,
+                "transaction_type": PaymentTransaction.TransactionType.BAIL,
+            },
+            format="json",
+        )
+        self.assertEqual(denied_initiate.status_code, status.HTTP_400_BAD_REQUEST)

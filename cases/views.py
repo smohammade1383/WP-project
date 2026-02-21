@@ -1227,6 +1227,15 @@ class SuspectBailPolicyUpdateAPIView(APIView):
         data = serializer.validated_data
 
         if data["is_bail_allowed"]:
+            already_paid = profile.paymenttransaction_set.filter(
+                status="paid",
+                transaction_type__in=["bail", "fine"],
+            ).exists()
+            if already_paid:
+                raise ValidationError(
+                    {"detail": "Bail/fine was already paid for this profile and cannot be configured again."}
+                )
+
             if not profile.is_arrested:
                 raise ValidationError({"detail": "Bail policy can be enabled only for arrested profiles."})
 
@@ -1357,12 +1366,14 @@ class SergeantSubmitToCaptainAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         message = serializer.validated_data.get("message", "").strip()
 
-        arrested_profiles = list(case_obj.suspect_profiles.filter(is_arrested=True))
-        if not arrested_profiles:
-            raise ValidationError({"detail": "At least one arrested suspect is required before captain handoff."})
+        candidate_profiles = list(case_obj.suspect_profiles.filter(arrest_warrant_issued=True))
+        if not candidate_profiles:
+            raise ValidationError(
+                {"detail": "At least one warrant-issued suspect profile is required before captain handoff."}
+            )
 
         missing_scores = []
-        for profile in arrested_profiles:
+        for profile in candidate_profiles:
             has_detective_score = profile.scores.filter(scorer_role=InterrogationScore.ScorerRole.DETECTIVE).exists()
             has_sergeant_score = profile.scores.filter(scorer_role=InterrogationScore.ScorerRole.SERGEANT).exists()
             if not has_detective_score or not has_sergeant_score:
@@ -1396,7 +1407,7 @@ class SergeantSubmitToCaptainAPIView(APIView):
         return Response(
             {
                 "case": CaseSerializer(case_obj, context={"request": request}).data,
-                "submitted_profiles": len(arrested_profiles),
+                "submitted_profiles": len(candidate_profiles),
                 "message": message,
             }
         )

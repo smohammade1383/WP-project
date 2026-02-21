@@ -120,6 +120,8 @@ class BailZarinPalFlowTests(APITestCase):
         profile.refresh_from_db()
         self.assertEqual(tx.status, PaymentTransaction.Status.PAID)
         self.assertFalse(profile.is_arrested)
+        self.assertFalse(profile.is_bail_allowed)
+        self.assertIsNone(profile.bail_amount)
         self.assertIsNotNone(tx.paid_at)
 
     def test_bail_verify_failed_status_marks_transaction_failed(self):

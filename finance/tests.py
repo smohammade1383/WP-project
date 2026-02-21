@@ -137,6 +137,26 @@ class FinanceFlowAPITests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
         self.assertEqual(resp.data["transaction"]["status"], PaymentTransaction.Status.INITIATED)
 
+    def test_payment_initiate_rejects_amount_above_zarinpal_limit(self):
+        officer = self._create_user("officer_amount_limit", roles=["Police Officer"])
+        sergeant = self._create_user("sergeant_amount_limit", roles=["Sergeant"])
+        suspect = self._create_user("suspect_amount_limit")
+        _, profile = self._create_case_and_profile(officer, suspect, Case.Severity.LEVEL_2)
+        profile.is_arrested = True
+        profile.save(update_fields=["is_arrested"])
+
+        self.client.force_authenticate(sergeant)
+        resp = self.client.post(
+            reverse("payment-initiate"),
+            {
+                "suspect_profile": profile.id,
+                "amount": 2_000_000_001,
+                "transaction_type": PaymentTransaction.TransactionType.BAIL,
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_payment_initiate_rejects_invalid_severity_for_suspect(self):
         officer = self._create_user("officer4", roles=["Police Officer"])
         sergeant = self._create_user("sergeant4", roles=["Sergeant"])
@@ -285,3 +305,5 @@ class FinanceFlowAPITests(APITestCase):
         self.assertEqual(callback_resp.status_code, status.HTTP_200_OK)
         profile.refresh_from_db()
         self.assertFalse(profile.is_arrested)
+        self.assertFalse(profile.is_bail_allowed)
+        self.assertIsNone(profile.bail_amount)

@@ -440,7 +440,12 @@ class WantedUpdateSerializer(serializers.Serializer):
 
 class SuspectBailPolicySerializer(serializers.Serializer):
     is_bail_allowed = serializers.BooleanField()
-    bail_amount = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    bail_amount = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+        max_value=2_000_000_000,
+    )
 
     def validate(self, attrs):
         is_bail_allowed = attrs["is_bail_allowed"]

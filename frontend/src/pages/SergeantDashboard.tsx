@@ -118,6 +118,10 @@ const hasDetectiveScore = (profile: SergeantSuspectProfile): boolean =>
 const hasSergeantScore = (profile: SergeantSuspectProfile): boolean =>
   profile.scores.some((score) => score.scorer_role === 'sergeant');
 
+const hasAnyInterrogationScore = (profile: SergeantSuspectProfile): boolean => profile.scores.length > 0;
+
+const ZARINPAL_MAX_AMOUNT = 2_000_000_000;
+
 const SergeantDashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -138,7 +142,6 @@ const SergeantDashboard = () => {
   const [notesByProfile, setNotesByProfile] = useState<Record<number, string>>({});
   const [bailAmountByProfile, setBailAmountByProfile] = useState<Record<number, string>>({});
   const [bailTypeByProfile, setBailTypeByProfile] = useState<Record<number, 'bail' | 'fine'>>({});
-  const [paymentLinkByProfile, setPaymentLinkByProfile] = useState<Record<number, string>>({});
   const [captainMessageByCase, setCaptainMessageByCase] = useState<Record<number, string>>({});
   const [detailCaseId, setDetailCaseId] = useState<number | null>(null);
   const [detailEvidence, setDetailEvidence] = useState<EvidenceRecord[]>([]);
@@ -215,7 +218,12 @@ const SergeantDashboard = () => {
   const arrestQueue = useMemo(
     () =>
       profiles
-        .filter((profile) => profile.arrest_warrant_issued && !profile.is_arrested)
+        .filter(
+          (profile) =>
+            profile.arrest_warrant_issued &&
+            !profile.is_arrested &&
+            !hasAnyInterrogationScore(profile)
+        )
         .sort((a, b) => b.id - a.id),
     [profiles]
   );
@@ -223,7 +231,11 @@ const SergeantDashboard = () => {
   const detainedProfiles = useMemo(
     () =>
       profiles
-        .filter((profile) => profile.arrest_warrant_issued && profile.is_arrested)
+        .filter(
+          (profile) =>
+            profile.arrest_warrant_issued &&
+            (profile.is_arrested || hasAnyInterrogationScore(profile))
+        )
         .sort((a, b) => b.id - a.id),
     [profiles]
   );
@@ -232,9 +244,10 @@ const SergeantDashboard = () => {
     const grouped = new Map<number, SergeantSuspectProfile[]>();
     profiles
       .filter((profile) => {
-        if (!profile.is_arrested) return false;
         const relatedCase = casesById.get(profile.case);
-        return relatedCase?.status === 'Arrested';
+        if (relatedCase?.status !== 'Arrested') return false;
+        if (!profile.arrest_warrant_issued) return false;
+        return profile.is_arrested || hasAnyInterrogationScore(profile);
       })
       .forEach((profile) => {
         const list = grouped.get(profile.case) || [];
@@ -404,11 +417,9 @@ const SergeantDashboard = () => {
         transaction_type: bailTypeByProfile[profileId] || 'bail',
         return_url: `${window.location.origin}/legal-bail`,
       });
-      setPaymentLinkByProfile((prev) => ({
-        ...prev,
-        [profileId]: response.payment_url,
-      }));
-      setSuccess(`تراکنش #${response.transaction.id} ایجاد شد. لینک پرداخت آماده است.`);
+      setSuccess(
+        `تراکنش #${response.transaction.id} ایجاد شد. پرداخت باید فقط توسط شخص مرتبط از ماژول «وضعیت حقوقی و وثیقه» انجام شود.`
+      );
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'ایجاد تراکنش وثیقه/جریمه ناموفق بود.'));
     } finally {
@@ -752,7 +763,9 @@ const SergeantDashboard = () => {
                               <h4>
                                 پروفایل #{profile.id} - {profile.suspect.first_name} {profile.suspect.last_name}
                               </h4>
-                              <span className="status-pill">بازداشت‌شده</span>
+                              <span className="status-pill">
+                                {profile.is_arrested ? 'بازداشت‌شده' : 'آزاد با وثیقه / خارج از بازداشت'}
+                              </span>
                             </div>
 
                             <div className="card-meta">
@@ -818,6 +831,7 @@ const SergeantDashboard = () => {
                                 <input
                                   type="number"
                                   min={1}
+                                  max={ZARINPAL_MAX_AMOUNT}
                                   value={bailAmountByProfile[profile.id] || ''}
                                   onChange={(event) =>
                                     setBailAmountByProfile((prev) => ({ ...prev, [profile.id]: event.target.value }))
@@ -825,6 +839,7 @@ const SergeantDashboard = () => {
                                   placeholder="مثال: 50000000"
                                 />
                               </label>
+                              <p className="hint">حداکثر مبلغ مجاز درگاه: {ZARINPAL_MAX_AMOUNT.toLocaleString('fa-IR')} ریال</p>
                               <label>
                                 نوع پرداخت
                                 <select
@@ -843,21 +858,16 @@ const SergeantDashboard = () => {
                               <button
                                 type="button"
                                 className="secondary"
-                                disabled={actionProfileId === profile.id}
+                                disabled={actionProfileId === profile.id || !profile.is_arrested}
                                 onClick={() => handleInitiateBail(profile.id)}
                               >
                                 {actionProfileId === profile.id ? 'در حال ایجاد...' : 'ایجاد تراکنش پرداخت'}
                               </button>
-                              {paymentLinkByProfile[profile.id] && (
-                                <a
-                                  href={paymentLinkByProfile[profile.id]}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="payment-link"
-                                >
-                                  لینک پرداخت آنلاین
-                                </a>
-                              )}
+                              <p className="hint">
+                                {!profile.is_arrested
+                                  ? 'برای این پروفایل (آزاد شده)، ایجاد تراکنش جدید غیرفعال است.'
+                                  : 'پس از ایجاد تراکنش، فقط شخص مظنون/مجرم مرتبط می‌تواند پرداخت را از ماژول حقوقی انجام دهد.'}
+                              </p>
                             </div>
                           </article>
                         );

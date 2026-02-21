@@ -5,6 +5,7 @@ import './LegalBailStatus.css';
 const formatAmount = (value: number): string => value.toLocaleString('fa-IR');
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 const API_ORIGIN = new URL(API_BASE_URL).origin;
+const ZARINPAL_MAX_AMOUNT = 2_000_000_000;
 
 const toAbsoluteUrl = (url: string): string => {
   if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -18,6 +19,22 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
     const message = (error as { message?: unknown }).message;
     if (typeof message === 'string' && message.trim()) {
       return message;
+    }
+  }
+  if (typeof error === 'object' && error !== null && 'data' in error) {
+    const data = (error as { data?: unknown }).data;
+    if (typeof data === 'object' && data !== null) {
+      const record = data as Record<string, unknown>;
+      if (typeof record.message === 'string' && record.message.trim()) {
+        return record.message;
+      }
+      if (typeof record.detail === 'string' && record.detail.trim()) {
+        return record.detail;
+      }
+      for (const value of Object.values(record)) {
+        if (typeof value === 'string' && value.trim()) return value;
+        if (Array.isArray(value) && value.length && typeof value[0] === 'string') return value[0];
+      }
     }
   }
   return fallback;
@@ -139,7 +156,12 @@ const LegalBailStatus = () => {
         <div className="legal-bail-grid">
           {bailTransactions.map((tx) => {
             const legalStatus = computeLegalStatus(tx);
-            const canPay = tx.status === 'initiated' && Boolean(tx.suspect_is_bail_allowed);
+            const amountTooHigh = tx.amount > ZARINPAL_MAX_AMOUNT;
+            const canPay =
+              tx.status === 'initiated' &&
+              Boolean(tx.suspect_is_bail_allowed) &&
+              Boolean(tx.suspect_is_arrested) &&
+              !amountTooHigh;
             return (
               <article key={tx.id} className="legal-bail-card">
                 <div className="legal-bail-card-header">
@@ -180,9 +202,13 @@ const LegalBailStatus = () => {
                     </button>
                   ) : (
                     <span className="pay-note">
-                      {tx.suspect_is_bail_allowed
-                        ? 'این تراکنش قابل پرداخت نیست.'
-                        : 'گروهبان برای این پروفایل اجازه وثیقه ثبت نکرده است.'}
+                      {!tx.suspect_is_bail_allowed
+                        ? 'گروهبان برای این پروفایل اجازه وثیقه ثبت نکرده است.'
+                        : !tx.suspect_is_arrested
+                          ? 'این پروفایل در وضعیت بازداشت نیست.'
+                          : amountTooHigh
+                            ? `مبلغ از سقف مجاز درگاه (${formatAmount(ZARINPAL_MAX_AMOUNT)}) بیشتر است.`
+                            : 'این تراکنش قابل پرداخت نیست.'}
                     </span>
                   )}
                 </div>

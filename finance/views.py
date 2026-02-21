@@ -46,6 +46,7 @@ POLICE_ROLES = {
 ZARINPAL_SANDBOX_REQUEST_URL = "https://sandbox.zarinpal.com/pg/v4/payment/request.json"
 ZARINPAL_SANDBOX_VERIFY_URL = "https://sandbox.zarinpal.com/pg/v4/payment/verify.json"
 ZARINPAL_SANDBOX_START_URL = "https://sandbox.zarinpal.com/pg/StartPay/"
+ZARINPAL_MAX_AMOUNT = 2_000_000_000
 
 
 def has_any_role(user, *roles):
@@ -75,6 +76,31 @@ def _http_json_post(url, payload, timeout=15):
     with urlopen(req, timeout=timeout) as resp:
         raw = resp.read().decode("utf-8")
     return json.loads(raw) if raw else {}
+
+
+def _extract_http_error_payload(exc):
+    payload = {}
+    try:
+        raw = exc.read().decode("utf-8")
+        payload = json.loads(raw) if raw else {}
+    except Exception:
+        payload = {}
+    return payload
+
+
+def _extract_provider_message(payload):
+    if not isinstance(payload, dict):
+        return ""
+    data_block = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    errors_block = payload.get("errors") if isinstance(payload.get("errors"), dict) else {}
+
+    message = data_block.get("message")
+    if isinstance(message, str) and message.strip():
+        return message
+    message = errors_block.get("message")
+    if isinstance(message, str) and message.strip():
+        return message
+    return ""
 
 
 def zarinpal_request_payment(*, merchant_id, amount, description, callback_url):
@@ -358,6 +384,11 @@ class PaymentInitiateAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        if data["amount"] > ZARINPAL_MAX_AMOUNT:
+            raise ValidationError(
+                {"message": f"Amount must not exceed {ZARINPAL_MAX_AMOUNT:,} for ZarinPal sandbox."}
+            )
+
         if data["transaction_type"] not in {
             PaymentTransaction.TransactionType.BAIL,
             PaymentTransaction.TransactionType.FINE,
@@ -365,6 +396,18 @@ class PaymentInitiateAPIView(APIView):
             raise ValidationError({"transaction_type": "Only bail/fine transactions are allowed in this flow."})
 
         suspect_profile = data["suspect_profile"]
+        already_paid = suspect_profile.paymenttransaction_set.filter(
+            status=PaymentTransaction.Status.PAID,
+            transaction_type__in=[
+                PaymentTransaction.TransactionType.BAIL,
+                PaymentTransaction.TransactionType.FINE,
+            ],
+        ).exists()
+        if already_paid:
+            raise ValidationError(
+                {"suspect_profile": "Bail/fine was already paid for this profile and cannot be initiated again."}
+            )
+
         if not suspect_profile.is_arrested:
             raise ValidationError({"suspect_profile": "Bail/fine payment is only available for arrested suspects."})
         _is_bail_eligible(
@@ -414,8 +457,8 @@ class PaymentStartAPIView(APIView):
 
         is_owner = tx.payer_id == request.user.id
         is_suspect_owner = bool(tx.suspect_profile_id and tx.suspect_profile.suspect_id == request.user.id)
-        if not (is_police_staff(request.user) or is_owner or is_suspect_owner):
-            raise PermissionDenied("You do not have access to this transaction.")
+        if not (is_owner or is_suspect_owner):
+            raise PermissionDenied("Only the transaction owner can start this payment.")
 
         if tx.status != PaymentTransaction.Status.INITIATED:
             raise ValidationError({"detail": "Only initiated transactions can be paid."})
@@ -463,14 +506,18 @@ class BailPaymentRequestAPIView(APIView):
             suspect_profile = tx.suspect_profile
             is_owner = suspect_profile.suspect_id == request.user.id
             is_payer = tx.payer_id == request.user.id
-            if not (is_police_staff(request.user) or is_owner or is_payer):
-                raise PermissionDenied("You do not have access to this transaction.")
+            if not (is_owner or is_payer):
+                raise PermissionDenied("Only the transaction owner can continue this payment.")
             if not suspect_profile.is_arrested:
                 raise ValidationError({"suspect_profile": "Bail payment is only available for arrested suspects."})
             if not suspect_profile.is_bail_allowed:
                 raise ValidationError({"suspect_profile": "Bail is not allowed for this profile."})
             if suspect_profile.bail_amount and tx.amount != suspect_profile.bail_amount:
                 raise ValidationError({"transaction_id": "Transaction amount does not match approved bail amount."})
+            if tx.amount > ZARINPAL_MAX_AMOUNT:
+                raise ValidationError(
+                    {"message": f"Transaction amount exceeds ZarinPal sandbox limit ({ZARINPAL_MAX_AMOUNT:,})."}
+                )
         else:
             # Legacy path: creating a fresh payment request is restricted to sergeant/admin.
             if not has_any_role(request.user, "Sergeant", "Administrator"):
@@ -493,6 +540,10 @@ class BailPaymentRequestAPIView(APIView):
                 raise ValidationError({"suspect_profile": "Approved bail amount is missing for this profile."})
             if data.get("amount") is not None and data["amount"] != amount:
                 raise ValidationError({"amount": "Must match approved bail amount set by sergeant."})
+            if amount > ZARINPAL_MAX_AMOUNT:
+                raise ValidationError(
+                    {"message": f"Approved bail amount exceeds ZarinPal sandbox limit ({ZARINPAL_MAX_AMOUNT:,})."}
+                )
 
             tx = PaymentTransaction.objects.create(
                 case=suspect_profile.case,
@@ -515,20 +566,33 @@ class BailPaymentRequestAPIView(APIView):
                 description=description,
                 callback_url=callback_url,
             )
-        except (HTTPError, URLError, TimeoutError, ValueError) as exc:
+        except HTTPError as exc:
+            provider_payload = _extract_http_error_payload(exc)
+            provider_message = _extract_provider_message(provider_payload) or str(exc)
+            tx.status = PaymentTransaction.Status.FAILED
+            tx.callback_payload = {"provider_error": provider_message, "provider_payload": provider_payload}
+            tx.save(update_fields=["status", "callback_payload"])
+            raise ValidationError(
+                {
+                    "message": provider_message,
+                    "provider": provider_payload,
+                }
+            )
+        except (URLError, TimeoutError, ValueError) as exc:
             tx.status = PaymentTransaction.Status.FAILED
             tx.callback_payload = {"provider_error": str(exc)}
             tx.save(update_fields=["status", "callback_payload"])
-            raise ValidationError({"detail": "Could not reach ZarinPal sandbox endpoint."})
+            raise ValidationError({"message": "Could not reach ZarinPal sandbox endpoint."})
 
         data_block = provider_resp.get("data") or {}
         code = data_block.get("code")
         authority = data_block.get("authority")
         if code != 100 or not authority:
+            provider_message = _extract_provider_message(provider_resp) or "ZarinPal request was rejected."
             tx.status = PaymentTransaction.Status.FAILED
             tx.callback_payload = provider_resp
             tx.save(update_fields=["status", "callback_payload"])
-            raise ValidationError({"detail": "ZarinPal request was rejected.", "provider": provider_resp})
+            raise ValidationError({"message": provider_message, "provider": provider_resp})
 
         tx.gateway_reference = authority
         tx.callback_payload = provider_resp
@@ -606,9 +670,12 @@ class BailPaymentVerifyAPIView(APIView):
             }
             tx.save(update_fields=["status", "paid_at", "callback_payload"])
 
-            if tx.suspect_profile_id and tx.suspect_profile.is_arrested:
-                tx.suspect_profile.is_arrested = False
-                tx.suspect_profile.save(update_fields=["is_arrested"])
+            if tx.suspect_profile_id:
+                profile = tx.suspect_profile
+                profile.is_arrested = False
+                profile.is_bail_allowed = False
+                profile.bail_amount = None
+                profile.save(update_fields=["is_arrested", "is_bail_allowed", "bail_amount"])
 
             return HttpResponseRedirect(
                 _frontend_bail_result_url(True, tx=tx.id, authority=authority, ref_id=ref_id)
@@ -655,9 +722,10 @@ class PaymentCallbackAPIView(APIView):
                 and tx.transaction_type in {PaymentTransaction.TransactionType.BAIL, PaymentTransaction.TransactionType.FINE}
             ):
                 profile = tx.suspect_profile
-                if profile.is_arrested:
-                    profile.is_arrested = False
-                    profile.save(update_fields=["is_arrested"])
+                profile.is_arrested = False
+                profile.is_bail_allowed = False
+                profile.bail_amount = None
+                profile.save(update_fields=["is_arrested", "is_bail_allowed", "bail_amount"])
         elif tx.status != PaymentTransaction.Status.PAID:
             tx.status = PaymentTransaction.Status.FAILED
             tx.paid_at = None

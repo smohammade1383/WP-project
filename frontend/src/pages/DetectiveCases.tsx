@@ -255,10 +255,14 @@ const DetectiveCases = () => {
     return Array.from(list.values());
   }, [selectedCase]);
 
-  const arrestedSuspectProfiles = useMemo(
-    () => suspectProfiles.filter((profile) => profile.is_arrested),
-    [suspectProfiles]
-  );
+  const detectiveInterrogationProfiles = useMemo(() => {
+    const interrogationStatuses = new Set(['Arrested', 'WaitingCaptain', 'WaitingChief', 'InCourt', 'Closed']);
+    return suspectProfiles.filter((profile) => {
+      if (!profile.arrest_warrant_issued) return false;
+      if (profile.is_arrested) return true;
+      return Boolean(selectedCase && interrogationStatuses.has(selectedCase.status));
+    });
+  }, [suspectProfiles, selectedCase]);
 
   const evidenceIdsOnBoard = useMemo(() => {
     const set = new Set<number>();
@@ -1526,14 +1530,14 @@ const DetectiveCases = () => {
                       </p>
 
                       {loadingSuspectProfiles ? (
-                        <div className="panel-empty">در حال دریافت لیست مظنونین بازداشت‌شده...</div>
-                      ) : arrestedSuspectProfiles.length === 0 ? (
+                        <div className="panel-empty">در حال دریافت لیست مظنونین قابل بازجویی...</div>
+                      ) : detectiveInterrogationProfiles.length === 0 ? (
                         <div className="panel-empty">
-                          هنوز مظنون بازداشت‌شده‌ای برای این پرونده وجود ندارد یا حکم جلب ثبت نشده است.
+                          هنوز مظنون قابل بازجویی برای این پرونده وجود ندارد یا حکم جلب ثبت نشده است.
                         </div>
                       ) : (
                         <div className="detective-interrogation-grid">
-                          {arrestedSuspectProfiles.map((profile) => {
+                          {detectiveInterrogationProfiles.map((profile) => {
                             const detectiveScore = getLatestScoreForRole(profile, 'detective');
                             const sergeantScore = getLatestScoreForRole(profile, 'sergeant');
                             const canSubmitDetectiveScore = !detectiveScore && !isInterrogationLocked;
@@ -1544,7 +1548,9 @@ const DetectiveCases = () => {
                                     پروفایل #{profile.id} - {profile.suspect.first_name}{' '}
                                     {profile.suspect.last_name}
                                   </strong>
-                                  <span>وضعیت: بازداشت‌شده</span>
+                                  <span>
+                                    وضعیت: {profile.is_arrested ? 'بازداشت‌شده' : 'آزاد با وثیقه / خارج از بازداشت'}
+                                  </span>
                                 </div>
 
                                 <div className="interrogation-score-row">
