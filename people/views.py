@@ -32,6 +32,16 @@ POLICE_ROLES = {
     "Cadet",
 }
 
+DETECTIVE_RESTRICTED_ROLES = {
+    "Administrator",
+    "Chief",
+    "Captain",
+    "Sergeant",
+    "Police Officer",
+    "Patrol Officer",
+    "Cadet",
+}
+
 
 def has_any_role(user, *roles):
     if not user or not user.is_authenticated:
@@ -40,6 +50,29 @@ def has_any_role(user, *roles):
         return True
     expected = set(roles)
     return any(role in expected for role in user.role_names)
+
+
+def is_detective_only(user):
+    return has_any_role(user, "Detective") and not has_any_role(user, *DETECTIVE_RESTRICTED_ROLES)
+
+
+def _tip_target_case(tip):
+    if tip.case_id:
+        return tip.case
+    if tip.suspect_profile_id and tip.suspect_profile:
+        return tip.suspect_profile.case
+    return None
+
+
+def _detective_can_access_tip(user, tip):
+    if has_any_role(user, "Administrator"):
+        return True
+    if not has_any_role(user, "Detective"):
+        return False
+    target_case = _tip_target_case(tip)
+    if target_case is None:
+        return False
+    return target_case.assigned_detective_id == user.id
 
 
 def _refresh_tracking_flags(profiles):
@@ -136,19 +169,34 @@ class CitizenTipListCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        if has_any_role(request.user, "Detective", "Police Officer", "Patrol Officer", "Sergeant", "Captain", "Chief", "Administrator"):
-            tips = CitizenTip.objects.all().select_related("reporter", "case", "suspect_profile")
+        tips = CitizenTip.objects.all().select_related(
+            "reporter",
+            "case",
+            "case__assigned_detective",
+            "suspect_profile",
+            "suspect_profile__case",
+            "suspect_profile__case__assigned_detective",
+        )
+        if is_detective_only(request.user):
+            tips = tips.filter(
+                Q(case__assigned_detective=request.user)
+                | Q(case__isnull=True, suspect_profile__case__assigned_detective=request.user)
+            )
+        elif has_any_role(request.user, *POLICE_ROLES):
+            tips = tips
         else:
-            tips = CitizenTip.objects.filter(reporter=request.user).select_related("reporter", "case", "suspect_profile")
+            tips = tips.filter(reporter=request.user)
         return Response(CitizenTipSerializer(tips, many=True).data)
 
     def post(self, request):
         serializer = CitizenTipSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        suspect_profile = serializer.validated_data.get("suspect_profile")
+        tip_case = serializer.validated_data.get("case") or (suspect_profile.case if suspect_profile else None)
         tip = serializer.save(
             reporter=request.user,
             status=CitizenTip.Status.OFFICER_REVIEW,
-            case=None,
+            case=tip_case,
         )
         return Response(CitizenTipSerializer(tip).data, status=status.HTTP_201_CREATED)
 
@@ -174,13 +222,29 @@ class CitizenTipOfficerReviewAPIView(APIView):
         ):
             return Response({"detail": "Only officer+ roles can review citizen tips."}, status=403)
 
-        tip = get_object_or_404(CitizenTip, id=tip_id)
+        tip = get_object_or_404(
+            CitizenTip.objects.select_related("case", "case__assigned_detective", "suspect_profile", "suspect_profile__case"),
+            id=tip_id,
+        )
         serializer = CitizenTipOfficerReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         approved = serializer.validated_data["approved"]
         tip.officer_reviewer = request.user
-        tip.status = CitizenTip.Status.DETECTIVE_REVIEW if approved else CitizenTip.Status.REJECTED
-        tip.save(update_fields=["officer_reviewer", "status"])
+        if approved:
+            target_case = _tip_target_case(tip)
+            if target_case is None:
+                return Response({"detail": "Tip has no target case and cannot be forwarded to detective."}, status=400)
+            if not target_case.assigned_detective_id:
+                return Response(
+                    {"detail": "This case has no assigned detective yet. Assign a detective before forwarding tips."},
+                    status=400,
+                )
+            tip.case = target_case
+            tip.status = CitizenTip.Status.DETECTIVE_REVIEW
+            tip.save(update_fields=["officer_reviewer", "case", "status"])
+        else:
+            tip.status = CitizenTip.Status.REJECTED
+            tip.save(update_fields=["officer_reviewer", "status"])
         return Response(CitizenTipSerializer(tip).data)
 
 
@@ -197,7 +261,14 @@ class CitizenTipDetectiveReviewAPIView(APIView):
         if not has_any_role(request.user, "Detective", "Administrator"):
             return Response({"detail": "Only detective role can review citizen tips."}, status=403)
 
-        tip = get_object_or_404(CitizenTip, id=tip_id)
+        tip = get_object_or_404(
+            CitizenTip.objects.select_related("case", "case__assigned_detective", "suspect_profile", "suspect_profile__case"),
+            id=tip_id,
+        )
+        if not _detective_can_access_tip(request.user, tip):
+            return Response({"detail": "Only the assigned detective of this case can review this tip."}, status=403)
+        if tip.status != CitizenTip.Status.DETECTIVE_REVIEW:
+            return Response({"detail": "Tip is not in detective review queue."}, status=400)
         serializer = CitizenTipDetectiveReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         approved = serializer.validated_data["approved"]
@@ -221,13 +292,26 @@ class CitizenTipLinkCaseAPIView(APIView):
         if not has_any_role(request.user, "Detective", "Administrator"):
             return Response({"detail": "Only detective role can link tips to cases."}, status=403)
 
-        tip = get_object_or_404(CitizenTip, id=tip_id)
+        tip = get_object_or_404(
+            CitizenTip.objects.select_related("case", "case__assigned_detective", "suspect_profile", "suspect_profile__case"),
+            id=tip_id,
+        )
+        if not _detective_can_access_tip(request.user, tip):
+            return Response({"detail": "Only the assigned detective of this case can link this tip."}, status=403)
         if tip.status in {CitizenTip.Status.REJECTED, CitizenTip.Status.USEFUL}:
             return Response({"detail": "Tip is already finalized."}, status=400)
 
         serializer = CitizenTipLinkCaseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         case_obj = serializer.validated_data["case"]
+        target_case = _tip_target_case(tip)
+        if target_case and target_case.id != case_obj.id:
+            return Response(
+                {"detail": "Tip can only be linked to the case associated with the selected wanted suspect."},
+                status=400,
+            )
+        if not has_any_role(request.user, "Administrator") and case_obj.assigned_detective_id != request.user.id:
+            return Response({"detail": "Only the assigned detective can link evidence to this case."}, status=403)
 
         evidence = Evidence.objects.create(
             case=case_obj,

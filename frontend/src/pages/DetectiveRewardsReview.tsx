@@ -44,7 +44,6 @@ const DetectiveRewardsReview = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submittingId, setSubmittingId] = useState<number | null>(null);
-  const [caseByTip, setCaseByTip] = useState<Record<number, string>>({});
 
   const loadTips = async () => {
     try {
@@ -85,10 +84,9 @@ const DetectiveRewardsReview = () => {
   };
 
   const handleLinkToCase = async (tip: CitizenTip) => {
-    const caseIdRaw = (caseByTip[tip.id] ?? tip.suspect_profile_case_id ?? '').toString();
-    const caseId = Number(caseIdRaw);
+    const caseId = Number(tip.case ?? tip.suspect_profile_case_id ?? 0);
     if (!Number.isInteger(caseId) || caseId <= 0) {
-      setError('برای لینک کردن گزارش، شناسه پرونده معتبر وارد کنید.');
+      setError('این گزارش هنوز پرونده هدف معتبر ندارد. ابتدا پرونده/کارآگاه پرونده را تعیین کنید.');
       return;
     }
 
@@ -142,24 +140,9 @@ const DetectiveRewardsReview = () => {
                 <div className="detective-reward-meta">
                   <span>گزارش‌دهنده: {reporterName(item)}</span>
                   <span>کد ملی: {item.reporter?.national_id || '-'}</span>
-                  <span>پرونده لینک‌شده: {item.case ? `#${item.case}` : '-'}</span>
+                  <span>پرونده هدف: {item.case || item.suspect_profile_case_id ? `#${item.case || item.suspect_profile_case_id}` : '-'}</span>
                   <span>پروفایل مظنون: {item.suspect_profile ? `#${item.suspect_profile}` : '-'}</span>
                   <span>تاریخ ثبت: {formatDate(item.created_at)}</span>
-                </div>
-
-                <div className="detective-reward-actions" style={{ marginBottom: 12 }}>
-                  <input
-                    type="number"
-                    min={1}
-                    placeholder={`شناسه پرونده${item.suspect_profile_case_id ? ` (پیشنهادی: ${item.suspect_profile_case_id})` : ''}`}
-                    value={caseByTip[item.id] ?? ''}
-                    onChange={(event) =>
-                      setCaseByTip((prev) => ({
-                        ...prev,
-                        [item.id]: event.target.value,
-                      }))
-                    }
-                  />
                 </div>
 
                 <div className="detective-reward-actions">
