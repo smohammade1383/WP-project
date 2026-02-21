@@ -336,8 +336,9 @@ class SuspectCaseProfile(models.Model):
     @property
     def wanted_days(self):
         if not self.wanted_since:
-            return 0
-        return max((timezone.now() - self.wanted_since).days, 0)
+            return 1
+        # Day counting starts from 1 as soon as a suspect enters wanted state.
+        return max((timezone.now() - self.wanted_since).days, 1)
 
     @property
     def is_severe_tracking(self):
@@ -358,7 +359,7 @@ class SuspectCaseProfile(models.Model):
             if (not profile.is_arrested) and profile.case.status not in {Case.Status.CLOSED, Case.Status.VOID}
         ]
         if open_profiles:
-            max_days = max(max((timezone.now() - profile.wanted_since).days, 0) for profile in open_profiles)
+            max_days = max(profile.wanted_days for profile in open_profiles)
         else:
             max_days = 0
         max_degree = max(profile.case.severity for profile in profiles)

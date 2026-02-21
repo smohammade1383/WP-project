@@ -51,8 +51,21 @@ type SuspectOption = {
   nationalId: string;
 };
 
+const extractTriedDefendantIds = (report: ChiefCaseReport | null): Set<number> => {
+  const tried = new Set<number>();
+  if (!report) return tried;
+  for (const trial of report.trials) {
+    const defendant = Number(trial.defendant);
+    if (Number.isInteger(defendant) && defendant > 0) {
+      tried.add(defendant);
+    }
+  }
+  return tried;
+};
+
 const extractSuspectOptions = (report: ChiefCaseReport | null): SuspectOption[] => {
   if (!report) return [];
+  const triedDefendantIds = extractTriedDefendantIds(report);
   const options: SuspectOption[] = [];
   const seen = new Set<number>();
   for (const profile of report.suspect_profiles) {
@@ -60,6 +73,7 @@ const extractSuspectOptions = (report: ChiefCaseReport | null): SuspectOption[] 
     if (!rawSuspect) continue;
     const id = Number(rawSuspect.id);
     if (!Number.isInteger(id) || id <= 0 || seen.has(id)) continue;
+    if (triedDefendantIds.has(id)) continue;
     seen.add(id);
     options.push({
       id,
@@ -136,6 +150,10 @@ const JudgeDashboard = () => {
       setError('ابتدا یک پرونده انتخاب کنید.');
       return;
     }
+    if (!selectedDefendant) {
+      setError('انتخاب متهم الزامی است.');
+      return;
+    }
     if (!verdictNote.trim()) {
       setError('ثبت توضیح رای (verdict note) الزامی است.');
       return;
@@ -161,21 +179,25 @@ const JudgeDashboard = () => {
         case: selectedCaseId,
         verdict,
         verdict_note: verdictNote.trim(),
+        defendant: Number(selectedDefendant),
       };
-
-      if (selectedDefendant) {
-        payload.defendant = Number(selectedDefendant);
-      }
       if (verdict === 'guilty') {
         payload.punishment_title = punishmentTitle.trim();
         payload.punishment_description = punishmentDescription.trim();
       }
 
       await judgeApi.createTrial(payload);
-      setSuccess(`رای نهایی برای پرونده #${selectedCaseId} با موفقیت ثبت شد.`);
-      await loadCases();
-      setSelectedCaseId(null);
-      setReport(null);
+      const allCases = await judgeApi.listCases();
+      setCases(allCases);
+      const updatedCase = allCases.find((item) => item.id === selectedCaseId);
+      if (updatedCase && updatedCase.status === 'InCourt') {
+        await loadReport(selectedCaseId);
+        setSuccess(`رای متهم ثبت شد. این پرونده هنوز متهم قضاوت‌نشده دارد.`);
+      } else {
+        setSuccess(`رای نهایی برای پرونده #${selectedCaseId} با موفقیت ثبت شد و پرونده مختومه شد.`);
+        setSelectedCaseId(null);
+        setReport(null);
+      }
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'ثبت رای دادگاه ناموفق بود.'));
     } finally {
@@ -254,13 +276,16 @@ const JudgeDashboard = () => {
                       value={selectedDefendant}
                       onChange={(event) => setSelectedDefendant(event.target.value)}
                     >
-                      <option value="">بدون انتخاب</option>
+                      <option value="">انتخاب متهم</option>
                       {suspectOptions.map((suspect) => (
                         <option key={suspect.id} value={String(suspect.id)}>
                           #{suspect.id} - {suspect.username} ({suspect.nationalId})
                         </option>
                       ))}
                     </select>
+                    {suspectOptions.length === 0 ? (
+                      <div className="judge-inline-note">همه متهمان این پرونده قبلا قضاوت شده‌اند.</div>
+                    ) : null}
 
                     <label htmlFor="judge-verdict">حکم نهایی</label>
                     <select
@@ -304,7 +329,11 @@ const JudgeDashboard = () => {
                     ) : null}
 
                     <div className="judge-action-buttons">
-                      <button type="button" onClick={submitTrial} disabled={submittingVerdict}>
+                      <button
+                        type="button"
+                        onClick={submitTrial}
+                        disabled={submittingVerdict || suspectOptions.length === 0}
+                      >
                         {submittingVerdict ? 'در حال ثبت...' : 'ثبت رای نهایی'}
                       </button>
                     </div>

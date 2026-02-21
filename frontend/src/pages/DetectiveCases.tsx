@@ -224,10 +224,13 @@ const DetectiveCases = () => {
   );
 
   const lockedStatuses = useMemo(
-    () => new Set(['WarrantPending', 'Arrested', 'InCourt', 'Closed', 'Void']),
+    () => new Set(['WarrantPending', 'Arrested', 'WaitingCaptain', 'WaitingChief', 'InCourt', 'Closed', 'Void']),
     []
   );
   const isCaseLocked = Boolean(selectedCase && lockedStatuses.has(selectedCase.status));
+  const isInterrogationLocked = Boolean(
+    selectedCase && new Set(['WaitingCaptain', 'WaitingChief', 'InCourt', 'Closed', 'Void']).has(selectedCase.status)
+  );
 
   const notificationTotal = useMemo(
     () => Object.values(notificationsByCase).reduce((acc, value) => acc + value, 0),
@@ -1436,6 +1439,7 @@ const DetectiveCases = () => {
                           {arrestedSuspectProfiles.map((profile) => {
                             const detectiveScore = getLatestScoreForRole(profile, 'detective');
                             const sergeantScore = getLatestScoreForRole(profile, 'sergeant');
+                            const canSubmitDetectiveScore = !detectiveScore && !isInterrogationLocked;
                             return (
                               <article key={profile.id} className="interrogation-card">
                                 <div className="interrogation-head">
@@ -1457,49 +1461,59 @@ const DetectiveCases = () => {
                                   </span>
                                 </div>
 
-                                <div className="interrogation-form">
-                                  <label htmlFor={`detective-score-${profile.id}`}>
-                                    نمره شما (۱ تا ۱۰)
-                                  </label>
-                                  <input
-                                    id={`detective-score-${profile.id}`}
-                                    type="number"
-                                    min={1}
-                                    max={10}
-                                    value={detectiveScoreByProfile[profile.id] || ''}
-                                    onChange={(event) =>
-                                      setDetectiveScoreByProfile((prev) => ({
-                                        ...prev,
-                                        [profile.id]: event.target.value,
-                                      }))
-                                    }
-                                    placeholder="مثال: 8"
-                                  />
+                                {canSubmitDetectiveScore ? (
+                                  <div className="interrogation-form">
+                                    <label htmlFor={`detective-score-${profile.id}`}>
+                                      نمره شما (۱ تا ۱۰)
+                                    </label>
+                                    <input
+                                      id={`detective-score-${profile.id}`}
+                                      type="number"
+                                      min={1}
+                                      max={10}
+                                      value={detectiveScoreByProfile[profile.id] || ''}
+                                      onChange={(event) =>
+                                        setDetectiveScoreByProfile((prev) => ({
+                                          ...prev,
+                                          [profile.id]: event.target.value,
+                                        }))
+                                      }
+                                      placeholder="مثال: 8"
+                                    />
 
-                                  <label htmlFor={`detective-note-${profile.id}`}>توضیح بازجویی</label>
-                                  <textarea
-                                    id={`detective-note-${profile.id}`}
-                                    rows={3}
-                                    value={detectiveNoteByProfile[profile.id] || ''}
-                                    onChange={(event) =>
-                                      setDetectiveNoteByProfile((prev) => ({
-                                        ...prev,
-                                        [profile.id]: event.target.value,
-                                      }))
-                                    }
-                                    placeholder="جمع‌بندی بازجویی و دلایل امتیاز"
-                                  />
+                                    <label htmlFor={`detective-note-${profile.id}`}>توضیح بازجویی</label>
+                                    <textarea
+                                      id={`detective-note-${profile.id}`}
+                                      rows={3}
+                                      value={detectiveNoteByProfile[profile.id] || ''}
+                                      onChange={(event) =>
+                                        setDetectiveNoteByProfile((prev) => ({
+                                          ...prev,
+                                          [profile.id]: event.target.value,
+                                        }))
+                                      }
+                                      placeholder="جمع‌بندی بازجویی و دلایل امتیاز"
+                                    />
 
-                                  <button
-                                    type="button"
-                                    disabled={submittingDetectiveScoreProfileId === profile.id}
-                                    onClick={() => handleSubmitDetectiveScore(profile.id)}
-                                  >
-                                    {submittingDetectiveScoreProfileId === profile.id
-                                      ? 'در حال ثبت...'
-                                      : 'ثبت نمره کارآگاه'}
-                                  </button>
-                                </div>
+                                    <button
+                                      type="button"
+                                      disabled={submittingDetectiveScoreProfileId === profile.id}
+                                      onClick={() => handleSubmitDetectiveScore(profile.id)}
+                                    >
+                                      {submittingDetectiveScoreProfileId === profile.id
+                                        ? 'در حال ثبت...'
+                                        : 'ثبت نمره کارآگاه'}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="interrogation-form interrogation-readonly">
+                                    {detectiveScore ? (
+                                      <p>نمره کارآگاه قبلا ثبت شده و نیازی به ثبت مجدد نیست.</p>
+                                    ) : (
+                                      <p>این پرونده به مرحله بعد ارسال شده و ثبت نمره جدید غیرفعال است.</p>
+                                    )}
+                                  </div>
+                                )}
                               </article>
                             );
                           })}

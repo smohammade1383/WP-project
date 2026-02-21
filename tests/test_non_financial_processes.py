@@ -487,3 +487,43 @@ class NonFinancialProcessRegressionTests(APITestCase):
         self.assertIn("involved_personnel", allowed.data)
         self.assertIn("board_snapshot", allowed.data)
 
+    def test_case_closes_only_after_all_case_defendants_have_trials(self):
+        officer = self._create_user("nf_multi_trial_officer", roles=["Police Officer"])
+        judge = self._create_user("nf_multi_trial_judge", roles=["Judge"])
+        suspect_a = self._create_user("nf_multi_trial_suspect_a", roles=["Suspect"])
+        suspect_b = self._create_user("nf_multi_trial_suspect_b", roles=["Suspect"])
+
+        case_obj = self._create_case(officer, severity=Case.Severity.LEVEL_2, status_value=Case.Status.IN_COURT)
+        SuspectCaseProfile.objects.create(case=case_obj, suspect=suspect_a, is_arrested=True)
+        SuspectCaseProfile.objects.create(case=case_obj, suspect=suspect_b, is_arrested=True)
+
+        self.client.force_authenticate(judge)
+        first_trial = self.client.post(
+            reverse("trial-create"),
+            {
+                "case": case_obj.id,
+                "defendant": suspect_a.id,
+                "verdict": "innocent",
+                "verdict_note": "Insufficient evidence against first defendant.",
+            },
+            format="json",
+        )
+        self.assertEqual(first_trial.status_code, status.HTTP_201_CREATED)
+        case_obj.refresh_from_db()
+        self.assertEqual(case_obj.status, Case.Status.IN_COURT)
+
+        second_trial = self.client.post(
+            reverse("trial-create"),
+            {
+                "case": case_obj.id,
+                "defendant": suspect_b.id,
+                "verdict": "guilty",
+                "verdict_note": "Evidence proved second defendant.",
+                "punishment_title": "Prison",
+                "punishment_description": "Two years imprisonment",
+            },
+            format="json",
+        )
+        self.assertEqual(second_trial.status_code, status.HTTP_201_CREATED)
+        case_obj.refresh_from_db()
+        self.assertEqual(case_obj.status, Case.Status.CLOSED)

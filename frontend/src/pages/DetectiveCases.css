@@ -753,6 +753,19 @@
   justify-self: start;
 }
 
+.interrogation-form.interrogation-readonly {
+  border: 1px dashed #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  padding: 0.55rem 0.7rem;
+}
+
+.interrogation-form.interrogation-readonly p {
+  margin: 0;
+  color: #1e3a8a;
+  font-size: 0.8rem;
+}
+
 .handover-form label {
   display: block;
   margin-bottom: 0.35rem;

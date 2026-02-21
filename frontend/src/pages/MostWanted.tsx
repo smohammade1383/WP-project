@@ -198,7 +198,7 @@ const MostWanted = () => {
     <div className="most-wanted-page">
       <div className="most-wanted-header">
         <div>
-          <h1>⚠️ تحت پیگیری شدید</h1>
+          <h1>تحت پیگیری شدید</h1>
           <p>لیست مظنونان و مجرمان تحت تعقیب با جزئیات کامل</p>
         </div>
         <div className="wanted-count">

@@ -132,7 +132,7 @@ const CitizenRewards = () => {
 
               <div className="reward-amount">
                 <span>مبلغ پاداش (ریال)</span>
-                <strong>{tip.reward_amount > 0 ? formatAmount(tip.reward_amount) : '—'}</strong>
+                <strong>{formatAmount(Number(tip.reward_amount || 0))}</strong>
               </div>
             </article>
           ))}

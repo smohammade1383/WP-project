@@ -81,10 +81,29 @@ class TrialCreateAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         case_obj = serializer.validated_data["case"]
+        case_suspect_ids = set(case_obj.suspect_profiles.values_list("suspect_id", flat=True))
+        if not case_suspect_ids:
+            raise ValidationError({"case": "No suspects are registered for this case."})
+
         defendant = serializer.validated_data.get("defendant")
-        if defendant and not case_obj.suspect_profiles.filter(suspect_id=defendant.id).exists():
+        tried_defendant_ids = set(
+            Trial.objects.filter(case=case_obj, defendant_id__isnull=False).values_list("defendant_id", flat=True)
+        )
+        pending_defendant_ids = case_suspect_ids - tried_defendant_ids
+
+        if defendant is None:
+            if len(pending_defendant_ids) == 1:
+                only_id = next(iter(pending_defendant_ids))
+                defendant = case_obj.suspect_profiles.select_related("suspect").get(suspect_id=only_id).suspect
+                serializer.validated_data["defendant"] = defendant
+            else:
+                raise ValidationError(
+                    {"defendant": "Defendant is required when multiple unjudged suspects exist."}
+                )
+
+        if defendant.id not in case_suspect_ids:
             raise ValidationError({"defendant": "Defendant must be one of the case suspects."})
-        if defendant and Trial.objects.filter(case=case_obj, defendant=defendant).exists():
+        if defendant.id in tried_defendant_ids:
             raise ValidationError({"defendant": "This defendant already has a trial for this case."})
         if case_obj.status in {Case.Status.VOID, Case.Status.CLOSED}:
             raise ValidationError({"case": "Cannot trial a void/closed case."})
@@ -92,7 +111,8 @@ class TrialCreateAPIView(APIView):
             raise ValidationError({"case": "Case must be in IN_COURT status before trial."})
 
         trial = serializer.save(judge=request.user)
-        if trial.verdict == Trial.Verdict.GUILTY:
+        tried_defendant_ids.add(defendant.id)
+        if case_suspect_ids.issubset(tried_defendant_ids):
             case_obj.status = Case.Status.CLOSED
             case_obj.save(update_fields=["status", "updated_at"])
         return Response(TrialSerializer(trial).data, status=status.HTTP_201_CREATED)

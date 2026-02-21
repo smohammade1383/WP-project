@@ -42,14 +42,12 @@ def has_any_role(user, *roles):
     return any(role in expected for role in user.role_names)
 
 
-def _refresh_severe_tracking(profiles):
-    severe_profiles = []
+def _refresh_tracking_flags(profiles):
     for profile in profiles:
-        profile.severe_tracking = profile.is_severe_tracking
-        profile.save(update_fields=["severe_tracking"])
-        if profile.severe_tracking:
-            severe_profiles.append(profile)
-    return severe_profiles
+        severe_now = profile.is_severe_tracking
+        if profile.severe_tracking != severe_now:
+            profile.severe_tracking = severe_now
+            profile.save(update_fields=["severe_tracking"])
 
 
 def _unique_profiles_by_suspect(profiles):
@@ -62,16 +60,31 @@ def _unique_profiles_by_suspect(profiles):
 
 
 @extend_schema_view(
-    get=extend_schema(tags=["People"], summary="Public list of severe tracking suspects", responses={200: WantedPersonSerializer(many=True)}),
+    get=extend_schema(
+        tags=["People"],
+        summary="Public list of active wanted suspects (severe tracking prioritized)",
+        responses={200: WantedPersonSerializer(many=True)},
+    ),
 )
 class PublicWantedListAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        profiles = SuspectCaseProfile.objects.select_related("suspect", "case").all()
-        severe_profiles = _refresh_severe_tracking(profiles)
-        unique_profiles = _unique_profiles_by_suspect(severe_profiles)
-        unique_profiles.sort(key=lambda item: item.ranking_score, reverse=True)
+        profiles = list(
+            SuspectCaseProfile.objects.select_related("suspect", "case")
+            .filter(arrest_warrant_issued=True, is_arrested=False)
+            .exclude(case__status__in=[Case.Status.CLOSED, Case.Status.VOID])
+        )
+        _refresh_tracking_flags(profiles)
+        unique_profiles = _unique_profiles_by_suspect(profiles)
+        unique_profiles.sort(
+            key=lambda item: (
+                not item.severe_tracking,
+                -item.ranking_score,
+                -item.wanted_days,
+                -item.case.severity,
+            )
+        )
         return Response(WantedPersonSerializer(unique_profiles, many=True).data)
 
 
@@ -82,13 +95,15 @@ class PublicWantedDetailAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, suspect_id):
-        profiles = SuspectCaseProfile.objects.select_related("suspect", "case").filter(suspect_id=suspect_id)
-        if not profiles.exists():
+        profiles = list(
+            SuspectCaseProfile.objects.select_related("suspect", "case")
+            .filter(suspect_id=suspect_id, arrest_warrant_issued=True, is_arrested=False)
+            .exclude(case__status__in=[Case.Status.CLOSED, Case.Status.VOID])
+        )
+        if not profiles:
             return Response({"detail": "Wanted suspect not found."}, status=404)
-        severe_profiles = _refresh_severe_tracking(profiles)
-        if not severe_profiles:
-            return Response({"detail": "Suspect is not under severe tracking."}, status=404)
-        chosen = _unique_profiles_by_suspect(severe_profiles)[0]
+        _refresh_tracking_flags(profiles)
+        chosen = _unique_profiles_by_suspect(profiles)[0]
         return Response(WantedPersonSerializer(chosen).data)
 
 

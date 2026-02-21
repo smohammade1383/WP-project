@@ -53,11 +53,12 @@ class WantedRewardFlowTests(APITestCase):
             profile.refresh_from_db()
         return case_obj, profile
 
-    def test_public_severe_tracking_lists_only_over_30_days_and_sorted_by_rank(self):
+    def test_public_wanted_lists_active_profiles_and_prioritizes_severe_tracking(self):
         officer = self._create_user("wanted_officer", roles=["Police Officer"])
         suspect_a = self._create_user("wanted_suspect_a", roles=["Suspect"])
         suspect_b = self._create_user("wanted_suspect_b", roles=["Suspect"])
         suspect_c = self._create_user("wanted_suspect_c", roles=["Suspect"])
+        suspect_d = self._create_user("wanted_suspect_d", roles=["Suspect"])
 
         # Ranking: max(days_wanted) * max(crime_level)
         # A = 45 * 4 = 180
@@ -68,23 +69,65 @@ class WantedRewardFlowTests(APITestCase):
         _, profile_b = self._create_case_and_profile(
             officer, suspect_b, Case.Severity.LEVEL_1, wanted_days=31
         )
-        # C is not severe (< 30 days)
+        # C is wanted but not severe (< 30 days) and should still be visible.
         _, profile_c = self._create_case_and_profile(
             officer, suspect_c, Case.Severity.LEVEL_2, wanted_days=10
         )
+        # D has no warrant yet and must stay hidden.
+        _, profile_d = self._create_case_and_profile(
+            officer, suspect_d, Case.Severity.LEVEL_3, wanted_days=60
+        )
+
+        profile_a.arrest_warrant_issued = True
+        profile_a.save(update_fields=["arrest_warrant_issued"])
+        profile_b.arrest_warrant_issued = True
+        profile_b.save(update_fields=["arrest_warrant_issued"])
+        profile_c.arrest_warrant_issued = True
+        profile_c.save(update_fields=["arrest_warrant_issued"])
 
         resp = self.client.get(reverse("people-wanted-list"))
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         returned_ids = [row["id"] for row in resp.data]
         self.assertIn(profile_a.id, returned_ids)
         self.assertIn(profile_b.id, returned_ids)
-        self.assertNotIn(profile_c.id, returned_ids)
+        self.assertIn(profile_c.id, returned_ids)
+        self.assertNotIn(profile_d.id, returned_ids)
 
+        # Severe profiles are prioritized, then ranking desc.
         self.assertEqual(resp.data[0]["id"], profile_a.id)
         self.assertEqual(resp.data[0]["ranking_score"], 180)
         self.assertEqual(resp.data[0]["reward_amount"], 180 * 20_000_000)
         self.assertEqual(resp.data[1]["id"], profile_b.id)
         self.assertEqual(resp.data[1]["ranking_score"], 93)
+        self.assertEqual(resp.data[2]["id"], profile_c.id)
+        self.assertFalse(resp.data[2]["severe_tracking"])
+
+    def test_public_wanted_detail_includes_non_severe_when_warrant_is_issued(self):
+        officer = self._create_user("wanted_detail_officer", roles=["Police Officer"])
+        suspect = self._create_user("wanted_detail_suspect", roles=["Suspect"])
+        _, profile = self._create_case_and_profile(
+            officer, suspect, Case.Severity.LEVEL_2, wanted_days=5
+        )
+        profile.arrest_warrant_issued = True
+        profile.save(update_fields=["arrest_warrant_issued"])
+
+        resp = self.client.get(reverse("people-wanted-detail", kwargs={"suspect_id": suspect.id}))
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["id"], profile.id)
+        self.assertFalse(resp.data["severe_tracking"])
+
+    def test_wanted_day_count_starts_from_one_for_new_profile(self):
+        officer = self._create_user("wanted_day_officer", roles=["Police Officer"])
+        suspect = self._create_user("wanted_day_suspect", roles=["Suspect"])
+        _, profile = self._create_case_and_profile(
+            officer, suspect, Case.Severity.LEVEL_2, wanted_days=0
+        )
+        profile.arrest_warrant_issued = True
+        profile.save(update_fields=["arrest_warrant_issued"])
+
+        self.assertEqual(profile.wanted_days, 1)
+        self.assertEqual(profile.ranking_score, 2)  # 1 day * level-2
+        self.assertEqual(profile.reward_amount, 40_000_000)
 
     def test_reward_flow_forward_then_detective_approve_creates_evidence_and_tracking_code(self):
         citizen = self._create_user("reward_citizen", roles=["Basic User"])
