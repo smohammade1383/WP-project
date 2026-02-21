@@ -66,6 +66,17 @@ POLICE_ROLES = {
     "Cadet",
 }
 
+FULL_CASE_ACCESS_ROLES = {
+    "Administrator",
+    "Chief",
+    "Captain",
+    "Sergeant",
+    "Police Officer",
+    "Patrol Officer",
+    "Cadet",
+    "Coroner",
+}
+
 OFFICER_APPROVAL_ROLES = (
     "Police Officer",
     "Patrol Officer",
@@ -88,6 +99,14 @@ BOARD_STRUCTURE_LOCKED_STATUSES = {
 BOARD_MOVE_ALLOWED_STATUSES = {
     Case.Status.OPEN,
     Case.Status.WARRANT_PENDING,
+}
+
+DETECTIVE_ACCEPTABLE_STATUSES = {
+    Case.Status.OPEN,
+    Case.Status.WARRANT_PENDING,
+    Case.Status.ARRESTED,
+    Case.Status.WAITING_CAPTAIN,
+    Case.Status.WAITING_CHIEF,
 }
 
 
@@ -176,8 +195,12 @@ def push_role_notification(*, role_names, message, case_obj=None, evidence=None,
 
 
 def can_access_case(user, case_obj):
-    if is_police_staff(user) or has_any_role(user, "Judge", "Coroner"):
+    if has_any_role(user, *FULL_CASE_ACCESS_ROLES):
         return True
+    if has_any_role(user, "Detective"):
+        return case_obj.accepted_detective_id == user.id
+    if has_any_role(user, "Judge"):
+        return case_obj.accepted_judge_id == user.id
     return (
         case_obj.created_by_id == user.id
         or case_obj.complainants.filter(id=user.id).exists()
@@ -202,11 +225,38 @@ def can_list_cases(user):
 
 def case_queryset_for_user(user):
     base = Case.objects.all().prefetch_related("complainants", "witnesses", "suspects")
-    if is_police_staff(user) or has_any_role(user, "Judge", "Coroner"):
+    if has_any_role(user, *FULL_CASE_ACCESS_ROLES):
         return base
+    detective_role = has_any_role(user, "Detective")
+    judge_role = has_any_role(user, "Judge")
+    if detective_role or judge_role:
+        filter_q = Q(pk__isnull=True)
+        if detective_role:
+            filter_q |= Q(accepted_detective=user)
+        if judge_role:
+            filter_q |= Q(accepted_judge=user)
+        return base.filter(filter_q).distinct()
     return base.filter(
         Q(created_by=user) | Q(complainants=user) | Q(witnesses=user) | Q(suspects=user)
     ).distinct()
+
+
+def ensure_detective_case_access(user, case_obj):
+    if has_any_role(user, "Administrator"):
+        return
+    if not has_any_role(user, "Detective"):
+        raise PermissionDenied("Only detective role can access detective workflows.")
+    if case_obj.accepted_detective_id != user.id:
+        raise PermissionDenied("You must accept this case before using detective workflows.")
+
+
+def ensure_judge_case_access(user, case_obj):
+    if has_any_role(user, "Administrator"):
+        return
+    if not has_any_role(user, "Judge"):
+        raise PermissionDenied("Only judge role can access judiciary workflows.")
+    if case_obj.accepted_judge_id != user.id:
+        raise PermissionDenied("You must accept this case before using judiciary workflows.")
 
 
 def complaint_queryset_for_user(user):
@@ -317,6 +367,118 @@ class CaseRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
         if not is_police_staff(user):
             raise PermissionDenied("Only police roles can modify cases.")
         serializer.save()
+
+
+@extend_schema(
+    tags=["Cases"],
+    summary="List detective-pending cases that are not accepted by any detective yet",
+    responses={200: CaseSerializer(many=True)},
+)
+class DetectivePendingCaseListAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not has_any_role(request.user, "Detective", "Administrator"):
+            raise PermissionDenied("Only detective role can view this queue.")
+
+        queryset = (
+            Case.objects.filter(
+                accepted_detective__isnull=True,
+                status__in=DETECTIVE_ACCEPTABLE_STATUSES,
+            )
+            .select_related("created_by", "approved_by")
+            .prefetch_related("complainants", "witnesses", "suspects", "local_witnesses")
+            .order_by("-updated_at", "-id")
+        )
+        return Response(CaseSerializer(queryset, many=True, context={"request": request}).data)
+
+
+@extend_schema(
+    tags=["Cases"],
+    summary="Accept a case for detective workflow ownership",
+    responses={200: CaseSerializer},
+)
+class DetectiveCaseAcceptAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, case_id):
+        if not has_any_role(request.user, "Detective", "Administrator"):
+            raise PermissionDenied("Only detective role can accept a case.")
+
+        case_obj = get_object_or_404(Case, id=case_id)
+        if case_obj.status not in DETECTIVE_ACCEPTABLE_STATUSES:
+            raise ValidationError({"case": "This case is not in an acceptable detective state."})
+
+        if (
+            case_obj.accepted_detective_id
+            and case_obj.accepted_detective_id != request.user.id
+            and not has_any_role(request.user, "Administrator")
+        ):
+            raise PermissionDenied("This case is already accepted by another detective.")
+
+        case_obj.accepted_detective = request.user
+        case_obj.save(update_fields=["accepted_detective", "updated_at"])
+
+        board = getattr(case_obj, "board", None)
+        if board is None:
+            ensure_board_for_case(case_obj, request.user)
+        elif board.detective_id != request.user.id:
+            board.detective = request.user
+            board.save(update_fields=["detective"])
+
+        return Response(CaseSerializer(case_obj, context={"request": request}).data)
+
+
+@extend_schema(
+    tags=["Cases"],
+    summary="List judge-pending in-court cases that are not accepted by any judge yet",
+    responses={200: CaseSerializer(many=True)},
+)
+class JudgePendingCaseListAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not has_any_role(request.user, "Judge", "Administrator"):
+            raise PermissionDenied("Only judge role can view this queue.")
+
+        queryset = (
+            Case.objects.filter(
+                status=Case.Status.IN_COURT,
+                accepted_judge__isnull=True,
+            )
+            .select_related("created_by", "approved_by")
+            .prefetch_related("complainants", "witnesses", "suspects", "local_witnesses")
+            .order_by("-updated_at", "-id")
+        )
+        return Response(CaseSerializer(queryset, many=True, context={"request": request}).data)
+
+
+@extend_schema(
+    tags=["Cases"],
+    summary="Accept an in-court case for judge workflow ownership",
+    responses={200: CaseSerializer},
+)
+class JudgeCaseAcceptAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, case_id):
+        if not has_any_role(request.user, "Judge", "Administrator"):
+            raise PermissionDenied("Only judge role can accept a case.")
+
+        case_obj = get_object_or_404(Case, id=case_id)
+        if case_obj.status != Case.Status.IN_COURT:
+            raise ValidationError({"case": "Only in-court cases can be accepted by judge."})
+
+        if (
+            case_obj.accepted_judge_id
+            and case_obj.accepted_judge_id != request.user.id
+            and not has_any_role(request.user, "Administrator")
+        ):
+            raise PermissionDenied("This case is already accepted by another judge.")
+
+        case_obj.accepted_judge = request.user
+        case_obj.save(update_fields=["accepted_judge", "updated_at"])
+        return Response(CaseSerializer(case_obj, context={"request": request}).data)
 
 
 @extend_schema_view(
@@ -955,6 +1117,7 @@ class BoardItemListCreateAPIView(APIView):
         case_obj = get_object_or_404(Case, id=case_id)
         if not has_any_role(request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can manage board items.")
+        ensure_detective_case_access(request.user, case_obj)
         if is_board_structure_locked(case_obj):
             raise PermissionDenied("Board structure is locked for this case status.")
         board = ensure_board_for_case(case_obj, request.user)
@@ -988,6 +1151,7 @@ class BoardItemRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVie
         if not has_any_role(self.request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can update board items.")
         case_obj = serializer.instance.board.case
+        ensure_detective_case_access(self.request.user, case_obj)
         changed_fields = set(serializer.validated_data.keys())
         if is_board_structure_locked(case_obj):
             if not can_move_board_items(case_obj):
@@ -999,6 +1163,7 @@ class BoardItemRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVie
     def perform_destroy(self, instance):
         if not has_any_role(self.request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can delete board items.")
+        ensure_detective_case_access(self.request.user, instance.board.case)
         if is_board_structure_locked(instance.board.case):
             raise PermissionDenied("Board structure is locked for this case status.")
         instance.delete()
@@ -1024,6 +1189,7 @@ class BoardLinkListCreateAPIView(APIView):
         case_obj = get_object_or_404(Case, id=case_id)
         if not has_any_role(request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can manage board links.")
+        ensure_detective_case_access(request.user, case_obj)
         if is_board_structure_locked(case_obj):
             raise PermissionDenied("Board structure is locked for this case status.")
         board = ensure_board_for_case(case_obj, request.user)
@@ -1042,6 +1208,7 @@ class BoardLinkDestroyAPIView(generics.DestroyAPIView):
     def perform_destroy(self, instance):
         if not has_any_role(self.request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can delete board links.")
+        ensure_detective_case_access(self.request.user, instance.board.case)
         if is_board_structure_locked(instance.board.case):
             raise PermissionDenied("Board structure is locked for this case status.")
         instance.delete()
@@ -1060,10 +1227,17 @@ class BoardConnectionListCreateAPIView(generics.ListCreateAPIView):
             board__case_id=self.kwargs["case_id"]
         )
 
+    def list(self, request, *args, **kwargs):
+        case_obj = get_object_or_404(Case, id=self.kwargs["case_id"])
+        if not can_access_case(request.user, case_obj):
+            raise PermissionDenied("You cannot access this case.")
+        return super().list(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         if not has_any_role(self.request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can manage board connections.")
         case_obj = get_object_or_404(Case, id=self.kwargs["case_id"])
+        ensure_detective_case_access(self.request.user, case_obj)
         if is_board_structure_locked(case_obj):
             raise PermissionDenied("Board structure is locked for this case status.")
         board = ensure_board_for_case(case_obj, self.request.user)
@@ -1079,6 +1253,7 @@ class BoardConnectionDestroyAPIView(generics.DestroyAPIView):
     def perform_destroy(self, instance):
         if not has_any_role(self.request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective role can delete board connections.")
+        ensure_detective_case_access(self.request.user, instance.board.case)
         if is_board_structure_locked(instance.board.case):
             raise PermissionDenied("Board structure is locked for this case status.")
         instance.delete()
@@ -1098,6 +1273,7 @@ class SuspectNominationAPIView(APIView):
             raise PermissionDenied("Only detective role can nominate suspects.")
 
         case_obj = get_object_or_404(Case, id=case_id)
+        ensure_detective_case_access(request.user, case_obj)
         serializer = SuspectNominationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         suspect_ids = serializer.validated_data["suspect_ids"]
@@ -1249,19 +1425,21 @@ class InterrogationScoreCreateAPIView(APIView):
 
     def post(self, request, profile_id):
         profile = get_object_or_404(SuspectCaseProfile, id=profile_id)
+        case_obj = profile.case
         serializer = InterrogationScoreSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         scorer_role = serializer.validated_data["scorer_role"]
         if scorer_role == InterrogationScore.ScorerRole.DETECTIVE and not has_any_role(request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detectives can submit detective score.")
+        if scorer_role == InterrogationScore.ScorerRole.DETECTIVE:
+            ensure_detective_case_access(request.user, case_obj)
         if scorer_role == InterrogationScore.ScorerRole.SERGEANT and not has_any_role(
             request.user, "Sergeant", "Administrator"
         ):
             raise PermissionDenied("Only sergeant can submit sergeant score.")
 
         score = serializer.save(suspect_profile=profile, scorer=request.user)
-        case_obj = profile.case
         if scorer_role == InterrogationScore.ScorerRole.DETECTIVE:
             push_role_notification(
                 role_names=("Sergeant", "Administrator"),
@@ -1656,7 +1834,7 @@ class DetectiveNotificationListAPIView(APIView):
     def get(self, request):
         if not has_any_role(request.user, "Detective", "Administrator"):
             raise PermissionDenied("Only detective roles can access this feed.")
-        case_ids = DetectiveBoard.objects.filter(detective=request.user).values_list("case_id", flat=True)
+        case_ids = Case.objects.filter(accepted_detective=request.user).values_list("id", flat=True)
         notifications = CaseLog.objects.filter(case_id__in=case_ids, action="new_evidence").order_by("-timestamp")
         data = [
             {

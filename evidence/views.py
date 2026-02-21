@@ -37,10 +37,6 @@ POLICE_ROLES = {
 }
 
 OFFICER_REVIEW_ROLES = {
-    "Administrator",
-    "Chief",
-    "Captain",
-    "Sergeant",
     "Police Officer",
     "Patrol Officer",
 }
@@ -79,8 +75,59 @@ def requires_officer_review_for_user(user):
     return not (is_police_staff(user) or has_any_role(user, "Judge", "Coroner"))
 
 
+def apply_case_assignment_filter_for_user(queryset, user):
+    if has_any_role(
+        user,
+        "Administrator",
+        "Chief",
+        "Captain",
+        "Sergeant",
+        "Police Officer",
+        "Patrol Officer",
+        "Cadet",
+        "Coroner",
+    ):
+        return queryset
+
+    filters = []
+    if has_any_role(user, "Detective"):
+        filters.append(Q(case__accepted_detective=user))
+    if has_any_role(user, "Judge"):
+        filters.append(Q(case__accepted_judge=user))
+    if not filters:
+        return queryset
+    access_q = filters[0]
+    for item in filters[1:]:
+        access_q |= item
+    return queryset.filter(access_q).distinct()
+
+
+def can_access_staff_case(user, case_obj):
+    if has_any_role(
+        user,
+        "Administrator",
+        "Chief",
+        "Captain",
+        "Sergeant",
+        "Police Officer",
+        "Patrol Officer",
+        "Cadet",
+        "Coroner",
+    ):
+        return True
+    if has_any_role(user, "Detective"):
+        return case_obj.accepted_detective_id == user.id
+    if has_any_role(user, "Judge"):
+        return case_obj.accepted_judge_id == user.id
+    return True
+
+
 def can_submit_evidence(user, case_obj):
-    return bool(user and user.is_authenticated)
+    if not (user and user.is_authenticated):
+        return False
+    if is_police_staff(user) or has_any_role(user, "Judge", "Coroner"):
+        return can_access_staff_case(user, case_obj)
+    return True
 
 
 def push_notification(*, recipient, message, case_obj=None, evidence=None):
@@ -113,6 +160,15 @@ def notify_role_recipients(*, role_names, message, case_obj=None, evidence=None,
 
 
 def notify_case_detective(case_obj, message, evidence, *, exclude_user_id=None):
+    detective = case_obj.accepted_detective
+    if detective and detective.id != exclude_user_id:
+        push_notification(
+            recipient=detective,
+            message=message,
+            case_obj=case_obj,
+            evidence=evidence,
+        )
+        return
     board = getattr(case_obj, "board", None)
     if board and board.detective_id and board.detective_id != exclude_user_id:
         push_notification(
@@ -253,6 +309,7 @@ class EvidenceListCreateAPIView(generics.ListCreateAPIView):
             queryset = queryset.filter(
                 Q(officer_review_status=Evidence.OfficerReviewStatus.APPROVED) | Q(created_by=user)
             ).distinct()
+            queryset = apply_case_assignment_filter_for_user(queryset, user)
         else:
             queryset = queryset.filter(created_by=user).distinct()
 
@@ -330,7 +387,7 @@ class EvidenceOfficerPendingListAPIView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         if not is_officer_reviewer(user):
-            raise PermissionDenied("Only officer+ roles can review evidence.")
+            raise PermissionDenied("Only police officer roles can review evidence.")
         queryset = (
             Evidence.objects.select_related("case", "created_by", "officer_reviewer")
             .filter(officer_review_status=Evidence.OfficerReviewStatus.PENDING)
@@ -354,7 +411,7 @@ class EvidenceOfficerReviewAPIView(generics.GenericAPIView):
 
     def post(self, request, pk):
         if not is_officer_reviewer(request.user):
-            raise PermissionDenied("Only officer+ roles can review evidence.")
+            raise PermissionDenied("Only police officer roles can review evidence.")
 
         evidence = get_object_or_404(
             Evidence.objects.select_related("case", "created_by", "officer_reviewer"),
@@ -418,6 +475,8 @@ class EvidenceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
         if is_officer_reviewer(user):
             return evidence
         if is_police_staff(user) or has_any_role(user, "Judge", "Coroner"):
+            if not can_access_staff_case(user, evidence.case):
+                raise PermissionDenied("You cannot access this case.")
             if (
                 evidence.officer_review_status == Evidence.OfficerReviewStatus.APPROVED
                 or evidence.created_by_id == user.id

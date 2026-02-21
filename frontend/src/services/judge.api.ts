@@ -35,6 +35,15 @@ export const judgeApi = {
     return toList(payload);
   },
 
+  listPendingCases: async (): Promise<JudgeCase[]> => {
+    const payload = await api.get<JudgeCase[] | { results?: JudgeCase[] }>('/cases/judge/pending/');
+    return toList(payload);
+  },
+
+  acceptCase: async (caseId: number): Promise<JudgeCase> => {
+    return api.post<JudgeCase>(`/cases/${caseId}/accept-judge/`);
+  },
+
   getCaseReport: async (caseId: number): Promise<ChiefCaseReport> => {
     return api.get<ChiefCaseReport>(`/judiciary/reports/cases/${caseId}/`);
   },

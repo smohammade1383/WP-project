@@ -59,6 +59,11 @@ if ! python manage.py showmigrations cases | grep -q "\[X\] 0009_boardlink_conne
     echo "   لطفاً migration را بررسی کن و دوباره اجرا کن."
     exit 1
 fi
+if ! python manage.py showmigrations cases | grep -q "\[X\] 0010_case_acceptance_assignments"; then
+    echo "❌ Required migration 0010_case_acceptance_assignments is not applied."
+    echo "   لطفاً migration را بررسی کن و دوباره اجرا کن."
+    exit 1
+fi
 python manage.py runserver &
 BACKEND_PID=$!
 

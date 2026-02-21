@@ -52,6 +52,14 @@ def notify_role_recipients(*, role_names, message, case_obj=None, exclude_user_i
         push_notification(recipient=recipient, message=message, case_obj=case_obj)
 
 
+def has_judge_case_access(user, case_obj):
+    if has_any_role(user, "Administrator"):
+        return True
+    if not has_any_role(user, "Judge"):
+        return False
+    return case_obj.accepted_judge_id == user.id
+
+
 ROLE_PRIORITY = (
     "Administrator",
     "Chief",
@@ -113,6 +121,8 @@ class TrialCreateAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         case_obj = serializer.validated_data["case"]
+        if not has_judge_case_access(request.user, case_obj):
+            raise PermissionDenied("You must accept this case before issuing verdict.")
         defendant = serializer.validated_data.get("defendant")
         if defendant and not case_obj.suspect_profiles.filter(suspect_id=defendant.id).exists():
             raise ValidationError({"defendant": "Defendant must be one of the case suspects."})
@@ -183,6 +193,10 @@ class CaseComprehensiveReportAPIView(APIView):
             ),
             id=case_id,
         )
+
+        if has_any_role(request.user, "Judge") and not has_any_role(request.user, "Captain", "Chief", "Administrator"):
+            if not has_judge_case_access(request.user, case_obj):
+                raise PermissionDenied("You must accept this case before viewing judiciary report.")
 
         evidence_data = EvidenceSerializer(case_obj.evidences.all(), many=True).data
         complaints = case_obj.complaints.select_related("submitter").all()

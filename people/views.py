@@ -29,6 +29,11 @@ POLICE_ROLES = {
     "Cadet",
 }
 
+OFFICER_REVIEW_ROLES = {
+    "Police Officer",
+    "Patrol Officer",
+}
+
 
 def has_any_role(user, *roles):
     if not user or not user.is_authenticated:
@@ -66,6 +71,10 @@ def notify_role_recipients(*, role_names, message, case_obj=None, exclude_user_i
         if exclude_user_id and recipient.id == exclude_user_id:
             continue
         push_notification(recipient=recipient, message=message, case_obj=case_obj)
+
+
+def is_officer_reviewer(user):
+    return has_any_role(user, *OFFICER_REVIEW_ROLES)
 
 
 def _refresh_severe_tracking(profiles):
@@ -163,7 +172,7 @@ class CitizenTipListCreateAPIView(APIView):
             message=f"گزارش مردمی #{tip.id} با موفقیت ثبت شد و در صف بررسی افسر قرار گرفت.",
         )
         notify_role_recipients(
-            role_names=("Police Officer", "Patrol Officer", "Sergeant", "Captain", "Chief", "Administrator"),
+            role_names=OFFICER_REVIEW_ROLES,
             case_obj=tip.case,
             exclude_user_id=request.user.id,
             message=f"گزارش مردمی جدید #{tip.id} ثبت شد و نیاز به بررسی افسر دارد.",
@@ -181,16 +190,8 @@ class CitizenTipOfficerReviewAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, tip_id):
-        if not has_any_role(
-            request.user,
-            "Police Officer",
-            "Patrol Officer",
-            "Sergeant",
-            "Captain",
-            "Chief",
-            "Administrator",
-        ):
-            return Response({"detail": "Only officer+ roles can review citizen tips."}, status=403)
+        if not is_officer_reviewer(request.user):
+            return Response({"detail": "Only police officer roles can review citizen tips."}, status=403)
 
         tip = get_object_or_404(CitizenTip, id=tip_id)
         serializer = CitizenTipOfficerReviewSerializer(data=request.data)

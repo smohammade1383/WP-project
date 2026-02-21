@@ -129,7 +129,7 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
     description: 'بررسی اولیه گزارش‌های ارسالی درباره مظنونین',
     icon: '📨',
     route: '/officer/tips',
-    allowedRoles: ['Police Officer', 'Patrol Officer', 'Sergeant', 'Captain', 'Chief', 'Administrator'],
+    allowedRoles: ['Police Officer', 'Patrol Officer'],
     color: '#0EA5E9',
   },
   {
@@ -138,7 +138,7 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
     description: 'بررسی و تایید/رد مدارک ارسالی کاربران',
     icon: '📑',
     route: '/officer/evidence-review',
-    allowedRoles: ['Police Officer', 'Patrol Officer', 'Sergeant', 'Captain', 'Chief', 'Administrator'],
+    allowedRoles: ['Police Officer', 'Patrol Officer'],
     color: '#2563EB',
   },
   {
@@ -172,9 +172,18 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
 
   // Detective Modules
   {
+    id: 'detective-case-acceptance',
+    title: 'پذیرش پرونده‌ها',
+    description: 'پرونده‌های ارجاع‌شده که هنوز توسط شما پذیرفته نشده‌اند',
+    icon: '📬',
+    route: '/detective/cases/pending',
+    allowedRoles: ['Detective'],
+    color: '#0EA5E9',
+  },
+  {
     id: 'detective-cases',
     title: 'پرونده‌های فعال من',
-    description: 'پرونده‌های تخصیص داده شده به شما',
+    description: 'پرونده‌هایی که پذیرفته‌اید و امکان فعالیت کامل روی آن‌ها دارید',
     icon: '📂',
     route: '/detective/cases',
     allowedRoles: ['Detective'],
@@ -281,9 +290,18 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
 
   // Judge Modules
   {
+    id: 'judge-case-acceptance',
+    title: 'پذیرش پرونده‌های دادگاه',
+    description: 'پرونده‌های InCourt که هنوز توسط شما پذیرفته نشده‌اند',
+    icon: '📥',
+    route: '/judge/pending',
+    allowedRoles: ['Judge'],
+    color: '#0284C7',
+  },
+  {
     id: 'judge-bench',
     title: 'میز قضاوت',
-    description: 'بررسی پرونده‌های تکمیل شده و صدور رای',
+    description: 'پرونده‌های پذیرفته‌شده برای صدور رای نهایی',
     icon: '⚖️',
     route: '/judge/bench',
     allowedRoles: ['Judge'],

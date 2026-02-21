@@ -123,6 +123,34 @@ class FinanceFlowAPITests(APITestCase):
         self.assertEqual(ok.status_code, status.HTTP_200_OK)
         self.assertEqual(ok.data["reporter"]["national_id"], reporter.national_id)
 
+    def test_sergeant_cannot_do_officer_stage_reward_review(self):
+        reporter = self._create_user("reporter_sergeant_block")
+        sergeant = self._create_user("sergeant_block", roles=["Sergeant"])
+        officer = self._create_user("officer_block", roles=["Police Officer"])
+        suspect = self._create_user("suspect_block")
+        case_obj, profile = self._create_case_and_profile(officer, suspect, Case.Severity.LEVEL_2)
+
+        self.client.force_authenticate(reporter)
+        create_resp = self.client.post(
+            reverse("reward-report-list-create"),
+            {
+                "case": case_obj.id,
+                "suspect_profile": profile.id,
+                "description": "tip for role guard",
+            },
+            format="json",
+        )
+        self.assertEqual(create_resp.status_code, status.HTTP_201_CREATED)
+        report_id = create_resp.data["id"]
+
+        self.client.force_authenticate(sergeant)
+        denied = self.client.post(
+            reverse("reward-officer-review", kwargs={"report_id": report_id}),
+            {"action": "forward"},
+            format="json",
+        )
+        self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_reward_detective_review_is_limited_to_assigned_detective(self):
         reporter = self._create_user("reporter3")
         officer = self._create_user("officer3a", roles=["Police Officer"])

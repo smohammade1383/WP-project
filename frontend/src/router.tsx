@@ -35,6 +35,8 @@ import CaptainDashboard from './pages/CaptainDashboard';
 import ChiefDashboard from './pages/ChiefDashboard';
 import JudgeDashboard from './pages/JudgeDashboard';
 import DetectiveRewardsReview from './pages/DetectiveRewardsReview';
+import DetectivePendingCases from './pages/DetectivePendingCases';
+import JudgePendingCases from './pages/JudgePendingCases';
 import Forbidden from './pages/Forbidden';
 
 export const router = createBrowserRouter([
@@ -163,6 +165,10 @@ export const router = createBrowserRouter([
         element: <DetectiveCases />,
       },
       {
+        path: 'detective/cases/pending',
+        element: <DetectivePendingCases />,
+      },
+      {
         path: 'detective/rewards',
         element: <DetectiveRewardsReview />,
       },
@@ -201,6 +207,10 @@ export const router = createBrowserRouter([
       {
         path: 'judge/bench',
         element: <JudgeDashboard />,
+      },
+      {
+        path: 'judge/pending',
+        element: <JudgePendingCases />,
       },
       {
         path: '403',

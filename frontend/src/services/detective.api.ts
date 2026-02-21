@@ -79,6 +79,15 @@ export const detectiveApi = {
     return toList(payload);
   },
 
+  listPendingCases: async (): Promise<DetectiveCase[]> => {
+    const payload = await api.get<DetectiveCase[] | { results?: DetectiveCase[] }>('/cases/detective/pending/');
+    return toList(payload);
+  },
+
+  acceptCase: async (caseId: number): Promise<DetectiveCase> => {
+    return api.post<DetectiveCase>(`/cases/${caseId}/accept-detective/`);
+  },
+
   listNotifications: async (): Promise<DetectiveNotification[]> => {
     const payload = await api.get<DetectiveNotification[] | { results?: DetectiveNotification[] }>(
       '/cases/notifications/detective/'

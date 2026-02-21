@@ -34,6 +34,11 @@ POLICE_ROLES = {
     "Cadet",
 }
 
+OFFICER_REVIEW_ROLES = {
+    "Police Officer",
+    "Patrol Officer",
+}
+
 
 def has_any_role(user, *roles):
     if not user or not user.is_authenticated:
@@ -149,7 +154,7 @@ class RewardReportListCreateAPIView(generics.ListCreateAPIView):
             message=f"گزارش پاداش #{report.id} ثبت شد و در صف بررسی افسر قرار گرفت.",
         )
         notify_role_recipients(
-            role_names=("Police Officer", "Patrol Officer", "Sergeant", "Captain", "Chief", "Administrator"),
+            role_names=OFFICER_REVIEW_ROLES,
             case_obj=report.case,
             exclude_user_id=self.request.user.id,
             message=f"گزارش پاداش جدید #{report.id} ثبت شد و نیاز به بررسی افسر دارد.",
@@ -182,16 +187,8 @@ class RewardOfficerReviewAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, report_id):
-        if not has_any_role(
-            request.user,
-            "Police Officer",
-            "Patrol Officer",
-            "Sergeant",
-            "Captain",
-            "Chief",
-            "Administrator",
-        ):
-            raise PermissionDenied("Only officer+ roles can review reward submissions.")
+        if not has_any_role(request.user, *OFFICER_REVIEW_ROLES):
+            raise PermissionDenied("Only police officer roles can review reward submissions.")
 
         report = get_object_or_404(RewardReport, id=report_id)
         if report.status in {RewardReport.Status.REJECTED, RewardReport.Status.APPROVED}:

@@ -11,6 +11,8 @@ from .views import (
     CaptainDecisionCreateAPIView,
     CaseBreakdownStatsAPIView,
     CaseListCreateAPIView,
+    DetectiveCaseAcceptAPIView,
+    DetectivePendingCaseListAPIView,
     CaseRetrieveUpdateAPIView,
     CitizenCaseSummaryListAPIView,
     ChiefDecisionAPIView,
@@ -27,6 +29,8 @@ from .views import (
     DetectiveBoardDetailAPIView,
     DetectiveNotificationListAPIView,
     InterrogationScoreCreateAPIView,
+    JudgeCaseAcceptAPIView,
+    JudgePendingCaseListAPIView,
     NotificationListAPIView,
     NotificationMarkAllReadAPIView,
     NotificationMarkReadAPIView,
@@ -41,6 +45,10 @@ from .views import (
 
 urlpatterns = [
     path("", CaseListCreateAPIView.as_view(), name="case-list-create"),
+    path("detective/pending/", DetectivePendingCaseListAPIView.as_view(), name="detective-pending-cases"),
+    path("<int:case_id>/accept-detective/", DetectiveCaseAcceptAPIView.as_view(), name="detective-accept-case"),
+    path("judge/pending/", JudgePendingCaseListAPIView.as_view(), name="judge-pending-cases"),
+    path("<int:case_id>/accept-judge/", JudgeCaseAcceptAPIView.as_view(), name="judge-accept-case"),
     path("<int:pk>/", CaseRetrieveUpdateAPIView.as_view(), name="case-detail-update"),
     path("my-cases/summary/", CitizenCaseSummaryListAPIView.as_view(), name="citizen-case-summary-list"),
 

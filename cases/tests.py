@@ -221,6 +221,8 @@ class CaseFlowAPITests(APITestCase):
             severity=Case.Severity.LEVEL_2,
             created_by=officer,
         )
+        case_obj.accepted_detective = detective
+        case_obj.save(update_fields=["accepted_detective"])
 
         self.client.force_authenticate(citizen)
         denied = self.client.post(
@@ -388,6 +390,10 @@ class CaseFlowAPITests(APITestCase):
             severity=Case.Severity.LEVEL_2,
             created_by=officer,
         )
+        case_a.accepted_detective = detective
+        case_b.accepted_detective = detective
+        case_a.save(update_fields=["accepted_detective"])
+        case_b.save(update_fields=["accepted_detective"])
 
         self.client.force_authenticate(detective)
         item_a1 = self.client.post(
@@ -475,6 +481,8 @@ class CaseFlowAPITests(APITestCase):
             severity=Case.Severity.LEVEL_2,
             created_by=officer,
         )
+        case_obj.accepted_detective = detective
+        case_obj.save(update_fields=["accepted_detective"])
         profile = SuspectCaseProfile.objects.create(
             case=case_obj,
             suspect=suspect,
@@ -595,3 +603,139 @@ class CaseFlowAPITests(APITestCase):
         self.assertIn(captain.first_name + " " + captain.last_name, involved_names)
         self.assertIn(sergeant.first_name + " " + sergeant.last_name, involved_names)
         self.assertIn(detective.first_name + " " + detective.last_name, involved_names)
+
+    def test_detective_pending_and_my_cases_flow(self):
+        officer = self._create_user("officer_acceptance", roles=["Police Officer"])
+        detective = self._create_user("detective_acceptance", roles=["Detective"])
+        another_detective = self._create_user("detective_other", roles=["Detective"])
+
+        case_pending = Case.objects.create(
+            title="Pending detective case",
+            description="Awaiting detective acceptance",
+            location="Zone D-1",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.OPEN,
+            severity=Case.Severity.LEVEL_2,
+            created_by=officer,
+        )
+        case_other = Case.objects.create(
+            title="Already accepted by other detective",
+            description="Should be hidden",
+            location="Zone D-2",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.OPEN,
+            severity=Case.Severity.LEVEL_2,
+            created_by=officer,
+            accepted_detective=another_detective,
+        )
+
+        self.client.force_authenticate(detective)
+
+        my_cases_before = self.client.get(reverse("case-list-create"))
+        self.assertEqual(my_cases_before.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(my_cases_before.data), 0)
+
+        pending_resp = self.client.get(reverse("detective-pending-cases"))
+        self.assertEqual(pending_resp.status_code, status.HTTP_200_OK)
+        pending_ids = {item["id"] for item in pending_resp.data}
+        self.assertIn(case_pending.id, pending_ids)
+        self.assertNotIn(case_other.id, pending_ids)
+
+        accept_resp = self.client.post(reverse("detective-accept-case", kwargs={"case_id": case_pending.id}), {}, format="json")
+        self.assertEqual(accept_resp.status_code, status.HTTP_200_OK)
+
+        my_cases_after = self.client.get(reverse("case-list-create"))
+        self.assertEqual(my_cases_after.status_code, status.HTTP_200_OK)
+        my_case_ids = {item["id"] for item in my_cases_after.data}
+        self.assertIn(case_pending.id, my_case_ids)
+        self.assertNotIn(case_other.id, my_case_ids)
+
+    def test_detective_cannot_accept_case_owned_by_another_detective(self):
+        officer = self._create_user("officer_acceptance_lock", roles=["Police Officer"])
+        detective_a = self._create_user("detective_lock_a", roles=["Detective"])
+        detective_b = self._create_user("detective_lock_b", roles=["Detective"])
+
+        case_obj = Case.objects.create(
+            title="Locked detective case",
+            description="Already accepted",
+            location="Zone L-1",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.OPEN,
+            severity=Case.Severity.LEVEL_2,
+            created_by=officer,
+            accepted_detective=detective_a,
+        )
+
+        self.client.force_authenticate(detective_b)
+        resp = self.client.post(reverse("detective-accept-case", kwargs={"case_id": case_obj.id}), {}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_judge_pending_and_my_cases_flow(self):
+        officer = self._create_user("officer_judge_acceptance", roles=["Police Officer"])
+        judge = self._create_user("judge_acceptance", roles=["Judge"])
+        another_judge = self._create_user("judge_other", roles=["Judge"])
+
+        case_pending = Case.objects.create(
+            title="Pending judge case",
+            description="Awaiting judge acceptance",
+            location="Zone J-1",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.IN_COURT,
+            severity=Case.Severity.LEVEL_1,
+            created_by=officer,
+        )
+        case_other = Case.objects.create(
+            title="Already accepted by other judge",
+            description="Should be hidden from judge_acceptance",
+            location="Zone J-2",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.IN_COURT,
+            severity=Case.Severity.LEVEL_1,
+            created_by=officer,
+            accepted_judge=another_judge,
+        )
+
+        self.client.force_authenticate(judge)
+
+        my_cases_before = self.client.get(reverse("case-list-create"))
+        self.assertEqual(my_cases_before.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(my_cases_before.data), 0)
+
+        pending_resp = self.client.get(reverse("judge-pending-cases"))
+        self.assertEqual(pending_resp.status_code, status.HTTP_200_OK)
+        pending_ids = {item["id"] for item in pending_resp.data}
+        self.assertIn(case_pending.id, pending_ids)
+        self.assertNotIn(case_other.id, pending_ids)
+
+        accept_resp = self.client.post(reverse("judge-accept-case", kwargs={"case_id": case_pending.id}), {}, format="json")
+        self.assertEqual(accept_resp.status_code, status.HTTP_200_OK)
+
+        my_cases_after = self.client.get(reverse("case-list-create"))
+        self.assertEqual(my_cases_after.status_code, status.HTTP_200_OK)
+        my_case_ids = {item["id"] for item in my_cases_after.data}
+        self.assertIn(case_pending.id, my_case_ids)
+        self.assertNotIn(case_other.id, my_case_ids)
+
+    def test_judge_cannot_accept_non_incourt_case(self):
+        officer = self._create_user("officer_judge_invalid", roles=["Police Officer"])
+        judge = self._create_user("judge_invalid", roles=["Judge"])
+
+        case_obj = Case.objects.create(
+            title="Non in-court case",
+            description="Judge should not accept this",
+            location="Zone J-3",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.OPEN,
+            severity=Case.Severity.LEVEL_2,
+            created_by=officer,
+        )
+
+        self.client.force_authenticate(judge)
+        resp = self.client.post(reverse("judge-accept-case", kwargs={"case_id": case_obj.id}), {}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)

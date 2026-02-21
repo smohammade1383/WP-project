@@ -14,6 +14,7 @@ class OfficerEvidenceReviewAPITests(APITestCase):
         self._seq = 70000
 
         self.officer = self._create_user("officer_reviewer", roles=["Police Officer"])
+        self.sergeant = self._create_user("sergeant_reviewer", roles=["Sergeant"])
         self.detective = self._create_user("detective_user", roles=["Detective"])
         self.citizen = self._create_user("citizen_user", roles=["Basic User"])
 
@@ -27,6 +28,8 @@ class OfficerEvidenceReviewAPITests(APITestCase):
             severity=Case.Severity.LEVEL_2,
             created_by=self.officer,
         )
+        self.case.accepted_detective = self.detective
+        self.case.save(update_fields=["accepted_detective"])
 
     def _create_user(self, username, roles=None):
         self._seq += 1
@@ -129,3 +132,17 @@ class OfficerEvidenceReviewAPITests(APITestCase):
                 message__contains="رد",
             ).exists()
         )
+
+    def test_sergeant_cannot_access_officer_review_queue_or_review_action(self):
+        created = self._create_citizen_evidence()
+
+        self.client.force_authenticate(self.sergeant)
+        queue_response = self.client.get(reverse("evidence-officer-pending"))
+        self.assertEqual(queue_response.status_code, status.HTTP_403_FORBIDDEN)
+
+        review_response = self.client.post(
+            reverse("evidence-officer-review", kwargs={"pk": created["id"]}),
+            {"decision": "approved"},
+            format="json",
+        )
+        self.assertEqual(review_response.status_code, status.HTTP_403_FORBIDDEN)

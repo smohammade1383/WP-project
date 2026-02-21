@@ -52,6 +52,20 @@ class Case(models.Model):
         null=True,
         blank=True,
     )
+    accepted_detective = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="accepted_detective_cases",
+        null=True,
+        blank=True,
+    )
+    accepted_judge = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="accepted_judge_cases",
+        null=True,
+        blank=True,
+    )
 
     complainants = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="complaint_cases", blank=True)
     witnesses = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="witness_cases", blank=True)

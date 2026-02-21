@@ -190,6 +190,7 @@ const JudgeDashboard = () => {
           <div>
             <h1>میز قضاوت</h1>
             <p>بررسی پرونده‌های ارجاع‌شده به دادگاه و ثبت رای نهایی قاضی</p>
+            <p className="judge-header-meta">پرونده‌های پذیرفته‌شده: {cases.length}</p>
           </div>
           <button type="button" onClick={loadCases} disabled={loading}>
             {loading ? '...' : 'بارگذاری مجدد'}
@@ -202,7 +203,7 @@ const JudgeDashboard = () => {
 
         <section className="judge-section">
           <div className="section-top">
-            <h2>صف محاکمه (InCourt)</h2>
+            <h2>پرونده‌های پذیرفته‌شده (InCourt)</h2>
             <span>{inCourtQueue.length} پرونده</span>
           </div>
           {loading ? (
