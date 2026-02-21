@@ -220,6 +220,7 @@ class CaseFlowAPITests(APITestCase):
             status=Case.Status.OPEN,
             severity=Case.Severity.LEVEL_2,
             created_by=officer,
+            assigned_detective=detective,
         )
 
         self.client.force_authenticate(citizen)
@@ -377,6 +378,7 @@ class CaseFlowAPITests(APITestCase):
             status=Case.Status.OPEN,
             severity=Case.Severity.LEVEL_2,
             created_by=officer,
+            assigned_detective=detective,
         )
         case_b = Case.objects.create(
             title="Case B",
@@ -387,6 +389,7 @@ class CaseFlowAPITests(APITestCase):
             status=Case.Status.OPEN,
             severity=Case.Severity.LEVEL_2,
             created_by=officer,
+            assigned_detective=detective,
         )
 
         self.client.force_authenticate(detective)
@@ -474,6 +477,7 @@ class CaseFlowAPITests(APITestCase):
             status=Case.Status.ARRESTED,
             severity=Case.Severity.LEVEL_2,
             created_by=officer,
+            assigned_detective=detective,
         )
         profile = SuspectCaseProfile.objects.create(
             case=case_obj,

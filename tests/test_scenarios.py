@@ -191,6 +191,8 @@ class IntegrationScenarioTests(APITestCase):
         )
 
         self.client.force_authenticate(detective)
+        claim_case_resp = self.client.post(reverse("case-claim", kwargs={"case_id": case_obj.id}), {}, format="json")
+        self.assertEqual(claim_case_resp.status_code, status.HTTP_200_OK)
         board_resp = self.client.get(reverse("detective-board", kwargs={"case_id": case_obj.id}))
         self.assertEqual(board_resp.status_code, status.HTTP_200_OK)
 
@@ -328,6 +330,8 @@ class IntegrationScenarioTests(APITestCase):
         self.assertEqual(case_obj.status, Case.Status.OPEN)
 
         self.client.force_authenticate(detective)
+        claim_case_resp = self.client.post(reverse("case-claim", kwargs={"case_id": case_id}), {}, format="json")
+        self.assertEqual(claim_case_resp.status_code, status.HTTP_200_OK)
         other_evidence_resp = self.client.post(
             reverse("evidence-list-create"),
             {

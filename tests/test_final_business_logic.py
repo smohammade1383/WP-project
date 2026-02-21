@@ -30,7 +30,7 @@ class FinalBusinessLogicTests(APITestCase):
             user.groups.add(group)
         return user
 
-    def _create_case(self, created_by, severity=Case.Severity.LEVEL_2):
+    def _create_case(self, created_by, severity=Case.Severity.LEVEL_2, assigned_detective=None):
         return Case.objects.create(
             title=f"Case-{severity}",
             description="Test case",
@@ -40,6 +40,7 @@ class FinalBusinessLogicTests(APITestCase):
             status=Case.Status.OPEN,
             severity=severity,
             created_by=created_by,
+            assigned_detective=assigned_detective,
         )
 
     def test_scenario_9_three_strikes_rule(self):
@@ -141,7 +142,11 @@ class FinalBusinessLogicTests(APITestCase):
         detective = self._create_user("tamper_detective", roles=["Detective"])
         officer = self._create_user("tamper_officer", roles=["Police Officer"])
 
-        case_obj = self._create_case(created_by=officer, severity=Case.Severity.LEVEL_2)
+        case_obj = self._create_case(
+            created_by=officer,
+            severity=Case.Severity.LEVEL_2,
+            assigned_detective=detective,
+        )
 
         self.client.force_authenticate(detective)
         create_evidence_resp = self.client.post(

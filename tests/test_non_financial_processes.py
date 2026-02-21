@@ -35,7 +35,13 @@ class NonFinancialProcessRegressionTests(APITestCase):
             user.groups.add(group)
         return user
 
-    def _create_case(self, created_by, severity=Case.Severity.LEVEL_2, status_value=Case.Status.OPEN):
+    def _create_case(
+        self,
+        created_by,
+        severity=Case.Severity.LEVEL_2,
+        status_value=Case.Status.OPEN,
+        assigned_detective=None,
+    ):
         return Case.objects.create(
             title=f"Case-{severity}-{status_value}",
             description="Non-financial process test case",
@@ -45,6 +51,7 @@ class NonFinancialProcessRegressionTests(APITestCase):
             status=status_value,
             severity=severity,
             created_by=created_by,
+            assigned_detective=assigned_detective,
         )
 
     def test_auth_signup_and_multi_identifier_login(self):
@@ -212,7 +219,7 @@ class NonFinancialProcessRegressionTests(APITestCase):
         officer = self._create_user("nf_case_officer", roles=["Police Officer"])
         detective = self._create_user("nf_case_detective", roles=["Detective"])
         coroner = self._create_user("nf_case_coroner", roles=["Coroner"])
-        case_obj = self._create_case(officer, severity=Case.Severity.LEVEL_2)
+        case_obj = self._create_case(officer, severity=Case.Severity.LEVEL_2, assigned_detective=detective)
 
         self.client.force_authenticate(detective)
         bio_resp = self.client.post(
@@ -277,7 +284,12 @@ class NonFinancialProcessRegressionTests(APITestCase):
         judge = self._create_user("nf_pipeline_judge", roles=["Judge"])
         suspect = self._create_user("nf_pipeline_suspect", roles=["Suspect"])
 
-        case_obj = self._create_case(officer, severity=Case.Severity.LEVEL_2, status_value=Case.Status.OPEN)
+        case_obj = self._create_case(
+            officer,
+            severity=Case.Severity.LEVEL_2,
+            status_value=Case.Status.OPEN,
+            assigned_detective=detective,
+        )
 
         self.client.force_authenticate(detective)
         nominate_resp = self.client.post(
@@ -360,7 +372,12 @@ class NonFinancialProcessRegressionTests(APITestCase):
         judge = self._create_user("nf_critical_judge", roles=["Judge"])
         suspect = self._create_user("nf_critical_suspect", roles=["Suspect"])
 
-        case_obj = self._create_case(officer, severity=Case.Severity.CRITICAL, status_value=Case.Status.OPEN)
+        case_obj = self._create_case(
+            officer,
+            severity=Case.Severity.CRITICAL,
+            status_value=Case.Status.OPEN,
+            assigned_detective=detective,
+        )
 
         self.client.force_authenticate(detective)
         nominate_resp = self.client.post(

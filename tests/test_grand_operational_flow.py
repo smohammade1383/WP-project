@@ -78,6 +78,10 @@ class GrandOperationalFlowTests(APITestCase):
         self.assertEqual(case_obj.status, Case.Status.OPEN)
         self.assertEqual(Complaint.objects.get(id=complaint_id).status, Complaint.Status.APPROVED)
 
+        self.client.force_authenticate(self.detective)
+        claim_resp = self.client.post(reverse("case-claim", kwargs={"case_id": case_id}), {}, format="json")
+        self.assertEqual(claim_resp.status_code, status.HTTP_200_OK)
+
         # Promote severity to CRITICAL so captain route escalates to chief.
         severity_resp = self.client.patch(
             reverse("case-detail-update", kwargs={"pk": case_id}),
@@ -275,4 +279,3 @@ class GrandOperationalFlowTests(APITestCase):
 
         case_obj.refresh_from_db()
         self.assertEqual(case_obj.status, Case.Status.CLOSED)
-

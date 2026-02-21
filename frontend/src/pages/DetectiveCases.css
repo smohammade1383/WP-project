@@ -153,6 +153,29 @@
   padding: 1rem;
 }
 
+.case-pool-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.case-pool-tabs button {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.case-pool-tabs button.active {
+  border-color: #1d4ed8;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .detective-case-list {
   display: grid;
   gap: 0.7rem;
@@ -220,6 +243,23 @@
 .detective-case-card small {
   color: #64748b;
   font-size: 0.72rem;
+}
+
+.claim-case-button {
+  margin-top: 0.55rem;
+  width: 100%;
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 0.42rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.claim-case-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .selected-case-summary {

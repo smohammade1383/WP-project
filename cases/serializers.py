@@ -39,6 +39,7 @@ class CaseSerializer(serializers.ModelSerializer):
     local_witnesses = CrimeSceneWitnessSerializer(many=True, read_only=True)
     created_by = UserBriefSerializer(read_only=True)
     approved_by = UserBriefSerializer(read_only=True)
+    assigned_detective = UserBriefSerializer(read_only=True)
     complainant_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=User.objects.all(),
@@ -71,6 +72,7 @@ class CaseSerializer(serializers.ModelSerializer):
             "severity",
             "created_by",
             "approved_by",
+            "assigned_detective",
             "complainants",
             "witnesses",
             "suspects",
@@ -81,7 +83,14 @@ class CaseSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("status", "created_by", "approved_by", "created_at", "updated_at")
+        read_only_fields = (
+            "status",
+            "created_by",
+            "approved_by",
+            "assigned_detective",
+            "created_at",
+            "updated_at",
+        )
 
     def create(self, validated_data):
         creator = validated_data.pop("created_by", self.context["request"].user)

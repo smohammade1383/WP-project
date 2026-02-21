@@ -30,7 +30,13 @@ class ChecklistRegressionExtraTests(APITestCase):
             user.groups.add(group)
         return user
 
-    def _create_case(self, creator, severity=Case.Severity.LEVEL_2, status_value=Case.Status.OPEN):
+    def _create_case(
+        self,
+        creator,
+        severity=Case.Severity.LEVEL_2,
+        status_value=Case.Status.OPEN,
+        assigned_detective=None,
+    ):
         return Case.objects.create(
             title=f"Checklist case {severity}",
             description="Checklist flow fixture",
@@ -40,6 +46,7 @@ class ChecklistRegressionExtraTests(APITestCase):
             status=status_value,
             severity=severity,
             created_by=creator,
+            assigned_detective=assigned_detective,
         )
 
     def test_complaint_has_no_case_until_officer_approval_and_can_roundtrip(self):
@@ -200,7 +207,11 @@ class ChecklistRegressionExtraTests(APITestCase):
         sergeant = self._create_user("chk_sergeant_scores", roles=["Sergeant"])
         suspect = self._create_user("chk_suspect_scores", roles=["Suspect"])
 
-        case_obj = self._create_case(officer, status_value=Case.Status.ARRESTED)
+        case_obj = self._create_case(
+            officer,
+            status_value=Case.Status.ARRESTED,
+            assigned_detective=detective,
+        )
         profile = SuspectCaseProfile.objects.create(
             case=case_obj,
             suspect=suspect,
@@ -318,4 +329,3 @@ class ChecklistRegressionExtraTests(APITestCase):
             format="json",
         )
         self.assertEqual(allowed_resp.status_code, status.HTTP_201_CREATED)
-

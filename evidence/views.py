@@ -30,6 +30,16 @@ POLICE_ROLES = {
     "Cadet",
 }
 
+DETECTIVE_RESTRICTED_ROLES = {
+    "Administrator",
+    "Chief",
+    "Captain",
+    "Sergeant",
+    "Police Officer",
+    "Patrol Officer",
+    "Cadet",
+}
+
 
 def has_any_role(user, *roles):
     if not user or not user.is_authenticated:
@@ -52,7 +62,21 @@ def can_set_lab_result(user):
     return bool(user and user.is_authenticated and (user.is_superuser or has_any_role(user, "Coroner", "Administrator")))
 
 
+def is_detective_only(user):
+    return has_any_role(user, "Detective") and not has_any_role(user, *DETECTIVE_RESTRICTED_ROLES)
+
+
+def is_assigned_detective(user, case_obj):
+    if is_admin(user):
+        return True
+    if not user or not user.is_authenticated:
+        return False
+    return case_obj.assigned_detective_id == user.id
+
+
 def can_submit_evidence(user, case_obj):
+    if is_detective_only(user):
+        return is_assigned_detective(user, case_obj)
     if is_police_staff(user):
         return True
     return case_obj.created_by_id == user.id or case_obj.complainants.filter(id=user.id).exists()
@@ -182,7 +206,9 @@ class EvidenceListCreateAPIView(generics.ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         queryset = Evidence.objects.select_related("case", "created_by").all()
-        if is_police_staff(user) or has_any_role(user, "Judge", "Coroner"):
+        if is_detective_only(user):
+            queryset = queryset.filter(case__assigned_detective=user)
+        elif is_police_staff(user) or has_any_role(user, "Judge", "Coroner"):
             pass
         else:
             queryset = queryset.filter(
@@ -228,6 +254,10 @@ class EvidenceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
     def get_object(self):
         evidence = super().get_object()
         user = self.request.user
+        if is_detective_only(user):
+            if not is_assigned_detective(user, evidence.case):
+                raise PermissionDenied("Only the assigned detective can access this case evidence.")
+            return evidence
         if is_police_staff(user) or has_any_role(user, "Judge", "Coroner"):
             return evidence
         if not (
@@ -270,6 +300,8 @@ class EvidenceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
                 evidence.case = validated["case"]
                 changed_fields.append("case")
         if changed_fields:
+            if "case" in changed_fields and not can_submit_evidence(request.user, evidence.case):
+                raise PermissionDenied("You cannot move evidence to a case you do not own.")
             evidence.save(update_fields=changed_fields)
 
         update_evidence_details(evidence, validated, request.FILES, request.user)

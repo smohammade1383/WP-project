@@ -16,6 +16,9 @@ until curl -s http://localhost:8000/api/people/stats/ > /dev/null 2>&1; do
     sleep 1
 done
 
+echo "🛠️  Applying latest migrations..."
+docker-compose exec -T web python manage.py migrate --noinput
+
 echo "✅ Backend is ready!"
 echo ""
 

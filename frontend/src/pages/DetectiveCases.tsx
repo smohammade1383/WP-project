@@ -17,6 +17,7 @@ import {
 import './DetectiveCases.css';
 
 type DetectiveTab = 'inbox' | 'evidence' | 'board' | 'handover';
+type CaseListTab = 'my' | 'available';
 
 type EvidenceFormState = {
   title: string;
@@ -159,6 +160,10 @@ const DetectiveCases = () => {
   );
   const [cases, setCases] = useState<DetectiveCase[]>([]);
   const [loadingCases, setLoadingCases] = useState(true);
+  const [availableCases, setAvailableCases] = useState<DetectiveCase[]>([]);
+  const [loadingAvailableCases, setLoadingAvailableCases] = useState(true);
+  const [claimingCaseId, setClaimingCaseId] = useState<number | null>(null);
+  const [caseListTab, setCaseListTab] = useState<CaseListTab>('my');
   const [selectedCaseId, setSelectedCaseId] = useState<number | null>(null);
   const [notificationsByCase, setNotificationsByCase] = useState<Record<number, number>>({});
   const [loadingNotifications, setLoadingNotifications] = useState(false);
@@ -345,6 +350,18 @@ const DetectiveCases = () => {
     }
   }, [requestedCaseId]);
 
+  const loadAvailableCases = useCallback(async () => {
+    try {
+      setLoadingAvailableCases(true);
+      const data = await detectiveApi.listUnassignedCases();
+      setAvailableCases(data);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'خطا در دریافت پرونده‌های آزاد برای پذیرش'));
+    } finally {
+      setLoadingAvailableCases(false);
+    }
+  }, []);
+
   const loadNotifications = useCallback(async () => {
     try {
       setLoadingNotifications(true);
@@ -403,8 +420,9 @@ const DetectiveCases = () => {
 
   useEffect(() => {
     loadCases();
+    loadAvailableCases();
     loadNotifications();
-  }, [loadCases, loadNotifications]);
+  }, [loadCases, loadAvailableCases, loadNotifications]);
 
   useEffect(() => {
     if (selectedCaseId === null) {
@@ -939,6 +957,23 @@ const DetectiveCases = () => {
     }
   };
 
+  const handleClaimCase = async (caseId: number) => {
+    try {
+      setClaimingCaseId(caseId);
+      setError('');
+      setSuccess('');
+      const claimed = await detectiveApi.claimCase(caseId);
+      setSuccess(`پرونده #${claimed.id} با موفقیت به شما تخصیص داده شد.`);
+      setCaseListTab('my');
+      await Promise.all([loadCases(), loadAvailableCases(), loadNotifications()]);
+      setSelectedCaseId(claimed.id);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'پذیرش پرونده ناموفق بود.'));
+    } finally {
+      setClaimingCaseId(null);
+    }
+  };
+
   const handleNominate = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!selectedCase) {
@@ -991,7 +1026,8 @@ const DetectiveCases = () => {
             <p>ثبت شواهد، تحلیل بصری روی تخته، و ارسال مظنونین به گروهبان</p>
           </div>
           <div className="detective-header-meta">
-            <span>پرونده‌های در دسترس: {cases.length}</span>
+            <span>پرونده‌های فعال من: {cases.length}</span>
+            <span>پرونده‌های آزاد: {availableCases.length}</span>
             <span>اعلان‌های مدرک جدید: {loadingNotifications ? '...' : notificationTotal}</span>
           </div>
         </header>
@@ -1019,44 +1055,104 @@ const DetectiveCases = () => {
         <div className="detective-layout">
           <aside className="detective-cases-panel">
             <div className="panel-title-row">
-              <h2>پرونده‌ها</h2>
-              <button type="button" onClick={loadCases} disabled={loadingCases}>
-                {loadingCases ? '...' : 'بروزرسانی'}
+              <h2>{caseListTab === 'my' ? 'پرونده‌های فعال من' : 'استخر پرونده‌های آزاد'}</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  loadCases();
+                  loadAvailableCases();
+                }}
+                disabled={loadingCases || loadingAvailableCases}
+              >
+                {loadingCases || loadingAvailableCases ? '...' : 'بروزرسانی'}
               </button>
             </div>
 
-            {loadingCases ? (
-              <div className="panel-empty">در حال بارگذاری پرونده‌ها...</div>
-            ) : cases.length === 0 ? (
-              <div className="panel-empty">پرونده‌ای برای نمایش وجود ندارد.</div>
+            <div className="case-pool-tabs">
+              <button
+                type="button"
+                className={caseListTab === 'my' ? 'active' : ''}
+                onClick={() => setCaseListTab('my')}
+              >
+                پرونده‌های من
+              </button>
+              <button
+                type="button"
+                className={caseListTab === 'available' ? 'active' : ''}
+                onClick={() => setCaseListTab('available')}
+              >
+                پرونده‌های قابل پذیرش
+              </button>
+            </div>
+
+            {caseListTab === 'my' ? (
+              loadingCases ? (
+                <div className="panel-empty">در حال بارگذاری پرونده‌های من...</div>
+              ) : cases.length === 0 ? (
+                <div className="panel-empty">هنوز پرونده‌ای به شما تخصیص داده نشده است.</div>
+              ) : (
+                <div className="detective-case-list">
+                  {cases.map((item) => {
+                    const isSelected = item.id === selectedCaseId;
+                    const badgeCount = notificationsByCase[item.id] || 0;
+                    const severity = severityLabelMap[item.severity] || `سطح ${item.severity}`;
+                    const status = statusLabelMap[item.status] || item.status;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`detective-case-card ${isSelected ? 'selected' : ''}`}
+                        onClick={() => setSelectedCaseId(item.id)}
+                      >
+                        <div className="detective-case-top">
+                          <h3>#{item.id} - {item.title}</h3>
+                          {badgeCount > 0 && <span className="case-badge">{badgeCount}</span>}
+                        </div>
+                        <div className="detective-case-meta">
+                          <span>{severity}</span>
+                          <span>{status}</span>
+                        </div>
+                        <p>{item.location}</p>
+                        <small>{formatDateTime(item.incident_datetime)}</small>
+                      </button>
+                    );
+                  })}
+                </div>
+              )
             ) : (
-              <div className="detective-case-list">
-                {cases.map((item) => {
-                  const isSelected = item.id === selectedCaseId;
-                  const badgeCount = notificationsByCase[item.id] || 0;
-                  const severity = severityLabelMap[item.severity] || `سطح ${item.severity}`;
-                  const status = statusLabelMap[item.status] || item.status;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={`detective-case-card ${isSelected ? 'selected' : ''}`}
-                      onClick={() => setSelectedCaseId(item.id)}
-                    >
-                      <div className="detective-case-top">
-                        <h3>#{item.id} - {item.title}</h3>
-                        {badgeCount > 0 && <span className="case-badge">{badgeCount}</span>}
-                      </div>
-                      <div className="detective-case-meta">
-                        <span>{severity}</span>
-                        <span>{status}</span>
-                      </div>
-                      <p>{item.location}</p>
-                      <small>{formatDateTime(item.incident_datetime)}</small>
-                    </button>
-                  );
-                })}
-              </div>
+              loadingAvailableCases ? (
+                <div className="panel-empty">در حال بارگذاری پرونده‌های قابل پذیرش...</div>
+              ) : availableCases.length === 0 ? (
+                <div className="panel-empty">پرونده آزادی برای پذیرش وجود ندارد.</div>
+              ) : (
+                <div className="detective-case-list">
+                  {availableCases.map((item) => {
+                    const severity = severityLabelMap[item.severity] || `سطح ${item.severity}`;
+                    const status = statusLabelMap[item.status] || item.status;
+                    return (
+                      <article key={item.id} className="detective-case-card">
+                        <div className="detective-case-top">
+                          <h3>#{item.id} - {item.title}</h3>
+                        </div>
+                        <div className="detective-case-meta">
+                          <span>{severity}</span>
+                          <span>{status}</span>
+                        </div>
+                        <p>{item.location}</p>
+                        <small>{formatDateTime(item.incident_datetime)}</small>
+                        <button
+                          type="button"
+                          className="claim-case-button"
+                          disabled={claimingCaseId === item.id}
+                          onClick={() => handleClaimCase(item.id)}
+                        >
+                          {claimingCaseId === item.id ? 'در حال پذیرش...' : 'پذیرش پرونده'}
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
+              )
             )}
           </aside>
 
@@ -1083,8 +1179,9 @@ const DetectiveCases = () => {
                   <section className="tab-panel">
                     <h3>کارتابل پرونده‌ها</h3>
                     <p className="tab-help">
-                      پرونده‌های قابل بررسی را از ستون چپ انتخاب کنید. اگر مدرک جدیدی به پرونده اضافه شود،
-                      نشانگر قرمز روی کارت پرونده دیده می‌شود.
+                      ابتدا پرونده را از تب «پرونده‌های قابل پذیرش» در ستون چپ قبول کنید. سپس همان پرونده در
+                      «پرونده‌های من» ظاهر می‌شود و قابل بررسی خواهد بود. اگر مدرک جدیدی اضافه شود، نشانگر قرمز
+                      روی کارت پرونده دیده می‌شود.
                     </p>
                     <div className="inbox-grid">
                       <article>

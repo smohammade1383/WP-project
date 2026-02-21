@@ -26,6 +26,7 @@ export interface DetectiveCase {
   severity: number;
   created_by: DetectiveCaseUser;
   approved_by: DetectiveCaseUser | null;
+  assigned_detective?: DetectiveCaseUser | null;
   complainants: DetectiveCaseUser[];
   witnesses: DetectiveCaseUser[];
   suspects: DetectiveCaseUser[];
@@ -77,6 +78,15 @@ export const detectiveApi = {
   listCases: async (): Promise<DetectiveCase[]> => {
     const payload = await api.get<DetectiveCase[] | { results?: DetectiveCase[] }>('/cases/');
     return toList(payload);
+  },
+
+  listUnassignedCases: async (): Promise<DetectiveCase[]> => {
+    const payload = await api.get<DetectiveCase[] | { results?: DetectiveCase[] }>('/cases/unassigned/');
+    return toList(payload);
+  },
+
+  claimCase: async (caseId: number): Promise<DetectiveCase> => {
+    return api.post<DetectiveCase>(`/cases/${caseId}/claim/`, {});
   },
 
   listNotifications: async (): Promise<DetectiveNotification[]> => {
