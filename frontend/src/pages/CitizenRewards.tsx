@@ -29,10 +29,6 @@ const formatDate = (value: string): string => {
   });
 };
 
-const formatAmount = (value: number): string => {
-  return value.toLocaleString('fa-IR');
-};
-
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (typeof error === 'object' && error !== null && 'message' in error) {
     const message = (error as { message?: unknown }).message;
@@ -131,8 +127,8 @@ const CitizenRewards = () => {
               </div>
 
               <div className="reward-amount">
-                <span>مبلغ پاداش (ریال)</span>
-                <strong>{formatAmount(Number(tip.reward_amount || 0))}</strong>
+                <span>وضعیت مبلغ پاداش</span>
+                <strong>برای استعلام مبلغ، کد رهگیری را به واحد پلیس ارائه کنید.</strong>
               </div>
             </article>
           ))}

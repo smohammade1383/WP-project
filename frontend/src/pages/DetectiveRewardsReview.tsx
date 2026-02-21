@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ProtectedModule from '../components/ProtectedModule';
 import { peopleApi, type CitizenTip } from '../services';
 import './DetectiveRewardsReview.css';
@@ -21,8 +22,6 @@ const formatDate = (value: string): string => {
   });
 };
 
-const formatAmount = (value: number): string => value.toLocaleString('fa-IR');
-
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (typeof error === 'object' && error !== null && 'message' in error) {
     const message = (error as { message?: unknown }).message;
@@ -39,6 +38,7 @@ const reporterName = (item: CitizenTip): string => {
 };
 
 const DetectiveRewardsReview = () => {
+  const navigate = useNavigate();
   const [tips, setTips] = useState<CitizenTip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -181,11 +181,19 @@ const DetectiveRewardsReview = () => {
                 .map((item) => (
                   <div key={item.id} className="approved-row">
                     <span>#{item.id}</span>
-                    <strong>{item.tracking_code || item.unique_tracking_code || '-'}</strong>
-                    <span>{formatAmount(item.reward_amount)} ریال</span>
+                    <strong>تایید شده</strong>
+                    <span>برای استعلام مبلغ از فرم کد ملی + شناسه یکتا استفاده کنید.</span>
                   </div>
                 ))}
             </div>
+            <button
+              type="button"
+              className="approve-btn"
+              onClick={() => navigate('/rewards/verify')}
+              style={{ marginTop: '0.75rem' }}
+            >
+              رفتن به فرم استعلام پاداش
+            </button>
           </section>
         )}
       </div>

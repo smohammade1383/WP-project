@@ -29,7 +29,7 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 const RewardVerification = () => {
   const { isAuthenticated, roles } = useRoleRouterContext();
   const [nationalId, setNationalId] = useState('');
-  const [trackingCode, setTrackingCode] = useState('');
+  const [uniqueCode, setUniqueCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{
@@ -53,7 +53,7 @@ const RewardVerification = () => {
       setError('کد ملی باید ۱۰ رقم باشد.');
       return;
     }
-    if (!trackingCode.trim()) {
+    if (!uniqueCode.trim()) {
       setError('کد رهگیری الزامی است.');
       return;
     }
@@ -63,7 +63,7 @@ const RewardVerification = () => {
       setError('');
       const data = await rewardsApi.verifyByCode({
         national_id: nationalId.trim(),
-        tracking_code: trackingCode.trim(),
+        unique_code: uniqueCode.trim(),
       });
       setResult(data);
     } catch (err: unknown) {
@@ -102,9 +102,9 @@ const RewardVerification = () => {
           کد رهگیری یکتا
           <input
             type="text"
-            value={trackingCode}
-            onChange={(event) => setTrackingCode(event.target.value)}
-            placeholder="Tracking Code"
+            value={uniqueCode}
+            onChange={(event) => setUniqueCode(event.target.value)}
+            placeholder="شناسه یکتا"
           />
         </label>
         <button type="submit" disabled={loading}>
