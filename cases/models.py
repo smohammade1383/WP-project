@@ -343,8 +343,7 @@ class SuspectCaseProfile(models.Model):
     @property
     def is_severe_tracking(self):
         return (
-            (not self.is_arrested)
-            and self.case.status not in {Case.Status.CLOSED, Case.Status.VOID}
+            self.case.status not in {Case.Status.CLOSED, Case.Status.VOID}
             and self.wanted_days > 30
         )
 
@@ -356,7 +355,7 @@ class SuspectCaseProfile(models.Model):
         open_profiles = [
             profile
             for profile in profiles
-            if (not profile.is_arrested) and profile.case.status not in {Case.Status.CLOSED, Case.Status.VOID}
+            if profile.case.status not in {Case.Status.CLOSED, Case.Status.VOID}
         ]
         if open_profiles:
             max_days = max(profile.wanted_days for profile in open_profiles)

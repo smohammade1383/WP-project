@@ -72,7 +72,7 @@ class PublicWantedListAPIView(APIView):
     def get(self, request):
         profiles = list(
             SuspectCaseProfile.objects.select_related("suspect", "case")
-            .filter(arrest_warrant_issued=True, is_arrested=False)
+            .filter(arrest_warrant_issued=True)
             .exclude(case__status__in=[Case.Status.CLOSED, Case.Status.VOID])
         )
         _refresh_tracking_flags(profiles)
@@ -97,7 +97,7 @@ class PublicWantedDetailAPIView(APIView):
     def get(self, request, suspect_id):
         profiles = list(
             SuspectCaseProfile.objects.select_related("suspect", "case")
-            .filter(suspect_id=suspect_id, arrest_warrant_issued=True, is_arrested=False)
+            .filter(suspect_id=suspect_id, arrest_warrant_issued=True)
             .exclude(case__status__in=[Case.Status.CLOSED, Case.Status.VOID])
         )
         if not profiles:
@@ -122,7 +122,7 @@ class AggregatedStatsAPIView(APIView):
                 Q(is_superuser=True) | Q(groups__name__in=POLICE_ROLES)
             ).distinct().count(),
             "wanted_count": SuspectCaseProfile.objects.filter(
-                is_arrested=False
+                arrest_warrant_issued=True
             ).exclude(case__status__in=[Case.Status.CLOSED, Case.Status.VOID]).values("suspect_id").distinct().count(),
         }
         return Response(data)

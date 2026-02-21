@@ -129,6 +129,30 @@ class WantedRewardFlowTests(APITestCase):
         self.assertEqual(profile.ranking_score, 2)  # 1 day * level-2
         self.assertEqual(profile.reward_amount, 40_000_000)
 
+    def test_arrested_suspect_remains_in_wanted_list_until_case_is_closed(self):
+        officer = self._create_user("wanted_arrest_officer", roles=["Police Officer"])
+        suspect = self._create_user("wanted_arrest_suspect", roles=["Suspect"])
+        case_obj, profile = self._create_case_and_profile(
+            officer, suspect, Case.Severity.LEVEL_2, wanted_days=35
+        )
+        profile.arrest_warrant_issued = True
+        profile.is_arrested = True
+        profile.save(update_fields=["arrest_warrant_issued", "is_arrested"])
+
+        # Still visible while case is active.
+        active_resp = self.client.get(reverse("people-wanted-list"))
+        self.assertEqual(active_resp.status_code, status.HTTP_200_OK)
+        active_ids = [row["id"] for row in active_resp.data]
+        self.assertIn(profile.id, active_ids)
+
+        # Once case closes, profile disappears from wanted list.
+        case_obj.status = Case.Status.CLOSED
+        case_obj.save(update_fields=["status", "updated_at"])
+        closed_resp = self.client.get(reverse("people-wanted-list"))
+        self.assertEqual(closed_resp.status_code, status.HTTP_200_OK)
+        closed_ids = [row["id"] for row in closed_resp.data]
+        self.assertNotIn(profile.id, closed_ids)
+
     def test_reward_flow_forward_then_detective_approve_creates_evidence_and_tracking_code(self):
         citizen = self._create_user("reward_citizen", roles=["Basic User"])
         officer = self._create_user("reward_officer", roles=["Police Officer"])

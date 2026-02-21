@@ -1222,7 +1222,7 @@ class AggregatedStatsAPIView(APIView):
                 Q(is_superuser=True) | Q(groups__name__in=POLICE_ROLES)
             ).distinct().count(),
             "wanted_count": SuspectCaseProfile.objects.filter(
-                is_arrested=False
+                arrest_warrant_issued=True
             ).exclude(case__status__in=[Case.Status.CLOSED, Case.Status.VOID]).values("suspect_id").distinct().count(),
         }
         return Response(data)
