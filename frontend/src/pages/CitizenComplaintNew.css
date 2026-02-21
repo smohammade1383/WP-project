@@ -59,6 +59,12 @@
   font-family: inherit;
 }
 
+.secondary-help-text {
+  margin: -0.2rem 0 0.35rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
 .new-complaint-actions {
   margin-top: 0.5rem;
   display: flex;

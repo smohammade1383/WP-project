@@ -532,7 +532,7 @@ class IntegrationScenarioTests(APITestCase):
         self.assertEqual(final_officer_approve.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(final_officer_approve.data["case"]["id"])
 
-    def test_scenario_14_cadet_additional_complainant_is_auto_approved(self):
+    def test_scenario_14_secondary_complainant_must_be_requested_by_submitter_and_reviewed_by_cadet(self):
         citizen = self._create_user("secondary_main_citizen", roles=["Basic User"])
         secondary = self._create_user("secondary_added_citizen", roles=["Basic User"])
         cadet = self._create_user("secondary_cadet_user", roles=["Cadet"])
@@ -551,13 +551,37 @@ class IntegrationScenarioTests(APITestCase):
         self.assertEqual(complaint_resp.status_code, status.HTTP_201_CREATED)
         complaint_id = complaint_resp.data["id"]
 
+        # Cadet must not add secondary complainants directly.
         self.client.force_authenticate(cadet)
-        add_resp = self.client.post(
+        cadet_add_attempt = self.client.post(
             reverse("complaint-add-complainants", kwargs={"complaint_id": complaint_id}),
             {"complainant_ids": [secondary.id]},
             format="json",
         )
-        self.assertEqual(add_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(cadet_add_attempt.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Submitter requests additional complainant -> pending.
+        self.client.force_authenticate(citizen)
+        request_resp = self.client.post(
+            reverse("complaint-secondary-complainants-request", kwargs={"complaint_id": complaint_id}),
+            {"complainant_ids": [secondary.id]},
+            format="json",
+        )
+        self.assertEqual(request_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(request_resp.data[0]["status"], SecondaryComplainant.Status.PENDING)
+
+        # Cadet reviews and approves request.
+        entry_id = request_resp.data[0]["id"]
+        self.client.force_authenticate(cadet)
+        approve_resp = self.client.post(
+            reverse(
+                "complaint-secondary-complainants-review",
+                kwargs={"complaint_id": complaint_id, "entry_id": entry_id},
+            ),
+            {"decision": "approved", "message": "Identity verified by cadet."},
+            format="json",
+        )
+        self.assertEqual(approve_resp.status_code, status.HTTP_200_OK)
 
         complaint = Complaint.objects.get(id=complaint_id)
         self.assertTrue(complaint.complainants.filter(id=secondary.id).exists())

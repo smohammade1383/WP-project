@@ -401,31 +401,39 @@ class ComplaintAddComplainantsAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, complaint_id):
-        if not has_any_role(request.user, "Cadet", "Administrator", "Police Officer", "Patrol Officer"):
-            raise PermissionDenied("Only cadet/officer level users can add complainants.")
-
         complaint = get_object_or_404(Complaint, id=complaint_id)
+        if complaint.submitter_id != request.user.id:
+            raise PermissionDenied("Only the complaint submitter can request secondary complainants.")
+
         serializer = AddComplainantsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        to_add = []
+
+        entries = []
         for complainant_user in serializer.validated_data["complainant_ids"]:
             if complainant_user.id == complaint.submitter_id:
                 continue
-            to_add.append(complainant_user)
-            secondary, _ = SecondaryComplainant.objects.get_or_create(
+            entry, _ = SecondaryComplainant.objects.get_or_create(
                 complaint=complaint,
                 user=complainant_user,
+                defaults={"requested_by": request.user},
             )
-            secondary.status = SecondaryComplainant.Status.APPROVED
-            secondary.reviewed_by = request.user
-            secondary.review_message = ""
-            secondary.save(update_fields=["status", "reviewed_by", "review_message", "updated_at"])
+            if entry.status != SecondaryComplainant.Status.APPROVED:
+                entry.status = SecondaryComplainant.Status.PENDING
+                entry.requested_by = request.user
+                entry.reviewed_by = None
+                entry.review_message = ""
+                entry.save(
+                    update_fields=[
+                        "status",
+                        "requested_by",
+                        "reviewed_by",
+                        "review_message",
+                        "updated_at",
+                    ]
+                )
+            entries.append(entry)
 
-        if to_add:
-            complaint.complainants.add(*to_add)
-        if complaint.case_id:
-            complaint.case.complainants.add(*complaint.complainants.all())
-        return Response(ComplaintSerializer(complaint, context={"request": request}).data)
+        return Response(SecondaryComplainantSerializer(entries, many=True).data)
 
 
 @extend_schema(

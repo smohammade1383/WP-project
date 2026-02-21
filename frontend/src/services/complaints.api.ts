@@ -104,8 +104,11 @@ export const complaintsApi = {
   addComplainants: async (
     complaintId: number,
     payload: { complainant_ids: number[] }
-  ): Promise<Complaint> => {
-    return api.post<Complaint>(`/cases/complaints/${complaintId}/add-complainants/`, payload);
+  ): Promise<SecondaryComplainant[]> => {
+    return api.post<SecondaryComplainant[]>(
+      `/cases/complaints/${complaintId}/add-complainants/`,
+      payload
+    );
   },
   cadetReview: async (
     complaintId: number,

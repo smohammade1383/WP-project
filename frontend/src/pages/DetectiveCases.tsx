@@ -279,6 +279,27 @@ const DetectiveCases = () => {
     [evidenceItems, evidenceIdsOnBoard]
   );
 
+  const readyEvidenceBagItems = useMemo(
+    () => evidenceBagItems.filter((item) => isEvidenceReadyForBoard(item)),
+    [evidenceBagItems]
+  );
+
+  const pendingBioEvidenceBagItems = useMemo(
+    () =>
+      evidenceBagItems.filter(
+        (item) => item.type === 'bio_medical' && getBioValidationStatus(item) === 'pending'
+      ),
+    [evidenceBagItems]
+  );
+
+  const rejectedBioEvidenceBagItems = useMemo(
+    () =>
+      evidenceBagItems.filter(
+        (item) => item.type === 'bio_medical' && getBioValidationStatus(item) === 'rejected'
+      ),
+    [evidenceBagItems]
+  );
+
   const selectedBoardItem = useMemo(
     () => boardItems.find((item) => item.id === selectedBoardItemId) || null,
     [boardItems, selectedBoardItemId]
@@ -1249,6 +1270,18 @@ const DetectiveCases = () => {
                               <span>{evidenceTypeLabelMap[item.type]}</span>
                             </div>
                             <p>{item.description}</p>
+                            {item.type === 'bio_medical' && (
+                              <p>
+                                وضعیت تایید پزشک قانونی:{' '}
+                                <strong>
+                                  {getBioValidationStatus(item) === 'accepted'
+                                    ? 'تایید شده'
+                                    : getBioValidationStatus(item) === 'rejected'
+                                      ? 'رد شده'
+                                      : 'منتظر آزمایش'}
+                                </strong>
+                              </p>
+                            )}
                             <div className="evidence-meta">
                               <span>
                                 ثبت‌کننده: {item.created_by.first_name} {item.created_by.last_name}
@@ -1313,11 +1346,16 @@ const DetectiveCases = () => {
                     <div className="board-layout">
                       <aside className="board-sidebar">
                         <h4>کیسه مدارک</h4>
-                        {evidenceBagItems.length === 0 ? (
-                          <p className="small-empty">تمام مدارک این پرونده روی تخته قرار گرفته‌اند.</p>
+                        {readyEvidenceBagItems.length === 0 ? (
+                          <p className="small-empty">
+                            مدرک آماده‌ای برای افزودن به تخته وجود ندارد.
+                            {pendingBioEvidenceBagItems.length === 0 && rejectedBioEvidenceBagItems.length === 0
+                              ? ' همه مدارک یا روی تخته قرار گرفته‌اند یا وجود ندارند.'
+                              : ''}
+                          </p>
                         ) : (
                           <div className="board-bag-list">
-                            {evidenceBagItems.map((item) => (
+                            {readyEvidenceBagItems.map((item) => (
                               <div key={item.id} className="bag-item">
                                 <div>
                                   <strong>{item.title}</strong>
@@ -1334,14 +1372,43 @@ const DetectiveCases = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleAddEvidenceToBoard(item.id)}
-                                  disabled={isCaseLocked || !isEvidenceReadyForBoard(item)}
-                                  title={
-                                    isEvidenceReadyForBoard(item)
-                                      ? ''
-                                      : 'مدرک زیستی تا زمان تایید پزشک قانونی قابل افزودن نیست'
-                                  }
+                                  disabled={isCaseLocked}
                                 >
                                   افزودن
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {pendingBioEvidenceBagItems.length > 0 && (
+                          <div className="board-bag-list">
+                            <h5>مدارک زیستی در انتظار تایید پزشک قانونی</h5>
+                            {pendingBioEvidenceBagItems.map((item) => (
+                              <div key={item.id} className="bag-item">
+                                <div>
+                                  <strong>{item.title}</strong>
+                                  <small>{evidenceTypeLabelMap[item.type]} • منتظر آزمایش</small>
+                                </div>
+                                <button type="button" disabled title="تا زمان تایید پزشک قانونی قابل افزودن نیست">
+                                  در انتظار
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {rejectedBioEvidenceBagItems.length > 0 && (
+                          <div className="board-bag-list">
+                            <h5>مدارک زیستی رد شده توسط پزشک قانونی</h5>
+                            {rejectedBioEvidenceBagItems.map((item) => (
+                              <div key={item.id} className="bag-item">
+                                <div>
+                                  <strong>{item.title}</strong>
+                                  <small>{evidenceTypeLabelMap[item.type]} • رد شده</small>
+                                </div>
+                                <button type="button" disabled title="این مدرک توسط پزشک قانونی رد شده است">
+                                  رد شده
                                 </button>
                               </div>
                             ))}

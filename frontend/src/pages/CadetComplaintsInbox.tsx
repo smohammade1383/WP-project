@@ -40,8 +40,6 @@ const CadetComplaintsInbox = () => {
   const [returnTarget, setReturnTarget] = useState<Complaint | null>(null);
   const [returnMessage, setReturnMessage] = useState('');
   const [submittingId, setSubmittingId] = useState<number | null>(null);
-  const [secondaryIdsInput, setSecondaryIdsInput] = useState('');
-  const [secondaryLoading, setSecondaryLoading] = useState(false);
   const [secondaryActionId, setSecondaryActionId] = useState<number | null>(null);
 
   const loadComplaints = async (): Promise<Complaint[]> => {
@@ -138,43 +136,10 @@ const CadetComplaintsInbox = () => {
     }
   };
 
-  const parseUserIds = (raw: string): number[] => {
-    return raw
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .map((value) => Number(value))
-      .filter((value) => Number.isInteger(value) && value > 0);
-  };
-
   const syncSelectedComplaint = (updatedList: Complaint[]) => {
     if (!selectedComplaint) return;
     const matched = updatedList.find((item) => item.id === selectedComplaint.id) || null;
     setSelectedComplaint(matched);
-  };
-
-  const handleAddSecondaryComplainants = async () => {
-    if (!selectedComplaint) return;
-    const ids = parseUserIds(secondaryIdsInput);
-    if (ids.length === 0) {
-      setError('برای افزودن شاکیان فرعی، شناسه کاربری معتبر وارد کنید.');
-      return;
-    }
-
-    try {
-      setSecondaryLoading(true);
-      setError('');
-      setSuccess('');
-      await complaintsApi.addComplainants(selectedComplaint.id, { complainant_ids: ids });
-      setSecondaryIdsInput('');
-      setSuccess('شاکیان فرعی اضافه شدند.');
-      const updated = await loadComplaints();
-      syncSelectedComplaint(updated);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, 'افزودن شاکیان فرعی با خطا مواجه شد.'));
-    } finally {
-      setSecondaryLoading(false);
-    }
   };
 
   const handleReviewSecondary = async (
@@ -360,29 +325,11 @@ const CadetComplaintsInbox = () => {
               <div className="cadet-secondary-section">
                 <h4>شاکیان فرعی</h4>
                 <p className="cadet-secondary-note">
-                  هویت شاکیان دوم و سوم را در این بخش تایید یا رد کنید.
+                  شاکیان فرعی توسط شاکی اصلی درخواست می‌شوند و کارآموز فقط باید هویت آن‌ها را تایید یا رد کند.
                 </p>
 
-                <div className="cadet-secondary-add">
-                  <input
-                    type="text"
-                    value={secondaryIdsInput}
-                    onChange={(event) => setSecondaryIdsInput(event.target.value)}
-                    placeholder="افزودن با شناسه کاربری (مثال: 12, 18)"
-                    disabled={secondaryLoading}
-                  />
-                  <button
-                    type="button"
-                    className="details-btn"
-                    onClick={handleAddSecondaryComplainants}
-                    disabled={secondaryLoading}
-                  >
-                    {secondaryLoading ? 'در حال افزودن...' : 'افزودن شاکی فرعی'}
-                  </button>
-                </div>
-
                 {selectedComplaint.secondary_complainants.length === 0 ? (
-                  <p className="cadet-secondary-empty">شاکی فرعی ثبت نشده است.</p>
+                  <p className="cadet-secondary-empty">درخواستی برای شاکی فرعی ثبت نشده است.</p>
                 ) : (
                   <div className="cadet-secondary-list">
                     {selectedComplaint.secondary_complainants.map((entry) => (

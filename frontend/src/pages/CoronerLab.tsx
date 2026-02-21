@@ -112,11 +112,13 @@ const CoronerLab = () => {
       setError('');
       setSuccess('');
 
-      await coronerApi.reviewBioEvidence(selectedItem.id, {
+      const updated = await coronerApi.reviewBioEvidence(selectedItem.id, {
         lab_result: resultText,
         result_followup: followup.trim(),
         bio_validation_status: decision,
       });
+
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
 
       setSuccess(
         decision === 'accepted'
