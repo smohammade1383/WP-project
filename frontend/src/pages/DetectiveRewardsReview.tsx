@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import ProtectedModule from '../components/ProtectedModule';
-import { rewardsApi, type RewardReport } from '../services';
+import { peopleApi, type CitizenTip } from '../services';
 import './DetectiveRewardsReview.css';
 
 const statusLabelMap: Record<string, string> = {
-  submitted: 'در انتظار افسر',
   officer_review: 'در انتظار افسر',
   detective_review: 'در بررسی کارآگاه',
-  approved: 'تایید شده',
+  useful: 'مفید / نهایی',
+  approved: 'مفید / نهایی',
   rejected: 'رد شده',
 };
 
@@ -33,24 +33,24 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   return fallback;
 };
 
-const reporterName = (item: RewardReport): string => {
-  if (!item.reporter) return 'نامشخص';
+const reporterName = (item: CitizenTip): string => {
   const fullName = `${item.reporter.first_name || ''} ${item.reporter.last_name || ''}`.trim();
   return fullName || item.reporter.username;
 };
 
 const DetectiveRewardsReview = () => {
-  const [reports, setReports] = useState<RewardReport[]>([]);
+  const [tips, setTips] = useState<CitizenTip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submittingId, setSubmittingId] = useState<number | null>(null);
+  const [caseByTip, setCaseByTip] = useState<Record<number, string>>({});
 
-  const loadReports = async () => {
+  const loadTips = async () => {
     try {
       setLoading(true);
-      const data = await rewardsApi.list();
-      setReports(data);
+      const data = await peopleApi.listTips();
+      setTips(data);
       setError('');
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'خطا در دریافت صف تایید گزارش‌های مردمی'));
@@ -60,32 +60,48 @@ const DetectiveRewardsReview = () => {
   };
 
   useEffect(() => {
-    loadReports();
+    void loadTips();
   }, []);
 
   const detectiveQueue = useMemo(() => {
-    return reports
+    return tips
       .filter((item) => item.status === 'detective_review')
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [reports]);
+  }, [tips]);
 
-  const handleReview = async (reportId: number, action: 'approve' | 'reject') => {
+  const handleReject = async (tipId: number) => {
     try {
-      setSubmittingId(reportId);
+      setSubmittingId(tipId);
       setError('');
       setSuccess('');
-      const result = await rewardsApi.detectiveReview(reportId, { action });
-      if (action === 'approve') {
-        const issuedCode = result.tracking_code || result.unique_code || '-';
-        setSuccess(
-          `گزارش #${reportId} تایید شد. کد رهگیری ${issuedCode} صادر و مدرک به پرونده افزوده شد.`
-        );
-      } else {
-        setSuccess(`گزارش #${reportId} رد شد.`);
-      }
-      await loadReports();
+      await peopleApi.detectiveReviewTip(tipId, { approved: false });
+      setSuccess(`گزارش #${tipId} رد شد.`);
+      await loadTips();
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'ثبت تصمیم کارآگاه با خطا مواجه شد.'));
+    } finally {
+      setSubmittingId(null);
+    }
+  };
+
+  const handleLinkToCase = async (tip: CitizenTip) => {
+    const caseIdRaw = (caseByTip[tip.id] ?? tip.suspect_profile_case_id ?? '').toString();
+    const caseId = Number(caseIdRaw);
+    if (!Number.isInteger(caseId) || caseId <= 0) {
+      setError('برای لینک کردن گزارش، شناسه پرونده معتبر وارد کنید.');
+      return;
+    }
+
+    try {
+      setSubmittingId(tip.id);
+      setError('');
+      setSuccess('');
+      const result = await peopleApi.detectiveLinkTipToCase(tip.id, { case_id: caseId });
+      const code = result.tracking_code || result.unique_tracking_code || '-';
+      setSuccess(`گزارش #${tip.id} به پرونده #${caseId} لینک شد. کد رهگیری ${code} صادر شد.`);
+      await loadTips();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'لینک کردن گزارش به پرونده ناموفق بود.'));
     } finally {
       setSubmittingId(null);
     }
@@ -97,7 +113,7 @@ const DetectiveRewardsReview = () => {
         <header className="detective-rewards-header">
           <div>
             <h1>تاییدیه پاداش</h1>
-            <p>گزارش‌های مردمی ارجاع‌شده از افسر را تایید یا رد کنید.</p>
+            <p>گزارش‌های مردمی ارجاع‌شده از افسر را بررسی و به پرونده لینک کنید.</p>
           </div>
           <span className="queue-count">در صف کارآگاه: {detectiveQueue.length}</span>
         </header>
@@ -126,16 +142,32 @@ const DetectiveRewardsReview = () => {
                 <div className="detective-reward-meta">
                   <span>گزارش‌دهنده: {reporterName(item)}</span>
                   <span>کد ملی: {item.reporter?.national_id || '-'}</span>
-                  <span>پرونده: {item.case ? `#${item.case}` : '-'}</span>
+                  <span>پرونده لینک‌شده: {item.case ? `#${item.case}` : '-'}</span>
                   <span>پروفایل مظنون: {item.suspect_profile ? `#${item.suspect_profile}` : '-'}</span>
                   <span>تاریخ ثبت: {formatDate(item.created_at)}</span>
                 </div>
+
+                <div className="detective-reward-actions" style={{ marginBottom: 12 }}>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder={`شناسه پرونده${item.suspect_profile_case_id ? ` (پیشنهادی: ${item.suspect_profile_case_id})` : ''}`}
+                    value={caseByTip[item.id] ?? ''}
+                    onChange={(event) =>
+                      setCaseByTip((prev) => ({
+                        ...prev,
+                        [item.id]: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
                 <div className="detective-reward-actions">
                   <button
                     type="button"
                     className="reject-btn"
                     disabled={submittingId === item.id}
-                    onClick={() => handleReview(item.id, 'reject')}
+                    onClick={() => handleReject(item.id)}
                   >
                     {submittingId === item.id ? 'در حال ثبت...' : 'رد گزارش'}
                   </button>
@@ -143,30 +175,30 @@ const DetectiveRewardsReview = () => {
                     type="button"
                     className="approve-btn"
                     disabled={submittingId === item.id}
-                    onClick={() => handleReview(item.id, 'approve')}
+                    onClick={() => handleLinkToCase(item)}
                   >
-                    {submittingId === item.id ? 'در حال ثبت...' : 'تایید و ثبت مدرک'}
+                    {submittingId === item.id ? 'در حال ثبت...' : 'Link to Case'}
                   </button>
                 </div>
                 <div className="detective-reward-note">
-                  با تایید گزارش، به صورت خودکار یک مدرک «Informant Report» در پرونده ثبت می‌شود و کد رهگیری پاداش صادر می‌گردد.
+                  با لینک کردن گزارش به پرونده، یک مدرک «Citizen Tip» ثبت می‌شود و وضعیت گزارش به USEFUL تغییر می‌کند.
                 </div>
               </article>
             ))}
           </div>
         )}
 
-        {!loading && reports.some((item) => item.status === 'approved') && (
+        {!loading && tips.some((item) => item.status === 'useful' || item.status === 'approved') && (
           <section className="detective-approved-section">
-            <h2>موارد تایید شده اخیر</h2>
+            <h2>موارد مفید اخیر</h2>
             <div className="detective-approved-list">
-              {reports
-                .filter((item) => item.status === 'approved')
+              {tips
+                .filter((item) => item.status === 'useful' || item.status === 'approved')
                 .slice(0, 5)
                 .map((item) => (
                   <div key={item.id} className="approved-row">
                     <span>#{item.id}</span>
-                    <strong>{item.tracking_code || item.unique_code || '-'}</strong>
+                    <strong>{item.tracking_code || item.unique_tracking_code || '-'}</strong>
                     <span>{formatAmount(item.reward_amount)} ریال</span>
                   </div>
                 ))}
@@ -179,4 +211,3 @@ const DetectiveRewardsReview = () => {
 };
 
 export default DetectiveRewardsReview;
-

@@ -1,16 +1,19 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from cases.models import Case, SuspectCaseProfile
+from evidence.models import Evidence
 from .models import CitizenTip
 from .serializers import (
     AggregatedStatsSerializer,
     CitizenTipDetectiveReviewSerializer,
+    CitizenTipLinkCaseSerializer,
     CitizenTipOfficerReviewSerializer,
     CitizenTipSerializer,
     WantedPersonSerializer,
@@ -127,7 +130,11 @@ class CitizenTipListCreateAPIView(APIView):
     def post(self, request):
         serializer = CitizenTipSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        tip = serializer.save(reporter=request.user, status=CitizenTip.Status.OFFICER_REVIEW)
+        tip = serializer.save(
+            reporter=request.user,
+            status=CitizenTip.Status.OFFICER_REVIEW,
+            case=None,
+        )
         return Response(CitizenTipSerializer(tip).data, status=status.HTTP_201_CREATED)
 
 
@@ -157,7 +164,7 @@ class CitizenTipOfficerReviewAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         approved = serializer.validated_data["approved"]
         tip.officer_reviewer = request.user
-        tip.status = CitizenTip.Status.DETECTIVE_REVIEW if approved else CitizenTip.Status.OFFICER_REVIEW
+        tip.status = CitizenTip.Status.DETECTIVE_REVIEW if approved else CitizenTip.Status.REJECTED
         tip.save(update_fields=["officer_reviewer", "status"])
         return Response(CitizenTipSerializer(tip).data)
 
@@ -180,6 +187,56 @@ class CitizenTipDetectiveReviewAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         approved = serializer.validated_data["approved"]
         tip.detective_reviewer = request.user
-        tip.status = CitizenTip.Status.APPROVED if approved else CitizenTip.Status.OFFICER_REVIEW
+        # Detective "approve" keeps item in detective queue until it is formally linked to a case.
+        tip.status = CitizenTip.Status.DETECTIVE_REVIEW if approved else CitizenTip.Status.REJECTED
         tip.save(update_fields=["detective_reviewer", "status"])
+        return Response(CitizenTipSerializer(tip).data)
+
+
+@extend_schema(
+    tags=["People"],
+    summary="Detective links tip to case and converts it into evidence (marks tip useful)",
+    request=CitizenTipLinkCaseSerializer,
+    responses={200: CitizenTipSerializer},
+)
+class CitizenTipLinkCaseAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, tip_id):
+        if not has_any_role(request.user, "Detective", "Administrator"):
+            return Response({"detail": "Only detective role can link tips to cases."}, status=403)
+
+        tip = get_object_or_404(CitizenTip, id=tip_id)
+        if tip.status in {CitizenTip.Status.REJECTED, CitizenTip.Status.USEFUL}:
+            return Response({"detail": "Tip is already finalized."}, status=400)
+
+        serializer = CitizenTipLinkCaseSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        case_obj = serializer.validated_data["case"]
+
+        evidence = Evidence.objects.create(
+            case=case_obj,
+            title=f"Citizen Tip #{tip.id}",
+            description=tip.description,
+            type=Evidence.Type.OTHER,
+            created_by=request.user,
+        )
+
+        tip.case = case_obj
+        tip.linked_evidence = evidence
+        tip.detective_reviewer = request.user
+        tip.status = CitizenTip.Status.USEFUL
+        tip.useful_at = timezone.now()
+        tip.save(
+            update_fields=[
+                "case",
+                "linked_evidence",
+                "detective_reviewer",
+                "status",
+                "useful_at",
+                "unique_tracking_code",
+                "reward_amount",
+            ]
+        )
+        tip.refresh_from_db()
         return Response(CitizenTipSerializer(tip).data)

@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from cases.models import SuspectCaseProfile
+from cases.models import Case, SuspectCaseProfile
 
 from .models import CitizenTip
 
@@ -54,6 +54,12 @@ class AggregatedStatsSerializer(serializers.Serializer):
 
 
 class CitizenTipSerializer(serializers.ModelSerializer):
+    reporter = PublicPersonSerializer(read_only=True)
+    officer_reviewer = PublicPersonSerializer(read_only=True)
+    detective_reviewer = PublicPersonSerializer(read_only=True)
+    tracking_code = serializers.CharField(source="unique_tracking_code", read_only=True)
+    suspect_profile_case_id = serializers.IntegerField(source="suspect_profile.case_id", read_only=True)
+
     class Meta:
         model = CitizenTip
         fields = (
@@ -61,13 +67,40 @@ class CitizenTipSerializer(serializers.ModelSerializer):
             "reporter",
             "case",
             "suspect_profile",
+            "suspect_profile_case_id",
             "description",
             "status",
             "officer_reviewer",
             "detective_reviewer",
+            "linked_evidence",
+            "unique_tracking_code",
+            "tracking_code",
+            "reward_amount",
+            "useful_at",
             "created_at",
         )
-        read_only_fields = ("id", "reporter", "status", "officer_reviewer", "detective_reviewer", "created_at")
+        read_only_fields = (
+            "id",
+            "reporter",
+            "status",
+            "officer_reviewer",
+            "detective_reviewer",
+            "linked_evidence",
+            "unique_tracking_code",
+            "tracking_code",
+            "reward_amount",
+            "useful_at",
+            "created_at",
+        )
+
+    def validate(self, attrs):
+        suspect_profile = attrs.get("suspect_profile")
+        case_obj = attrs.get("case")
+        if self.instance is None and suspect_profile is None:
+            raise serializers.ValidationError({"suspect_profile": "Submitting a tip requires selecting a suspect profile."})
+        if case_obj and suspect_profile and case_obj.id != suspect_profile.case_id:
+            raise serializers.ValidationError({"case": "If provided, case must match the suspect profile case."})
+        return attrs
 
 
 class CitizenTipOfficerReviewSerializer(serializers.Serializer):
@@ -76,3 +109,7 @@ class CitizenTipOfficerReviewSerializer(serializers.Serializer):
 
 class CitizenTipDetectiveReviewSerializer(serializers.Serializer):
     approved = serializers.BooleanField()
+
+
+class CitizenTipLinkCaseSerializer(serializers.Serializer):
+    case_id = serializers.PrimaryKeyRelatedField(queryset=Case.objects.all(), source="case")

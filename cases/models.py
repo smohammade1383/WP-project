@@ -324,6 +324,8 @@ class SuspectCaseProfile(models.Model):
     wanted_since = models.DateTimeField(auto_now_add=True)
     arrest_warrant_issued = models.BooleanField(default=False)
     is_arrested = models.BooleanField(default=False)
+    is_bail_allowed = models.BooleanField(default=False)
+    bail_amount = models.PositiveBigIntegerField(null=True, blank=True)
     severe_tracking = models.BooleanField(default=False)
     public_photo = models.URLField(blank=True)
     public_details = models.TextField(blank=True)

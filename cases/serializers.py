@@ -378,6 +378,8 @@ class SuspectCaseProfileSerializer(serializers.ModelSerializer):
             "wanted_days",
             "arrest_warrant_issued",
             "is_arrested",
+            "is_bail_allowed",
+            "bail_amount",
             "severe_tracking",
             "public_photo",
             "public_details",
@@ -422,6 +424,20 @@ class SubmitToCaptainSerializer(serializers.Serializer):
 class WantedUpdateSerializer(serializers.Serializer):
     public_photo = serializers.URLField(required=False, allow_blank=True)
     public_details = serializers.CharField(required=False, allow_blank=True)
+
+
+class SuspectBailPolicySerializer(serializers.Serializer):
+    is_bail_allowed = serializers.BooleanField()
+    bail_amount = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+
+    def validate(self, attrs):
+        is_bail_allowed = attrs["is_bail_allowed"]
+        bail_amount = attrs.get("bail_amount")
+        if is_bail_allowed and bail_amount is None:
+            raise serializers.ValidationError({"bail_amount": "Bail amount is required when bail is allowed."})
+        if not is_bail_allowed:
+            attrs["bail_amount"] = None
+        return attrs
 
 
 class InterrogationScoreSerializer(serializers.ModelSerializer):

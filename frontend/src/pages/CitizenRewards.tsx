@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { rewardsApi, type RewardReport } from '../services';
+import { peopleApi, type CitizenTip } from '../services';
 import './CitizenRewards.css';
 
 const statusLabelMap: Record<string, string> = {
-  submitted: 'ثبت شده',
   officer_review: 'در بررسی افسر',
   detective_review: 'در بررسی کارآگاه',
-  approved: 'تایید شده',
+  useful: 'مفید/تایید شده',
+  approved: 'مفید/تایید شده',
   rejected: 'رد شده',
 };
 
 const statusClassMap: Record<string, string> = {
-  submitted: 'status-submitted',
   officer_review: 'status-pending',
   detective_review: 'status-pending',
+  useful: 'status-approved',
   approved: 'status-approved',
   rejected: 'status-rejected',
 };
@@ -45,15 +45,15 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 
 const CitizenRewards = () => {
   const navigate = useNavigate();
-  const [reports, setReports] = useState<RewardReport[]>([]);
+  const [tips, setTips] = useState<CitizenTip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadReports = async () => {
+  const loadTips = async () => {
     try {
       setLoading(true);
-      const data = await rewardsApi.listMine();
-      setReports(data);
+      const data = await peopleApi.listTips();
+      setTips(data);
       setError('');
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'خطا در دریافت وضعیت پاداش‌ها'));
@@ -63,14 +63,14 @@ const CitizenRewards = () => {
   };
 
   useEffect(() => {
-    loadReports();
+    void loadTips();
   }, []);
 
-  const sortedReports = useMemo(() => {
-    return [...reports].sort(
+  const sortedTips = useMemo(() => {
+    return [...tips].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
-  }, [reports]);
+  }, [tips]);
 
   return (
     <div className="citizen-rewards-page">
@@ -88,47 +88,51 @@ const CitizenRewards = () => {
 
       {loading ? (
         <div className="rewards-loading">در حال بارگذاری گزارش‌ها...</div>
-      ) : sortedReports.length === 0 ? (
+      ) : sortedTips.length === 0 ? (
         <div className="rewards-empty">
           <h3>گزارش پاداشی ثبت نشده است.</h3>
           <p>از صفحه «تحت پیگیری شدید» روی گزینه «ارسال گزارش» استفاده کنید.</p>
         </div>
       ) : (
         <div className="rewards-grid">
-          {sortedReports.map((report) => (
-            <article key={report.id} className="reward-card">
+          {sortedTips.map((tip) => (
+            <article key={tip.id} className="reward-card">
               <div className="reward-card-header">
-                <h3>گزارش #{report.id}</h3>
-                <span className={`status-chip ${statusClassMap[report.status] || ''}`}>
-                  {statusLabelMap[report.status] || report.status}
+                <h3>گزارش #{tip.id}</h3>
+                <span className={`status-chip ${statusClassMap[tip.status] || ''}`}>
+                  {statusLabelMap[tip.status] || tip.status}
                 </span>
               </div>
 
-              <p className="reward-description">{report.description}</p>
+              <p className="reward-description">{tip.description}</p>
 
               <div className="reward-meta">
                 <div>
                   <span>پرونده</span>
-                  <strong>{report.case ? `#${report.case}` : '-'}</strong>
+                  <strong>{tip.case ? `#${tip.case}` : '-'}</strong>
                 </div>
                 <div>
                   <span>پروفایل مظنون</span>
-                  <strong>{report.suspect_profile ? `#${report.suspect_profile}` : '-'}</strong>
+                  <strong>{tip.suspect_profile ? `#${tip.suspect_profile}` : '-'}</strong>
                 </div>
                 <div>
                   <span>تاریخ ثبت</span>
-                  <strong>{formatDate(report.created_at)}</strong>
+                  <strong>{formatDate(tip.created_at)}</strong>
                 </div>
               </div>
 
               <div className="reward-token">
                 <span>کد رهگیری پاداش</span>
-                <strong>{report.unique_code?.trim() ? report.unique_code : 'هنوز صادر نشده'}</strong>
+                <strong>
+                  {tip.tracking_code?.trim() || tip.unique_tracking_code?.trim()
+                    ? tip.tracking_code || tip.unique_tracking_code
+                    : 'هنوز صادر نشده'}
+                </strong>
               </div>
 
               <div className="reward-amount">
                 <span>مبلغ پاداش (ریال)</span>
-                <strong>{report.reward_amount > 0 ? formatAmount(report.reward_amount) : '—'}</strong>
+                <strong>{tip.reward_amount > 0 ? formatAmount(tip.reward_amount) : '—'}</strong>
               </div>
             </article>
           ))}

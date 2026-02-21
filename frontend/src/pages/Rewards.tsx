@@ -11,7 +11,7 @@ const Rewards = () => {
   }
   if (hasAnyRole(roles, ['Detective'])) return <Navigate to="/detective/rewards" replace />;
   if (hasAnyRole(roles, ['Police Officer', 'Patrol Officer', 'Sergeant', 'Sergent', 'Captain', 'Chief'])) {
-    return <Navigate to="/officer/tips" replace />;
+    return <Navigate to="/rewards/verify" replace />;
   }
   if (hasAnyRole(roles, ['Administrator'])) return <Navigate to="/admin" replace />;
 

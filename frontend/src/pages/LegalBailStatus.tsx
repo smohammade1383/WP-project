@@ -100,15 +100,8 @@ const LegalBailStatus = () => {
       setStartingId(transactionId);
       setError('');
       setSuccess('');
-      const tx = transactions.find((item) => item.id === transactionId);
-      if (!tx || !tx.suspect_profile) {
-        setError('برای این تراکنش اطلاعات مظنون در دسترس نیست.');
-        return;
-      }
-
       const result = await paymentsApi.requestBail({
-        suspect_profile: tx.suspect_profile,
-        amount: tx.amount,
+        transaction_id: transactionId,
         description: `Bail payment for transaction #${transactionId}`,
       });
 
@@ -146,7 +139,7 @@ const LegalBailStatus = () => {
         <div className="legal-bail-grid">
           {bailTransactions.map((tx) => {
             const legalStatus = computeLegalStatus(tx);
-            const canPay = tx.status === 'initiated';
+            const canPay = tx.status === 'initiated' && Boolean(tx.suspect_is_bail_allowed);
             return (
               <article key={tx.id} className="legal-bail-card">
                 <div className="legal-bail-card-header">
@@ -186,7 +179,11 @@ const LegalBailStatus = () => {
                       {startingId === tx.id ? 'در حال اتصال...' : 'پرداخت آنلاین'}
                     </button>
                   ) : (
-                    <span className="pay-note">این تراکنش قابل پرداخت نیست.</span>
+                    <span className="pay-note">
+                      {tx.suspect_is_bail_allowed
+                        ? 'این تراکنش قابل پرداخت نیست.'
+                        : 'گروهبان برای این پروفایل اجازه وثیقه ثبت نکرده است.'}
+                    </span>
                   )}
                 </div>
               </article>

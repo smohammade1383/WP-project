@@ -9,6 +9,7 @@ from rest_framework.test import APITestCase
 from cases.models import Case, SuspectCaseProfile
 from evidence.models import Evidence
 from finance.models import RewardReport
+from people.models import CitizenTip
 from users.models import User
 
 
@@ -228,3 +229,61 @@ class WantedRewardFlowTests(APITestCase):
         self.assertEqual(ok.data["tracking_code"], tracking_code)
         self.assertEqual(ok.data["reporter"]["national_id"], citizen.national_id)
 
+    def test_citizen_tip_rejections_become_final_rejected_status(self):
+        citizen = self._create_user("tips_citizen", roles=["Basic User"])
+        officer = self._create_user("tips_officer", roles=["Police Officer"])
+        detective = self._create_user("tips_detective", roles=["Detective"])
+        suspect = self._create_user("tips_suspect", roles=["Suspect"])
+        case_obj, profile = self._create_case_and_profile(
+            officer, suspect, Case.Severity.LEVEL_2, wanted_days=34
+        )
+
+        self.client.force_authenticate(citizen)
+        tip_resp = self.client.post(
+            reverse("people-tips"),
+            {
+                "case": case_obj.id,
+                "suspect_profile": profile.id,
+                "description": "Unrelated spam tip",
+            },
+            format="json",
+        )
+        self.assertEqual(tip_resp.status_code, status.HTTP_201_CREATED)
+        tip_id = tip_resp.data["id"]
+
+        self.client.force_authenticate(officer)
+        officer_reject = self.client.post(
+            reverse("people-tips-officer-review", kwargs={"tip_id": tip_id}),
+            {"approved": False},
+            format="json",
+        )
+        self.assertEqual(officer_reject.status_code, status.HTTP_200_OK)
+        self.assertEqual(officer_reject.data["status"], CitizenTip.Status.REJECTED)
+
+        self.client.force_authenticate(citizen)
+        second_tip = self.client.post(
+            reverse("people-tips"),
+            {
+                "case": case_obj.id,
+                "suspect_profile": profile.id,
+                "description": "Needs detective but later rejected",
+            },
+            format="json",
+        )
+        tip2_id = second_tip.data["id"]
+
+        self.client.force_authenticate(officer)
+        self.client.post(
+            reverse("people-tips-officer-review", kwargs={"tip_id": tip2_id}),
+            {"approved": True},
+            format="json",
+        )
+
+        self.client.force_authenticate(detective)
+        detective_reject = self.client.post(
+            reverse("people-tips-detective-review", kwargs={"tip_id": tip2_id}),
+            {"approved": False},
+            format="json",
+        )
+        self.assertEqual(detective_reject.status_code, status.HTTP_200_OK)
+        self.assertEqual(detective_reject.data["status"], CitizenTip.Status.REJECTED)

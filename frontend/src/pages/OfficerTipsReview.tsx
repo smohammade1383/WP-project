@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import ProtectedModule from '../components/ProtectedModule';
-import { rewardsApi, type RewardReport } from '../services';
+import { peopleApi, type CitizenTip } from '../services';
 import './OfficerTipsReview.css';
 
 const statusLabelMap: Record<string, string> = {
-  submitted: 'در انتظار بررسی افسر',
   officer_review: 'در انتظار بررسی افسر',
   detective_review: 'ارجاع شده به کارآگاه',
+  useful: 'مفید/تایید نهایی',
   approved: 'تایید نهایی',
   rejected: 'رد شده',
 };
@@ -31,24 +31,23 @@ const formatDate = (value: string): string => {
   });
 };
 
-const getReporterName = (item: RewardReport): string => {
-  if (!item.reporter) return 'نامشخص';
+const getReporterName = (item: CitizenTip): string => {
   const fullName = `${item.reporter.first_name || ''} ${item.reporter.last_name || ''}`.trim();
   return fullName || item.reporter.username;
 };
 
 const OfficerTipsReview = () => {
-  const [reports, setReports] = useState<RewardReport[]>([]);
+  const [tips, setTips] = useState<CitizenTip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submittingId, setSubmittingId] = useState<number | null>(null);
 
-  const loadReports = async () => {
+  const loadTips = async () => {
     try {
       setLoading(true);
-      const data = await rewardsApi.list();
-      setReports(data);
+      const data = await peopleApi.listTips();
+      setTips(data);
       setError('');
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'خطا در دریافت گزارش‌های مردمی'));
@@ -58,27 +57,27 @@ const OfficerTipsReview = () => {
   };
 
   useEffect(() => {
-    loadReports();
+    void loadTips();
   }, []);
 
-  const pendingReports = useMemo(() => {
-    return reports
-      .filter((item) => item.status === 'submitted' || item.status === 'officer_review')
+  const pendingTips = useMemo(() => {
+    return tips
+      .filter((item) => item.status === 'officer_review')
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [reports]);
+  }, [tips]);
 
-  const handleReview = async (reportId: number, action: 'forward' | 'reject') => {
+  const handleReview = async (tipId: number, approved: boolean) => {
     try {
-      setSubmittingId(reportId);
+      setSubmittingId(tipId);
       setError('');
       setSuccess('');
-      await rewardsApi.officerReview(reportId, { action });
+      await peopleApi.officerReviewTip(tipId, { approved });
       setSuccess(
-        action === 'forward'
-          ? `گزارش #${reportId} برای کارآگاه ارجاع شد.`
-          : `گزارش #${reportId} به عنوان اسپم/نامعتبر رد شد.`
+        approved
+          ? `گزارش #${tipId} برای کارآگاه ارجاع شد.`
+          : `گزارش #${tipId} به عنوان نامعتبر رد شد.`
       );
-      await loadReports();
+      await loadTips();
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'ثبت نتیجه بررسی گزارش با خطا مواجه شد.'));
     } finally {
@@ -94,7 +93,7 @@ const OfficerTipsReview = () => {
             <h1>گزارش‌های مردمی</h1>
             <p>گزارش‌های دریافتی درباره مظنونین تحت تعقیب را بررسی کنید.</p>
           </div>
-          <div className="tips-summary">در انتظار بررسی: {pendingReports.length}</div>
+          <div className="tips-summary">در انتظار بررسی: {pendingTips.length}</div>
         </div>
 
         {(error || success) && (
@@ -103,14 +102,14 @@ const OfficerTipsReview = () => {
 
         {loading ? (
           <div className="tips-loading">در حال بارگذاری گزارش‌ها...</div>
-        ) : pendingReports.length === 0 ? (
+        ) : pendingTips.length === 0 ? (
           <div className="tips-empty">
             <h3>گزارش جدیدی برای بررسی وجود ندارد.</h3>
             <p>وقتی شهروند گزارش جدید ثبت کند، در این بخش نمایش داده می‌شود.</p>
           </div>
         ) : (
           <div className="tips-grid">
-            {pendingReports.map((item) => (
+            {pendingTips.map((item) => (
               <article key={item.id} className="tip-card">
                 <div className="tip-card-header">
                   <h3>گزارش #{item.id}</h3>
@@ -129,8 +128,8 @@ const OfficerTipsReview = () => {
                     <strong>{item.reporter?.national_id || '-'}</strong>
                   </div>
                   <div>
-                    <span>پرونده</span>
-                    <strong>{item.case ? `#${item.case}` : '-'}</strong>
+                    <span>پرونده لینک شده</span>
+                    <strong>{item.case ? `#${item.case}` : '—'}</strong>
                   </div>
                   <div>
                     <span>پروفایل مظنون</span>
@@ -146,7 +145,7 @@ const OfficerTipsReview = () => {
                   <button
                     type="button"
                     className="tip-reject-btn"
-                    onClick={() => handleReview(item.id, 'reject')}
+                    onClick={() => handleReview(item.id, false)}
                     disabled={submittingId === item.id}
                   >
                     {submittingId === item.id ? 'در حال ثبت...' : 'رد کردن (Spam)'}
@@ -154,7 +153,7 @@ const OfficerTipsReview = () => {
                   <button
                     type="button"
                     className="tip-forward-btn"
-                    onClick={() => handleReview(item.id, 'forward')}
+                    onClick={() => handleReview(item.id, true)}
                     disabled={submittingId === item.id}
                   >
                     {submittingId === item.id ? 'در حال ثبت...' : 'ارجاع به کارآگاه'}

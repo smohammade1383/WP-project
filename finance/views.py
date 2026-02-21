@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 
 from cases.models import Case
 from evidence.models import Evidence
+from people.models import CitizenTip
 from .models import PaymentTransaction, RewardReport
 from .serializers import (
     BailRequestSerializer,
@@ -110,12 +111,19 @@ def _frontend_bail_result_url(success, **params):
     return _append_query_params(base_url, merged)
 
 
-def _is_bail_eligible(suspect_profile, *, sergeant_approved=False):
+def _is_bail_eligible(suspect_profile, *, actor=None, sergeant_approved=False):
     severity = suspect_profile.case.severity
     is_criminal = suspect_profile.suspect.has_role("Criminal")
 
     if is_criminal:
-        if severity != Case.Severity.LEVEL_3 or not sergeant_approved:
+        has_sergeant_signoff = False
+        if actor is not None:
+            has_sergeant_signoff = has_any_role(actor, "Sergeant", "Administrator")
+        else:
+            # Backward-compatible branch for old callers.
+            has_sergeant_signoff = bool(sergeant_approved)
+
+        if severity != Case.Severity.LEVEL_3 or not has_sergeant_signoff:
             raise ValidationError(
                 {"suspect_profile": "Criminals are eligible only for level-3 crimes with sergeant approval."}
             )
@@ -281,24 +289,53 @@ class RewardVerifyAPIView(APIView):
 
         serializer = RewardVerificationSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
+        resolved_code = serializer.validated_data["resolved_code"]
+        national_id = serializer.validated_data["national_id"]
 
-        report = get_object_or_404(
-            RewardReport.objects.select_related("reporter"),
-            unique_code=serializer.validated_data["resolved_code"],
-            reporter__national_id=serializer.validated_data["national_id"],
+        report = RewardReport.objects.select_related("reporter").filter(
+            unique_code=resolved_code,
+            reporter__national_id=national_id,
             status=RewardReport.Status.APPROVED,
-        )
+        ).first()
+        if report is not None:
+            return Response(
+                {
+                    "source": "reward_report",
+                    "report_id": report.id,
+                    "tip_id": None,
+                    "tracking_code": report.unique_code,
+                    "reward_amount": report.reward_amount,
+                    "reporter": {
+                        "id": report.reporter.id,
+                        "username": report.reporter.username,
+                        "national_id": report.reporter.national_id,
+                        "first_name": report.reporter.first_name,
+                        "last_name": report.reporter.last_name,
+                    },
+                }
+            )
+
+        tip = CitizenTip.objects.select_related("reporter").filter(
+            unique_tracking_code=resolved_code,
+            reporter__national_id=national_id,
+            status=CitizenTip.Status.USEFUL,
+        ).first()
+        if tip is None:
+            raise ValidationError({"detail": "No approved reward record found for these credentials."})
+
         return Response(
             {
-                "report_id": report.id,
-                "tracking_code": report.unique_code,
-                "reward_amount": report.reward_amount,
+                "source": "citizen_tip",
+                "report_id": None,
+                "tip_id": tip.id,
+                "tracking_code": tip.unique_tracking_code,
+                "reward_amount": tip.reward_amount,
                 "reporter": {
-                    "id": report.reporter.id,
-                    "username": report.reporter.username,
-                    "national_id": report.reporter.national_id,
-                    "first_name": report.reporter.first_name,
-                    "last_name": report.reporter.last_name,
+                    "id": tip.reporter.id,
+                    "username": tip.reporter.username,
+                    "national_id": tip.reporter.national_id,
+                    "first_name": tip.reporter.first_name,
+                    "last_name": tip.reporter.last_name,
                 },
             }
         )
@@ -314,8 +351,8 @@ class PaymentInitiateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        if not is_police_staff(request.user):
-            raise PermissionDenied("Only police roles can initiate payments.")
+        if not has_any_role(request.user, "Sergeant", "Administrator"):
+            raise PermissionDenied("Only sergeant role can set bail/fine amounts.")
 
         serializer = PaymentInitiateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -328,7 +365,17 @@ class PaymentInitiateAPIView(APIView):
             raise ValidationError({"transaction_type": "Only bail/fine transactions are allowed in this flow."})
 
         suspect_profile = data["suspect_profile"]
-        _is_bail_eligible(suspect_profile, sergeant_approved=data.get("sergeant_approved", False))
+        if not suspect_profile.is_arrested:
+            raise ValidationError({"suspect_profile": "Bail/fine payment is only available for arrested suspects."})
+        _is_bail_eligible(
+            suspect_profile,
+            actor=request.user,
+            sergeant_approved=data.get("sergeant_approved", False),
+        )
+
+        suspect_profile.is_bail_allowed = True
+        suspect_profile.bail_amount = data["amount"]
+        suspect_profile.save(update_fields=["is_bail_allowed", "bail_amount"])
 
         tx = PaymentTransaction.objects.create(
             case=suspect_profile.case,
@@ -372,6 +419,8 @@ class PaymentStartAPIView(APIView):
 
         if tx.status != PaymentTransaction.Status.INITIATED:
             raise ValidationError({"detail": "Only initiated transactions can be paid."})
+        if tx.suspect_profile_id and not tx.suspect_profile.is_bail_allowed:
+            raise ValidationError({"detail": "Bail payment is not allowed for this profile."})
 
         payment_url = resolve_payment_url(request, tx)
         return Response(
@@ -395,30 +444,69 @@ class BailPaymentRequestAPIView(APIView):
         serializer = BailRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        suspect_profile = data["suspect_profile"]
+        tx = None
 
-        is_owner = suspect_profile.suspect_id == request.user.id
-        if not (is_police_staff(request.user) or is_owner):
-            raise PermissionDenied("Only police roles or the suspect owner can request this bail payment.")
+        if data.get("transaction_id"):
+            tx = get_object_or_404(
+                PaymentTransaction.objects.select_related("suspect_profile__suspect"),
+                id=data["transaction_id"],
+            )
+            if tx.transaction_type not in {
+                PaymentTransaction.TransactionType.BAIL,
+                PaymentTransaction.TransactionType.FINE,
+            }:
+                raise ValidationError({"transaction_id": "Only bail/fine transactions can use this endpoint."})
+            if tx.status != PaymentTransaction.Status.INITIATED:
+                raise ValidationError({"transaction_id": "Only initiated transactions can be paid."})
+            if tx.suspect_profile_id is None:
+                raise ValidationError({"transaction_id": "Transaction must be linked to a suspect profile."})
+            suspect_profile = tx.suspect_profile
+            is_owner = suspect_profile.suspect_id == request.user.id
+            is_payer = tx.payer_id == request.user.id
+            if not (is_police_staff(request.user) or is_owner or is_payer):
+                raise PermissionDenied("You do not have access to this transaction.")
+            if not suspect_profile.is_arrested:
+                raise ValidationError({"suspect_profile": "Bail payment is only available for arrested suspects."})
+            if not suspect_profile.is_bail_allowed:
+                raise ValidationError({"suspect_profile": "Bail is not allowed for this profile."})
+            if suspect_profile.bail_amount and tx.amount != suspect_profile.bail_amount:
+                raise ValidationError({"transaction_id": "Transaction amount does not match approved bail amount."})
+        else:
+            # Legacy path: creating a fresh payment request is restricted to sergeant/admin.
+            if not has_any_role(request.user, "Sergeant", "Administrator"):
+                raise PermissionDenied("Only sergeant role can create a new bail transaction.")
 
-        if not suspect_profile.is_arrested:
-            raise ValidationError({"suspect_profile": "Bail payment is only available for arrested suspects."})
+            suspect_profile = data["suspect_profile"]
+            if not suspect_profile.is_arrested:
+                raise ValidationError({"suspect_profile": "Bail payment is only available for arrested suspects."})
+            if not suspect_profile.is_bail_allowed:
+                raise ValidationError({"suspect_profile": "Bail is not allowed for this profile."})
 
-        _is_bail_eligible(suspect_profile, sergeant_approved=data.get("sergeant_approved", False))
+            _is_bail_eligible(
+                suspect_profile,
+                actor=request.user,
+                sergeant_approved=data.get("sergeant_approved", False),
+            )
+
+            amount = suspect_profile.bail_amount
+            if amount is None:
+                raise ValidationError({"suspect_profile": "Approved bail amount is missing for this profile."})
+            if data.get("amount") is not None and data["amount"] != amount:
+                raise ValidationError({"amount": "Must match approved bail amount set by sergeant."})
+
+            tx = PaymentTransaction.objects.create(
+                case=suspect_profile.case,
+                suspect_profile=suspect_profile,
+                payer=suspect_profile.suspect,
+                amount=amount,
+                transaction_type=PaymentTransaction.TransactionType.BAIL,
+                status=PaymentTransaction.Status.INITIATED,
+                return_url=data.get("return_url", ""),
+            )
 
         callback_url = request.build_absolute_uri(reverse("bail-verify"))
         merchant_id = os.getenv("ZARINPAL_MERCHANT_ID", "00000000-0000-0000-0000-000000000000")
-        description = data.get("description", "").strip() or f"Bail payment for suspect profile #{suspect_profile.id}"
-
-        tx = PaymentTransaction.objects.create(
-            case=suspect_profile.case,
-            suspect_profile=suspect_profile,
-            payer=suspect_profile.suspect,
-            amount=data["amount"],
-            transaction_type=PaymentTransaction.TransactionType.BAIL,
-            status=PaymentTransaction.Status.INITIATED,
-            return_url=data.get("return_url", ""),
-        )
+        description = data.get("description", "").strip() or f"Bail payment for suspect profile #{tx.suspect_profile_id}"
 
         try:
             provider_resp = zarinpal_request_payment(

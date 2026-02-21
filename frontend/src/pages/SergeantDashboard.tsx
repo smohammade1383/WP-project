@@ -359,6 +359,10 @@ const SergeantDashboard = () => {
       setActionProfileId(profileId);
       setError('');
       setSuccess('');
+      await sergeantApi.updateBailPolicy(profileId, {
+        is_bail_allowed: true,
+        bail_amount: amount,
+      });
       const response = await sergeantApi.initiateBail({
         suspect_profile: profileId,
         amount,

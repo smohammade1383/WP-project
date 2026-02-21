@@ -117,10 +117,13 @@ class FinanceFlowAPITests(APITestCase):
 
     def test_payment_initiate_allows_level2_suspect(self):
         officer = self._create_user("officer3", roles=["Police Officer"])
+        sergeant = self._create_user("sergeant3", roles=["Sergeant"])
         suspect = self._create_user("suspect3")
         _, profile = self._create_case_and_profile(officer, suspect, Case.Severity.LEVEL_2)
+        profile.is_arrested = True
+        profile.save(update_fields=["is_arrested"])
 
-        self.client.force_authenticate(officer)
+        self.client.force_authenticate(sergeant)
         resp = self.client.post(
             reverse("payment-initiate"),
             {
@@ -136,10 +139,13 @@ class FinanceFlowAPITests(APITestCase):
 
     def test_payment_initiate_rejects_invalid_severity_for_suspect(self):
         officer = self._create_user("officer4", roles=["Police Officer"])
+        sergeant = self._create_user("sergeant4", roles=["Sergeant"])
         suspect = self._create_user("suspect4")
         _, profile = self._create_case_and_profile(officer, suspect, Case.Severity.CRITICAL)
+        profile.is_arrested = True
+        profile.save(update_fields=["is_arrested"])
 
-        self.client.force_authenticate(officer)
+        self.client.force_authenticate(sergeant)
         resp = self.client.post(
             reverse("payment-initiate"),
             {
@@ -153,8 +159,11 @@ class FinanceFlowAPITests(APITestCase):
 
     def test_payment_initiate_criminal_level3_requires_sergeant_approval(self):
         officer = self._create_user("officer5", roles=["Police Officer"])
+        sergeant = self._create_user("sergeant5", roles=["Sergeant"])
         criminal = self._create_user("criminal1", roles=["Criminal"])
         _, profile = self._create_case_and_profile(officer, criminal, Case.Severity.LEVEL_3)
+        profile.is_arrested = True
+        profile.save(update_fields=["is_arrested"])
 
         self.client.force_authenticate(officer)
         denied = self.client.post(
@@ -166,15 +175,15 @@ class FinanceFlowAPITests(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(denied.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
 
+        self.client.force_authenticate(sergeant)
         allowed = self.client.post(
             reverse("payment-initiate"),
             {
                 "suspect_profile": profile.id,
                 "amount": 1800000,
                 "transaction_type": PaymentTransaction.TransactionType.BAIL,
-                "sergeant_approved": True,
             },
             format="json",
         )
@@ -182,10 +191,13 @@ class FinanceFlowAPITests(APITestCase):
 
     def test_payment_callback_updates_transaction_status(self):
         officer = self._create_user("officer6", roles=["Police Officer"])
+        sergeant = self._create_user("sergeant6", roles=["Sergeant"])
         suspect = self._create_user("suspect6")
         _, profile = self._create_case_and_profile(officer, suspect, Case.Severity.LEVEL_2)
+        profile.is_arrested = True
+        profile.save(update_fields=["is_arrested"])
 
-        self.client.force_authenticate(officer)
+        self.client.force_authenticate(sergeant)
         init_resp = self.client.post(
             reverse("payment-initiate"),
             {
@@ -212,10 +224,13 @@ class FinanceFlowAPITests(APITestCase):
 
     def test_suspect_can_list_and_start_own_payment(self):
         officer = self._create_user("officer7", roles=["Police Officer"])
+        sergeant = self._create_user("sergeant7", roles=["Sergeant"])
         suspect = self._create_user("suspect7")
         _, profile = self._create_case_and_profile(officer, suspect, Case.Severity.LEVEL_2)
+        profile.is_arrested = True
+        profile.save(update_fields=["is_arrested"])
 
-        self.client.force_authenticate(officer)
+        self.client.force_authenticate(sergeant)
         init_resp = self.client.post(
             reverse("payment-initiate"),
             {
@@ -239,12 +254,13 @@ class FinanceFlowAPITests(APITestCase):
 
     def test_paid_bail_releases_arrest_status(self):
         officer = self._create_user("officer8", roles=["Police Officer"])
+        sergeant = self._create_user("sergeant8", roles=["Sergeant"])
         suspect = self._create_user("suspect8")
         _, profile = self._create_case_and_profile(officer, suspect, Case.Severity.LEVEL_2)
         profile.is_arrested = True
         profile.save(update_fields=["is_arrested"])
 
-        self.client.force_authenticate(officer)
+        self.client.force_authenticate(sergeant)
         init_resp = self.client.post(
             reverse("payment-initiate"),
             {

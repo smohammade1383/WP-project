@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     AggregatedStatsAPIView,
     CitizenTipDetectiveReviewAPIView,
+    CitizenTipLinkCaseAPIView,
     CitizenTipListCreateAPIView,
     CitizenTipOfficerReviewAPIView,
     PublicWantedDetailAPIView,
@@ -16,4 +17,5 @@ urlpatterns = [
     path("tips/", CitizenTipListCreateAPIView.as_view(), name="people-tips"),
     path("tips/<int:tip_id>/officer-review/", CitizenTipOfficerReviewAPIView.as_view(), name="people-tips-officer-review"),
     path("tips/<int:tip_id>/detective-review/", CitizenTipDetectiveReviewAPIView.as_view(), name="people-tips-detective-review"),
+    path("tips/<int:tip_id>/link-case/", CitizenTipLinkCaseAPIView.as_view(), name="people-tips-link-case"),
 ]

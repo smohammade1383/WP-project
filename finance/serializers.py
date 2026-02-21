@@ -93,6 +93,8 @@ class RewardVerificationSerializer(serializers.Serializer):
 class PaymentTransactionSerializer(serializers.ModelSerializer):
     case_status = serializers.CharField(source="case.status", read_only=True)
     suspect_is_arrested = serializers.BooleanField(source="suspect_profile.is_arrested", read_only=True)
+    suspect_is_bail_allowed = serializers.BooleanField(source="suspect_profile.is_bail_allowed", read_only=True)
+    suspect_bail_amount = serializers.IntegerField(source="suspect_profile.bail_amount", read_only=True)
 
     class Meta:
         model = PaymentTransaction
@@ -106,6 +108,8 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
             "status",
             "case_status",
             "suspect_is_arrested",
+            "suspect_is_bail_allowed",
+            "suspect_bail_amount",
             "gateway_reference",
             "callback_payload",
             "return_url",
@@ -131,11 +135,31 @@ class PaymentInitiateSerializer(serializers.Serializer):
 
 
 class BailRequestSerializer(serializers.Serializer):
-    suspect_profile = serializers.PrimaryKeyRelatedField(queryset=SuspectCaseProfile.objects.select_related("case", "suspect").all())
-    amount = serializers.IntegerField(min_value=1)
+    transaction_id = serializers.IntegerField(required=False, min_value=1)
+    suspect_profile = serializers.PrimaryKeyRelatedField(
+        queryset=SuspectCaseProfile.objects.select_related("case", "suspect").all(),
+        required=False,
+    )
+    amount = serializers.IntegerField(min_value=1, required=False)
     description = serializers.CharField(required=False, allow_blank=True, max_length=255)
     return_url = serializers.URLField(required=False, allow_blank=True)
     sergeant_approved = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs):
+        tx_id = attrs.get("transaction_id")
+        suspect_profile = attrs.get("suspect_profile")
+        amount = attrs.get("amount")
+
+        if tx_id:
+            return attrs
+
+        if not suspect_profile or amount is None:
+            raise serializers.ValidationError(
+                {
+                    "detail": "Provide either transaction_id, or suspect_profile + amount."
+                }
+            )
+        return attrs
 
 
 class PaymentCallbackSerializer(serializers.Serializer):

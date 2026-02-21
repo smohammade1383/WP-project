@@ -34,6 +34,7 @@ import ChiefDashboard from './pages/ChiefDashboard';
 import JudgeDashboard from './pages/JudgeDashboard';
 import DetectiveRewardsReview from './pages/DetectiveRewardsReview';
 import Forbidden from './pages/Forbidden';
+import RewardVerification from './pages/RewardVerification';
 
 export const router = createBrowserRouter([
   {
@@ -191,6 +192,10 @@ export const router = createBrowserRouter([
       {
         path: 'judge/bench',
         element: <JudgeDashboard />,
+      },
+      {
+        path: 'rewards/verify',
+        element: <RewardVerification />,
       },
       {
         path: '403',

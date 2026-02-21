@@ -13,6 +13,8 @@ export interface PaymentTransaction {
   status: PaymentStatus;
   case_status?: string;
   suspect_is_arrested?: boolean;
+  suspect_is_bail_allowed?: boolean;
+  suspect_bail_amount?: number | null;
   gateway_reference: string;
   callback_payload: Record<string, unknown>;
   return_url: string;
@@ -26,8 +28,9 @@ export interface StartPaymentResponse {
 }
 
 export interface BailRequestPayload {
-  suspect_profile: number;
-  amount: number;
+  transaction_id?: number;
+  suspect_profile?: number;
+  amount?: number;
   description?: string;
   return_url?: string;
   sergeant_approved?: boolean;

@@ -12,7 +12,7 @@ export type { ApiError } from './error.handler';
 export { statsApi } from './stats.api';
 export type { AggregatedStats } from './stats.api';
 export { peopleApi } from './people.api';
-export type { PublicPerson, WantedPerson } from './people.api';
+export type { PublicPerson, WantedPerson, CitizenTip, CitizenTipStatus } from './people.api';
 export { complaintsApi } from './complaints.api';
 export type {
   Complaint,

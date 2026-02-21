@@ -67,7 +67,9 @@ export const rewardsApi = {
   verifyByCode: async (
     payload: { national_id: string; tracking_code?: string; unique_code?: string }
   ): Promise<{
-    report_id: number;
+    source?: string;
+    report_id: number | null;
+    tip_id?: number | null;
     tracking_code: string;
     reward_amount: number;
     reporter: RewardReporter;

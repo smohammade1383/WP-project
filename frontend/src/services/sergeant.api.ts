@@ -131,6 +131,13 @@ export const sergeantApi = {
     });
   },
 
+  updateBailPolicy: async (
+    profileId: number,
+    payload: { is_bail_allowed: boolean; bail_amount?: number | null }
+  ): Promise<SergeantSuspectProfile> => {
+    return api.post<SergeantSuspectProfile>(`/cases/suspect-profiles/${profileId}/bail-policy/`, payload);
+  },
+
   initiateBail: async (payload: {
     suspect_profile: number;
     amount: number;

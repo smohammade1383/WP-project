@@ -46,6 +46,7 @@ from .serializers import (
     SecondaryComplainantReviewSerializer,
     SecondaryComplainantSerializer,
     SuspectCaseProfileSerializer,
+    SuspectBailPolicySerializer,
     SuspectNominationSerializer,
     WantedUpdateSerializer,
 )
@@ -1014,6 +1015,57 @@ class SuspectWantedUpdateAPIView(APIView):
         if "public_details" in data:
             profile.public_details = data["public_details"]
         profile.save()
+        return Response(SuspectCaseProfileSerializer(profile).data)
+
+
+@extend_schema(
+    tags=["Interrogation"],
+    summary="Sergeant updates bail policy for a suspect/criminal profile",
+    request=SuspectBailPolicySerializer,
+    responses={200: SuspectCaseProfileSerializer},
+)
+class SuspectBailPolicyUpdateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, profile_id):
+        if not has_any_role(request.user, "Sergeant", "Administrator"):
+            raise PermissionDenied("Only sergeant role can update bail policy.")
+
+        profile = get_object_or_404(SuspectCaseProfile.objects.select_related("case", "suspect"), id=profile_id)
+        serializer = SuspectBailPolicySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        if data["is_bail_allowed"]:
+            if not profile.is_arrested:
+                raise ValidationError({"detail": "Bail policy can be enabled only for arrested profiles."})
+
+            is_criminal = profile.suspect.has_role("Criminal")
+            severity = profile.case.severity
+
+            if is_criminal:
+                if severity != Case.Severity.LEVEL_3:
+                    raise ValidationError(
+                        {"detail": "Criminals are eligible only for level-3 crimes."}
+                    )
+            elif severity not in {Case.Severity.LEVEL_2, Case.Severity.LEVEL_3}:
+                raise ValidationError(
+                    {"detail": "Only level-2 or level-3 suspect profiles are eligible for bail."}
+                )
+
+        profile.is_bail_allowed = data["is_bail_allowed"]
+        profile.bail_amount = data["bail_amount"]
+        profile.save(update_fields=["is_bail_allowed", "bail_amount"])
+
+        CaseLog.objects.create(
+            case=profile.case,
+            actor=request.user,
+            action="bail_policy_updated",
+            description=(
+                f"is_bail_allowed={profile.is_bail_allowed}, bail_amount={profile.bail_amount or 0}"
+            ),
+        )
+
         return Response(SuspectCaseProfileSerializer(profile).data)
 
 

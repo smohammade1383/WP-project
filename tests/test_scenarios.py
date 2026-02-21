@@ -94,6 +94,8 @@ class IntegrationScenarioTests(APITestCase):
         criminal = self._create_user("criminal_bail_user", roles=["Criminal"])
 
         _, profile = self._create_case_with_profile(creator, criminal, Case.Severity.LEVEL_2)
+        profile.is_arrested = True
+        profile.save(update_fields=["is_arrested"])
 
         self.client.force_authenticate(sergeant)
         deny_resp = self.client.post(

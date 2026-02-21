@@ -34,6 +34,7 @@ class BailZarinPalFlowTests(APITestCase):
 
     def _create_arrested_profile(self):
         officer = self._create_user("zarin_officer", roles=["Police Officer"])
+        sergeant = self._create_user("zarin_sergeant", roles=["Sergeant"])
         suspect = self._create_user("zarin_suspect", roles=["Suspect"])
         case_obj = Case.objects.create(
             title="Bail case",
@@ -50,11 +51,11 @@ class BailZarinPalFlowTests(APITestCase):
             suspect=suspect,
             is_arrested=True,
         )
-        return suspect, profile
+        return suspect, sergeant, profile
 
     @patch("finance.views.zarinpal_request_payment")
     def test_bail_request_returns_authority_and_creates_pending_transaction(self, mocked_request):
-        suspect, profile = self._create_arrested_profile()
+        suspect, sergeant, profile = self._create_arrested_profile()
         mocked_request.return_value = {
             "data": {
                 "code": 100,
@@ -62,12 +63,24 @@ class BailZarinPalFlowTests(APITestCase):
             }
         }
 
+        self.client.force_authenticate(sergeant)
+        init_resp = self.client.post(
+            reverse("payment-initiate"),
+            {
+                "suspect_profile": profile.id,
+                "amount": 2_000_000,
+                "transaction_type": PaymentTransaction.TransactionType.BAIL,
+            },
+            format="json",
+        )
+        self.assertEqual(init_resp.status_code, status.HTTP_201_CREATED)
+        tx_id = init_resp.data["transaction"]["id"]
+
         self.client.force_authenticate(suspect)
         resp = self.client.post(
             reverse("bail-request"),
             {
-                "suspect_profile": profile.id,
-                "amount": 2_000_000,
+                "transaction_id": tx_id,
                 "description": "Bail request test",
             },
             format="json",
@@ -84,7 +97,7 @@ class BailZarinPalFlowTests(APITestCase):
 
     @patch("finance.views.zarinpal_verify_payment")
     def test_bail_verify_success_marks_paid_and_releases_suspect(self, mocked_verify):
-        suspect, profile = self._create_arrested_profile()
+        suspect, _, profile = self._create_arrested_profile()
         tx = PaymentTransaction.objects.create(
             case=profile.case,
             suspect_profile=profile,
@@ -110,7 +123,7 @@ class BailZarinPalFlowTests(APITestCase):
         self.assertIsNotNone(tx.paid_at)
 
     def test_bail_verify_failed_status_marks_transaction_failed(self):
-        suspect, profile = self._create_arrested_profile()
+        suspect, _, profile = self._create_arrested_profile()
         tx = PaymentTransaction.objects.create(
             case=profile.case,
             suspect_profile=profile,
