@@ -72,6 +72,23 @@ const LegalBailStatus = () => {
     loadTransactions();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    const tx = params.get('tx');
+    const refId = params.get('ref_id');
+    const reason = params.get('reason');
+    if (payment === 'success') {
+      setSuccess(
+        `پرداخت با موفقیت ثبت شد${tx ? ` (تراکنش #${tx})` : ''}${refId ? ` - کد رهگیری ${refId}` : ''}.`
+      );
+      setError('');
+    } else if (payment === 'failed') {
+      setError(`پرداخت ناموفق بود${tx ? ` (تراکنش #${tx})` : ''}${reason ? ` - ${reason}` : ''}.`);
+      setSuccess('');
+    }
+  }, []);
+
   const bailTransactions = useMemo(() => {
     return transactions
       .filter((item) => item.transaction_type === 'bail' || item.transaction_type === 'fine')
@@ -83,9 +100,23 @@ const LegalBailStatus = () => {
       setStartingId(transactionId);
       setError('');
       setSuccess('');
-      const result = await paymentsApi.start(transactionId);
-      setSuccess(`در حال انتقال به درگاه پرداخت تراکنش #${transactionId} ...`);
-      window.location.href = toAbsoluteUrl(result.payment_url);
+      const tx = transactions.find((item) => item.id === transactionId);
+      if (!tx || !tx.suspect_profile) {
+        setError('برای این تراکنش اطلاعات مظنون در دسترس نیست.');
+        return;
+      }
+
+      const result = await paymentsApi.requestBail({
+        suspect_profile: tx.suspect_profile,
+        amount: tx.amount,
+        description: `Bail payment for transaction #${transactionId}`,
+      });
+
+      const target = result.start_url
+        ? toAbsoluteUrl(result.start_url)
+        : `https://sandbox.zarinpal.com/pg/StartPay/${result.authority}`;
+      setSuccess(`در حال انتقال به درگاه ZarinPal برای تراکنش #${transactionId} ...`);
+      window.location.href = target;
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'شروع پرداخت آنلاین با خطا مواجه شد.'));
     } finally {

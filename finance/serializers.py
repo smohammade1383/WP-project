@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from cases.models import SuspectCaseProfile
 from .models import PaymentTransaction, RewardReport
 
 User = get_user_model()
@@ -125,6 +126,14 @@ class PaymentInitiateSerializer(serializers.Serializer):
     suspect_profile = serializers.PrimaryKeyRelatedField(queryset=PaymentTransaction._meta.get_field("suspect_profile").related_model.objects.all())
     amount = serializers.IntegerField(min_value=1)
     transaction_type = serializers.ChoiceField(choices=PaymentTransaction.TransactionType.choices)
+    return_url = serializers.URLField(required=False, allow_blank=True)
+    sergeant_approved = serializers.BooleanField(required=False, default=False)
+
+
+class BailRequestSerializer(serializers.Serializer):
+    suspect_profile = serializers.PrimaryKeyRelatedField(queryset=SuspectCaseProfile.objects.select_related("case", "suspect").all())
+    amount = serializers.IntegerField(min_value=1)
+    description = serializers.CharField(required=False, allow_blank=True, max_length=255)
     return_url = serializers.URLField(required=False, allow_blank=True)
     sergeant_approved = serializers.BooleanField(required=False, default=False)
 

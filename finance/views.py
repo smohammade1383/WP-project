@@ -1,7 +1,14 @@
 import uuid
+import json
+import os
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode, urlparse, parse_qsl, urlunparse
+from urllib.request import Request, urlopen
 
 from django.db import models
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
@@ -14,6 +21,7 @@ from cases.models import Case
 from evidence.models import Evidence
 from .models import PaymentTransaction, RewardReport
 from .serializers import (
+    BailRequestSerializer,
     PaymentCallbackSerializer,
     PaymentInitiateSerializer,
     PaymentTransactionSerializer,
@@ -34,6 +42,10 @@ POLICE_ROLES = {
     "Cadet",
 }
 
+ZARINPAL_SANDBOX_REQUEST_URL = "https://sandbox.zarinpal.com/pg/v4/payment/request.json"
+ZARINPAL_SANDBOX_VERIFY_URL = "https://sandbox.zarinpal.com/pg/v4/payment/verify.json"
+ZARINPAL_SANDBOX_START_URL = "https://sandbox.zarinpal.com/pg/StartPay/"
+
 
 def has_any_role(user, *roles):
     if not user or not user.is_authenticated:
@@ -46,6 +58,73 @@ def has_any_role(user, *roles):
 
 def is_police_staff(user):
     return has_any_role(user, *POLICE_ROLES)
+
+
+def _http_json_post(url, payload, timeout=15):
+    body = json.dumps(payload).encode("utf-8")
+    req = Request(
+        url=url,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+    with urlopen(req, timeout=timeout) as resp:
+        raw = resp.read().decode("utf-8")
+    return json.loads(raw) if raw else {}
+
+
+def zarinpal_request_payment(*, merchant_id, amount, description, callback_url):
+    payload = {
+        "merchant_id": merchant_id,
+        "amount": amount,
+        "description": description,
+        "callback_url": callback_url,
+    }
+    return _http_json_post(ZARINPAL_SANDBOX_REQUEST_URL, payload)
+
+
+def zarinpal_verify_payment(*, merchant_id, amount, authority):
+    payload = {
+        "merchant_id": merchant_id,
+        "amount": amount,
+        "authority": authority,
+    }
+    return _http_json_post(ZARINPAL_SANDBOX_VERIFY_URL, payload)
+
+
+def _append_query_params(base_url, extra_params):
+    parsed = urlparse(base_url)
+    current_query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    current_query.update({k: str(v) for k, v in extra_params.items() if v is not None})
+    new_query = urlencode(current_query)
+    return urlunparse(parsed._replace(query=new_query))
+
+
+def _frontend_bail_result_url(success, **params):
+    default = "http://localhost:5173/legal-bail"
+    base_url = os.getenv("FRONTEND_BAIL_RETURN_URL", default).strip() or default
+    merged = {"payment": "success" if success else "failed", **params}
+    return _append_query_params(base_url, merged)
+
+
+def _is_bail_eligible(suspect_profile, *, sergeant_approved=False):
+    severity = suspect_profile.case.severity
+    is_criminal = suspect_profile.suspect.has_role("Criminal")
+
+    if is_criminal:
+        if severity != Case.Severity.LEVEL_3 or not sergeant_approved:
+            raise ValidationError(
+                {"suspect_profile": "Criminals are eligible only for level-3 crimes with sergeant approval."}
+            )
+        return
+
+    if severity not in {Case.Severity.LEVEL_2, Case.Severity.LEVEL_3}:
+        raise ValidationError(
+            {"suspect_profile": "Only suspects of level-2 or level-3 crimes can use this payment flow."}
+        )
 
 
 def resolve_payment_url(request, tx):
@@ -249,19 +328,7 @@ class PaymentInitiateAPIView(APIView):
             raise ValidationError({"transaction_type": "Only bail/fine transactions are allowed in this flow."})
 
         suspect_profile = data["suspect_profile"]
-        severity = suspect_profile.case.severity
-        is_criminal = suspect_profile.suspect.has_role("Criminal")
-
-        if is_criminal:
-            if severity != Case.Severity.LEVEL_3 or not data.get("sergeant_approved", False):
-                raise ValidationError(
-                    {"suspect_profile": "Criminals are eligible only for level-3 crimes with sergeant approval."}
-                )
-        else:
-            if severity not in {Case.Severity.LEVEL_2, Case.Severity.LEVEL_3}:
-                raise ValidationError(
-                    {"suspect_profile": "Only suspects of level-2 or level-3 crimes can use this payment flow."}
-                )
+        _is_bail_eligible(suspect_profile, sergeant_approved=data.get("sergeant_approved", False))
 
         tx = PaymentTransaction.objects.create(
             case=suspect_profile.case,
@@ -313,6 +380,157 @@ class PaymentStartAPIView(APIView):
                 "payment_url": payment_url,
             }
         )
+
+
+@extend_schema(
+    tags=["Payments"],
+    summary="Request ZarinPal sandbox authority for bail payment",
+    request=BailRequestSerializer,
+    responses={201: OpenApiTypes.OBJECT},
+)
+class BailPaymentRequestAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = BailRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        suspect_profile = data["suspect_profile"]
+
+        is_owner = suspect_profile.suspect_id == request.user.id
+        if not (is_police_staff(request.user) or is_owner):
+            raise PermissionDenied("Only police roles or the suspect owner can request this bail payment.")
+
+        if not suspect_profile.is_arrested:
+            raise ValidationError({"suspect_profile": "Bail payment is only available for arrested suspects."})
+
+        _is_bail_eligible(suspect_profile, sergeant_approved=data.get("sergeant_approved", False))
+
+        callback_url = request.build_absolute_uri(reverse("bail-verify"))
+        merchant_id = os.getenv("ZARINPAL_MERCHANT_ID", "00000000-0000-0000-0000-000000000000")
+        description = data.get("description", "").strip() or f"Bail payment for suspect profile #{suspect_profile.id}"
+
+        tx = PaymentTransaction.objects.create(
+            case=suspect_profile.case,
+            suspect_profile=suspect_profile,
+            payer=suspect_profile.suspect,
+            amount=data["amount"],
+            transaction_type=PaymentTransaction.TransactionType.BAIL,
+            status=PaymentTransaction.Status.INITIATED,
+            return_url=data.get("return_url", ""),
+        )
+
+        try:
+            provider_resp = zarinpal_request_payment(
+                merchant_id=merchant_id,
+                amount=tx.amount,
+                description=description,
+                callback_url=callback_url,
+            )
+        except (HTTPError, URLError, TimeoutError, ValueError) as exc:
+            tx.status = PaymentTransaction.Status.FAILED
+            tx.callback_payload = {"provider_error": str(exc)}
+            tx.save(update_fields=["status", "callback_payload"])
+            raise ValidationError({"detail": "Could not reach ZarinPal sandbox endpoint."})
+
+        data_block = provider_resp.get("data") or {}
+        code = data_block.get("code")
+        authority = data_block.get("authority")
+        if code != 100 or not authority:
+            tx.status = PaymentTransaction.Status.FAILED
+            tx.callback_payload = provider_resp
+            tx.save(update_fields=["status", "callback_payload"])
+            raise ValidationError({"detail": "ZarinPal request was rejected.", "provider": provider_resp})
+
+        tx.gateway_reference = authority
+        tx.callback_payload = provider_resp
+        tx.save(update_fields=["gateway_reference", "callback_payload"])
+
+        return Response(
+            {
+                "transaction": PaymentTransactionSerializer(tx).data,
+                "authority": authority,
+                "start_url": f"{ZARINPAL_SANDBOX_START_URL}{authority}",
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema(
+    tags=["Payments"],
+    summary="ZarinPal sandbox callback verifier for bail payment",
+    request=None,
+    responses={302: OpenApiTypes.STR},
+    parameters=[
+        OpenApiParameter(name="Authority", type=str, location=OpenApiParameter.QUERY, required=True),
+        OpenApiParameter(name="Status", type=str, location=OpenApiParameter.QUERY, required=True),
+    ],
+)
+class BailPaymentVerifyAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        authority = (request.query_params.get("Authority") or "").strip()
+        status_flag = (request.query_params.get("Status") or "").strip().lower()
+        if not authority:
+            return HttpResponseRedirect(_frontend_bail_result_url(False, reason="missing-authority"))
+
+        tx = PaymentTransaction.objects.select_related("suspect_profile").filter(gateway_reference=authority).first()
+        if tx is None:
+            return HttpResponseRedirect(_frontend_bail_result_url(False, reason="transaction-not-found", authority=authority))
+
+        if status_flag != "ok":
+            tx.status = PaymentTransaction.Status.FAILED
+            tx.callback_payload = {
+                "authority": authority,
+                "query_status": request.query_params.get("Status"),
+                "reason": "gateway-cancelled",
+            }
+            tx.paid_at = None
+            tx.save(update_fields=["status", "callback_payload", "paid_at"])
+            return HttpResponseRedirect(_frontend_bail_result_url(False, tx=tx.id, authority=authority, reason="gateway-cancelled"))
+
+        merchant_id = os.getenv("ZARINPAL_MERCHANT_ID", "00000000-0000-0000-0000-000000000000")
+        try:
+            verify_resp = zarinpal_verify_payment(
+                merchant_id=merchant_id,
+                amount=tx.amount,
+                authority=authority,
+            )
+        except (HTTPError, URLError, TimeoutError, ValueError) as exc:
+            tx.status = PaymentTransaction.Status.FAILED
+            tx.callback_payload = {"provider_error": str(exc), "authority": authority}
+            tx.paid_at = None
+            tx.save(update_fields=["status", "callback_payload", "paid_at"])
+            return HttpResponseRedirect(_frontend_bail_result_url(False, tx=tx.id, authority=authority, reason="verify-request-failed"))
+
+        verify_data = verify_resp.get("data") or {}
+        code = verify_data.get("code")
+        ref_id = verify_data.get("ref_id")
+
+        if code in {100, 101}:
+            tx.status = PaymentTransaction.Status.PAID
+            tx.paid_at = timezone.now()
+            tx.callback_payload = {
+                "authority": authority,
+                "verify_response": verify_resp,
+                "release_status": "RELEASED_ON_BAIL",
+            }
+            tx.save(update_fields=["status", "paid_at", "callback_payload"])
+
+            if tx.suspect_profile_id and tx.suspect_profile.is_arrested:
+                tx.suspect_profile.is_arrested = False
+                tx.suspect_profile.save(update_fields=["is_arrested"])
+
+            return HttpResponseRedirect(
+                _frontend_bail_result_url(True, tx=tx.id, authority=authority, ref_id=ref_id)
+            )
+
+        tx.status = PaymentTransaction.Status.FAILED
+        tx.paid_at = None
+        tx.callback_payload = {"authority": authority, "verify_response": verify_resp}
+        tx.save(update_fields=["status", "paid_at", "callback_payload"])
+        return HttpResponseRedirect(_frontend_bail_result_url(False, tx=tx.id, authority=authority, reason=f"verify-code-{code}"))
 
 
 @extend_schema(
