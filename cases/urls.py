@@ -12,6 +12,7 @@ from .views import (
     CaseBreakdownStatsAPIView,
     CaseListCreateAPIView,
     CaseClaimAPIView,
+    CaseSergeantClaimAPIView,
     CaseRetrieveUpdateAPIView,
     ChiefDecisionAPIView,
     ComplaintAddComplainantsAPIView,
@@ -30,6 +31,7 @@ from .views import (
     SergeantDecisionAPIView,
     SergeantSubmitToCaptainAPIView,
     UnassignedCaseListAPIView,
+    UnassignedSergeantCaseListAPIView,
     SuspectProfileListAPIView,
     SuspectBailPolicyUpdateAPIView,
     SevereTrackingListAPIView,
@@ -41,7 +43,9 @@ from .views import (
 urlpatterns = [
     path("", CaseListCreateAPIView.as_view(), name="case-list-create"),
     path("unassigned/", UnassignedCaseListAPIView.as_view(), name="case-unassigned-list"),
+    path("unassigned-sergeant/", UnassignedSergeantCaseListAPIView.as_view(), name="case-unassigned-sergeant-list"),
     path("<int:case_id>/claim/", CaseClaimAPIView.as_view(), name="case-claim"),
+    path("<int:case_id>/claim-sergeant/", CaseSergeantClaimAPIView.as_view(), name="case-claim-sergeant"),
     path("<int:pk>/", CaseRetrieveUpdateAPIView.as_view(), name="case-detail-update"),
 
     path("complaints/", ComplaintListCreateAPIView.as_view(), name="complaint-list-create"),

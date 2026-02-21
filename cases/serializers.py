@@ -40,6 +40,7 @@ class CaseSerializer(serializers.ModelSerializer):
     created_by = UserBriefSerializer(read_only=True)
     approved_by = UserBriefSerializer(read_only=True)
     assigned_detective = UserBriefSerializer(read_only=True)
+    assigned_sergeant = UserBriefSerializer(read_only=True)
     complainant_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=User.objects.all(),
@@ -73,6 +74,7 @@ class CaseSerializer(serializers.ModelSerializer):
             "created_by",
             "approved_by",
             "assigned_detective",
+            "assigned_sergeant",
             "complainants",
             "witnesses",
             "suspects",
@@ -88,6 +90,7 @@ class CaseSerializer(serializers.ModelSerializer):
             "created_by",
             "approved_by",
             "assigned_detective",
+            "assigned_sergeant",
             "created_at",
             "updated_at",
         )

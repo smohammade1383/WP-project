@@ -19,6 +19,7 @@ export interface SergeantCase {
   severity: number;
   created_by: SergeantUserBrief;
   approved_by: SergeantUserBrief | null;
+  assigned_sergeant?: SergeantUserBrief | null;
   updated_at: string;
   created_at: string;
 }
@@ -87,6 +88,17 @@ export const sergeantApi = {
   listCases: async (): Promise<SergeantCase[]> => {
     const payload = await api.get<SergeantCase[] | { results?: SergeantCase[] }>('/cases/');
     return toList(payload);
+  },
+
+  listUnassignedSergeantCases: async (): Promise<SergeantCase[]> => {
+    const payload = await api.get<SergeantCase[] | { results?: SergeantCase[] }>(
+      '/cases/unassigned-sergeant/'
+    );
+    return toList(payload);
+  },
+
+  claimSergeantCase: async (caseId: number): Promise<SergeantCase> => {
+    return api.post<SergeantCase>(`/cases/${caseId}/claim-sergeant/`, {});
   },
 
   approveCrimeScene: async (caseId: number): Promise<SergeantCase> => {

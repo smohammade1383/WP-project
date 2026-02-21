@@ -23,7 +23,7 @@ from .models import (
     SecondaryComplainant,
     SuspectCaseProfile,
 )
-from .permissions import CanViewAggregatedStats, IsAssignedDetective
+from .permissions import CanViewAggregatedStats, IsAssignedDetective, IsAssignedSergeant
 from .serializers import (
     AddComplainantsSerializer,
     BoardItemSerializer,
@@ -74,6 +74,16 @@ DETECTIVE_RESTRICTED_ROLES = {
     "Cadet",
 }
 
+SERGEANT_RESTRICTED_ROLES = {
+    "Administrator",
+    "Chief",
+    "Captain",
+    "Detective",
+    "Police Officer",
+    "Patrol Officer",
+    "Cadet",
+}
+
 
 def has_any_role(user, *roles):
     if not user or not user.is_authenticated:
@@ -98,9 +108,21 @@ def ensure_assigned_detective(user, case_obj):
     raise PermissionDenied("Only the assigned detective can modify this case.")
 
 
+def is_sergeant_only(user):
+    return has_any_role(user, "Sergeant") and not has_any_role(user, *SERGEANT_RESTRICTED_ROLES)
+
+
+def ensure_assigned_sergeant(user, case_obj):
+    if IsAssignedSergeant.is_assigned_sergeant(user, case_obj):
+        return
+    raise PermissionDenied("Only the assigned sergeant can modify this case.")
+
+
 def can_access_case(user, case_obj):
     if is_detective_only(user):
         return case_obj.assigned_detective_id == user.id
+    if is_sergeant_only(user):
+        return case_obj.assigned_sergeant_id == user.id
     if is_police_staff(user) or has_any_role(user, "Judge", "Coroner"):
         return True
     return (
@@ -129,6 +151,8 @@ def case_queryset_for_user(user):
     base = Case.objects.all().prefetch_related("complainants", "witnesses", "suspects")
     if is_detective_only(user):
         return base.filter(assigned_detective=user)
+    if is_sergeant_only(user):
+        return base.filter(assigned_sergeant=user)
     if is_police_staff(user) or has_any_role(user, "Judge", "Coroner"):
         return base
     return base.filter(
@@ -255,6 +279,56 @@ class CaseClaimAPIView(APIView):
                 if board.detective_id != request.user.id:
                     board.detective = request.user
                     board.save(update_fields=["detective"])
+
+        return Response(CaseSerializer(case_obj, context={"request": request}).data)
+
+
+@extend_schema_view(
+    get=extend_schema(tags=["Cases"], summary="List unassigned sergeant queue cases"),
+)
+class UnassignedSergeantCaseListAPIView(generics.ListAPIView):
+    serializer_class = CaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if not has_any_role(self.request.user, "Sergeant", "Administrator"):
+            raise PermissionDenied("Only sergeant roles can view this queue.")
+        return (
+            Case.objects.filter(status=Case.Status.WARRANT_PENDING, assigned_sergeant__isnull=True)
+            .prefetch_related("complainants", "witnesses", "suspects")
+            .order_by("-created_at")
+        )
+
+
+@extend_schema(
+    tags=["Cases"],
+    summary="Claim a sergeant queue case as current sergeant",
+    request=None,
+    responses={200: CaseSerializer},
+)
+class CaseSergeantClaimAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, case_id):
+        if not has_any_role(request.user, "Sergeant", "Administrator"):
+            raise PermissionDenied("Only sergeant roles can claim cases.")
+
+        case_obj = get_object_or_404(Case, id=case_id)
+        if case_obj.status != Case.Status.WARRANT_PENDING:
+            raise ValidationError({"detail": "Only sergeant queue (warrant pending) cases can be claimed."})
+
+        if case_obj.assigned_sergeant_id and case_obj.assigned_sergeant_id != request.user.id:
+            raise ValidationError({"detail": "This case is already claimed by another sergeant."})
+
+        if case_obj.assigned_sergeant_id is None:
+            case_obj.assigned_sergeant = request.user
+            case_obj.save(update_fields=["assigned_sergeant", "updated_at"])
+            CaseLog.objects.create(
+                case=case_obj,
+                actor=request.user,
+                action="case_claimed_sergeant",
+                description="Sergeant claimed this case.",
+            )
 
         return Response(CaseSerializer(case_obj, context={"request": request}).data)
 
@@ -897,6 +971,7 @@ class SergeantDecisionAPIView(APIView):
             raise PermissionDenied("Only sergeant role can confirm or reject.")
 
         case_obj = get_object_or_404(Case, id=case_id)
+        ensure_assigned_sergeant(request.user, case_obj)
         serializer = SergeantDecisionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         approved = serializer.validated_data["approved"]
@@ -934,6 +1009,8 @@ class SuspectArrestAPIView(APIView):
             raise PermissionDenied("Only police roles can register arrests.")
 
         profile = get_object_or_404(SuspectCaseProfile, id=profile_id)
+        if has_any_role(request.user, "Sergeant") and not IsAssignedSergeant._is_admin(request.user):
+            ensure_assigned_sergeant(request.user, profile.case)
         profile.is_arrested = True
         profile.save(update_fields=["is_arrested", "severe_tracking"])
         case_obj = profile.case
@@ -965,6 +1042,8 @@ class InterrogationScoreCreateAPIView(APIView):
             request.user, "Sergeant", "Administrator"
         ):
             raise PermissionDenied("Only sergeant can submit sergeant score.")
+        if scorer_role == InterrogationScore.ScorerRole.SERGEANT:
+            ensure_assigned_sergeant(request.user, profile.case)
 
         score = serializer.save(suspect_profile=profile, scorer=request.user)
         return Response(InterrogationScoreSerializer(score).data, status=status.HTTP_201_CREATED)
@@ -1142,6 +1221,7 @@ class SuspectBailPolicyUpdateAPIView(APIView):
             raise PermissionDenied("Only sergeant role can update bail policy.")
 
         profile = get_object_or_404(SuspectCaseProfile.objects.select_related("case", "suspect"), id=profile_id)
+        ensure_assigned_sergeant(request.user, profile.case)
         serializer = SuspectBailPolicySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -1232,6 +1312,8 @@ class SuspectProfileListAPIView(APIView):
             raise PermissionDenied("Only police roles can view suspect profiles.")
 
         queryset = SuspectCaseProfile.objects.select_related("suspect", "case").all()
+        if is_sergeant_only(request.user):
+            queryset = queryset.filter(case__assigned_sergeant=request.user)
 
         case_id = request.query_params.get("case")
         if case_id and case_id.isdigit():
@@ -1270,6 +1352,7 @@ class SergeantSubmitToCaptainAPIView(APIView):
             raise PermissionDenied("Only sergeant role can submit a case to captain queue.")
 
         case_obj = get_object_or_404(Case, id=case_id)
+        ensure_assigned_sergeant(request.user, case_obj)
         serializer = SubmitToCaptainSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         message = serializer.validated_data.get("message", "").strip()

@@ -88,6 +88,8 @@ class PaymentPolicyRulesTests(APITestCase):
         self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
 
         sergeant = self._create_user("sergeant_policy_update", roles=["Sergeant"])
+        profile.case.assigned_sergeant = sergeant
+        profile.case.save(update_fields=["assigned_sergeant", "updated_at"])
         self.client.force_authenticate(sergeant)
         allowed = self.client.post(
             reverse("suspect-bail-policy", kwargs={"profile_id": profile.id}),
@@ -104,6 +106,8 @@ class PaymentPolicyRulesTests(APITestCase):
         mocked_request.return_value = {"data": {"code": 100, "authority": "A-NEVER-USED"}}
         _, suspect, profile = self._create_profile(severity=Case.Severity.LEVEL_2, arrested=True)
         sergeant = self._create_user("sergeant_no_policy", roles=["Sergeant"])
+        profile.case.assigned_sergeant = sergeant
+        profile.case.save(update_fields=["assigned_sergeant", "updated_at"])
         self.client.force_authenticate(sergeant)
         init_resp = self.client.post(
             reverse("payment-initiate"),

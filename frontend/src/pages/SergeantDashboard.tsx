@@ -12,6 +12,7 @@ import { boardApi, type BoardItem as BoardItemType, type BoardLink as BoardLinkT
 import './SergeantDashboard.css';
 
 type SergeantTab = 'crime-scenes' | 'operations' | 'detention';
+type SergeantQueueTab = 'available' | 'mine';
 
 const TAB_LABELS: Record<SergeantTab, string> = {
   'crime-scenes': 'تایید صحنه جرم',
@@ -23,6 +24,11 @@ const MODULE_BY_TAB: Record<SergeantTab, string> = {
   'crime-scenes': 'sergeant-crime-scenes',
   operations: 'sergeant-operations',
   detention: 'sergeant-detention',
+};
+
+const QUEUE_TAB_LABELS: Record<SergeantQueueTab, string> = {
+  available: 'پرونده‌های قابل پذیرش',
+  mine: 'پرونده‌های فعال من',
 };
 
 const statusLabelMap: Record<string, string> = {
@@ -117,12 +123,15 @@ const SergeantDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<SergeantTab>(() => resolveTab(location.pathname));
   const [cases, setCases] = useState<SergeantCase[]>([]);
+  const [unassignedCases, setUnassignedCases] = useState<SergeantCase[]>([]);
   const [profiles, setProfiles] = useState<SergeantSuspectProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [queueTab, setQueueTab] = useState<SergeantQueueTab>('mine');
 
   const [actionCaseId, setActionCaseId] = useState<number | null>(null);
+  const [claimCaseId, setClaimCaseId] = useState<number | null>(null);
   const [actionProfileId, setActionProfileId] = useState<number | null>(null);
   const [decisionByCase, setDecisionByCase] = useState<Record<number, string>>({});
   const [scoreByProfile, setScoreByProfile] = useState<Record<number, string>>({});
@@ -147,11 +156,13 @@ const SergeantDashboard = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [caseList, profileList] = await Promise.all([
+      const [caseList, unassignedList, profileList] = await Promise.all([
         sergeantApi.listCases(),
+        sergeantApi.listUnassignedSergeantCases(),
         sergeantApi.listSuspectProfiles(),
       ]);
       setCases(caseList);
+      setUnassignedCases(unassignedList);
       setProfiles(profileList);
       setError('');
     } catch (err: unknown) {
@@ -192,6 +203,14 @@ const SergeantDashboard = () => {
       .sort((a, b) => b.caseItem.id - a.caseItem.id);
     return result;
   }, [cases, profiles]);
+
+  const availableSergeantQueue = useMemo(
+    () =>
+      unassignedCases
+        .filter((item) => item.status === 'WarrantPending')
+        .sort((a, b) => b.id - a.id),
+    [unassignedCases]
+  );
 
   const arrestQueue = useMemo(
     () =>
@@ -282,6 +301,22 @@ const SergeantDashboard = () => {
       setError(getErrorMessage(err, 'تایید پرونده صحنه جرم ناموفق بود.'));
     } finally {
       setActionCaseId(null);
+    }
+  };
+
+  const handleClaimCase = async (caseId: number) => {
+    try {
+      setClaimCaseId(caseId);
+      setError('');
+      setSuccess('');
+      await sergeantApi.claimSergeantCase(caseId);
+      setQueueTab('mine');
+      setSuccess(`پرونده #${caseId} با موفقیت به کارتابل شما اضافه شد.`);
+      await loadData();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'پذیرش پرونده ناموفق بود.'));
+    } finally {
+      setClaimCaseId(null);
     }
   };
 
@@ -458,6 +493,21 @@ const SergeantDashboard = () => {
           ))}
         </nav>
 
+        {activeTab !== 'crime-scenes' && (
+          <nav className="assignment-tabs">
+            {(Object.keys(QUEUE_TAB_LABELS) as SergeantQueueTab[]).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                className={tab === queueTab ? 'active' : ''}
+                onClick={() => setQueueTab(tab)}
+              >
+                {QUEUE_TAB_LABELS[tab]}
+              </button>
+            ))}
+          </nav>
+        )}
+
         {(error || success) && (
           <div className={`sergeant-feedback ${error ? 'error' : 'success'}`}>{error || success}</div>
         )}
@@ -514,12 +564,54 @@ const SergeantDashboard = () => {
           <section className="sergeant-section">
             <div className="section-top">
               <h2>Warrant Review (Arrest Requests)</h2>
-              <span>درخواست‌های باز: {operationItems.length}</span>
+              <span>
+                قابل پذیرش: {availableSergeantQueue.length} | فعال من: {operationItems.length}
+              </span>
             </div>
             {loading ? (
               <div className="section-empty">در حال دریافت درخواست‌های عملیاتی...</div>
+            ) : queueTab === 'available' ? (
+              availableSergeantQueue.length === 0 ? (
+                <div className="section-empty">پرونده‌ای در صف پذیرش گروهبان وجود ندارد.</div>
+              ) : (
+                <div className="sergeant-grid">
+                  {availableSergeantQueue.map((caseItem) => (
+                    <article key={caseItem.id} className="sergeant-card claim-card">
+                      <div className="card-title-row">
+                        <h3>
+                          پرونده #{caseItem.id} - {caseItem.title}
+                        </h3>
+                        <span className="status-pill">{statusLabelMap[caseItem.status] || caseItem.status}</span>
+                      </div>
+                      <p>{caseItem.description}</p>
+                      <div className="card-meta">
+                        <span>سطح جرم: {severityLabelMap[caseItem.severity] || caseItem.severity}</span>
+                        <span>ثبت: {formatDate(caseItem.created_at)}</span>
+                      </div>
+                      <div className="card-meta">
+                        <span>
+                          ایجادکننده: {caseItem.created_by.first_name} {caseItem.created_by.last_name}
+                        </span>
+                        <span>مکان: {caseItem.location}</span>
+                      </div>
+                      <div className="card-actions">
+                        <button
+                          type="button"
+                          className="primary"
+                          disabled={claimCaseId === caseItem.id}
+                          onClick={() => handleClaimCase(caseItem.id)}
+                        >
+                          {claimCaseId === caseItem.id ? 'در حال پذیرش...' : 'پذیرش پرونده'}
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )
             ) : operationItems.length === 0 ? (
-              <div className="section-empty">درخواست عملیاتی در انتظار تصمیم وجود ندارد.</div>
+              <div className="section-empty">
+                پرونده فعالی در اختیار شما نیست. از تب «پرونده‌های قابل پذیرش» یک پرونده را پذیرش کنید.
+              </div>
             ) : (
               <div className="sergeant-grid">
                 {operationItems.map(({ caseItem, pendingProfiles }) => (
@@ -597,244 +689,252 @@ const SergeantDashboard = () => {
               <span>منتظر بازداشت: {arrestQueue.length} | بازداشت‌شده: {detainedProfiles.length}</span>
             </div>
 
-            <section className="sub-section">
-              <h3>مرحله ۱: اجرای حکم جلب</h3>
-              {arrestQueue.length === 0 ? (
-                <div className="section-empty">مظنونی برای شروع بازداشت وجود ندارد.</div>
-              ) : (
-                <div className="sergeant-grid">
-                  {arrestQueue.map((profile) => {
-                    const relatedCase = casesById.get(profile.case);
-                    return (
-                      <article key={profile.id} className="sergeant-card">
-                        <div className="card-title-row">
-                          <h4>
-                            پروفایل #{profile.id} - {profile.suspect.first_name} {profile.suspect.last_name}
-                          </h4>
-                          <span className="status-pill">حکم جلب صادر شده</span>
-                        </div>
-                        <div className="card-meta">
-                          <span>پرونده: #{profile.case}</span>
-                          <span>
-                            سطح جرم: {relatedCase ? severityLabelMap[relatedCase.severity] || relatedCase.severity : '-'}
-                          </span>
-                        </div>
-                        <div className="card-actions">
-                          <button
-                            type="button"
-                            className="primary"
-                            disabled={actionProfileId === profile.id}
-                            onClick={() => handleMarkArrested(profile.id)}
-                          >
-                            {actionProfileId === profile.id ? 'در حال ثبت...' : 'شروع بازداشت'}
-                          </button>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
+            {queueTab === 'available' ? (
+              <div className="section-empty">
+                عملیات بازداشت، بازجویی، وثیقه، و ارسال به کاپیتان فقط برای «پرونده‌های فعال من» در دسترس است.
+              </div>
+            ) : (
+              <>
+                <section className="sub-section">
+                  <h3>مرحله ۱: اجرای حکم جلب</h3>
+                  {arrestQueue.length === 0 ? (
+                    <div className="section-empty">مظنونی برای شروع بازداشت وجود ندارد.</div>
+                  ) : (
+                    <div className="sergeant-grid">
+                      {arrestQueue.map((profile) => {
+                        const relatedCase = casesById.get(profile.case);
+                        return (
+                          <article key={profile.id} className="sergeant-card">
+                            <div className="card-title-row">
+                              <h4>
+                                پروفایل #{profile.id} - {profile.suspect.first_name} {profile.suspect.last_name}
+                              </h4>
+                              <span className="status-pill">حکم جلب صادر شده</span>
+                            </div>
+                            <div className="card-meta">
+                              <span>پرونده: #{profile.case}</span>
+                              <span>
+                                سطح جرم: {relatedCase ? severityLabelMap[relatedCase.severity] || relatedCase.severity : '-'}
+                              </span>
+                            </div>
+                            <div className="card-actions">
+                              <button
+                                type="button"
+                                className="primary"
+                                disabled={actionProfileId === profile.id}
+                                onClick={() => handleMarkArrested(profile.id)}
+                              >
+                                {actionProfileId === profile.id ? 'در حال ثبت...' : 'شروع بازداشت'}
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
 
-            <section className="sub-section">
-              <h3>مرحله ۲: بازجویی و مدیریت وثیقه</h3>
-              {detainedProfiles.length === 0 ? (
-                <div className="section-empty">مظنون بازداشت‌شده‌ای برای بازجویی وجود ندارد.</div>
-              ) : (
-                <div className="sergeant-grid">
-                  {detainedProfiles.map((profile) => {
-                    const relatedCase = casesById.get(profile.case);
-                    const detectiveDone = hasDetectiveScore(profile);
-                    const sergeantDone = hasSergeantScore(profile);
-                    const caseSeverity = relatedCase?.severity || 0;
-                    const likelyBailSeverity = caseSeverity === 1 || caseSeverity === 2;
-                    return (
-                      <article key={profile.id} className="sergeant-card">
-                        <div className="card-title-row">
-                          <h4>
-                            پروفایل #{profile.id} - {profile.suspect.first_name} {profile.suspect.last_name}
-                          </h4>
-                          <span className="status-pill">بازداشت‌شده</span>
-                        </div>
+                <section className="sub-section">
+                  <h3>مرحله ۲: بازجویی و مدیریت وثیقه</h3>
+                  {detainedProfiles.length === 0 ? (
+                    <div className="section-empty">مظنون بازداشت‌شده‌ای برای بازجویی وجود ندارد.</div>
+                  ) : (
+                    <div className="sergeant-grid">
+                      {detainedProfiles.map((profile) => {
+                        const relatedCase = casesById.get(profile.case);
+                        const detectiveDone = hasDetectiveScore(profile);
+                        const sergeantDone = hasSergeantScore(profile);
+                        const caseSeverity = relatedCase?.severity || 0;
+                        const likelyBailSeverity = caseSeverity === 1 || caseSeverity === 2;
+                        return (
+                          <article key={profile.id} className="sergeant-card">
+                            <div className="card-title-row">
+                              <h4>
+                                پروفایل #{profile.id} - {profile.suspect.first_name} {profile.suspect.last_name}
+                              </h4>
+                              <span className="status-pill">بازداشت‌شده</span>
+                            </div>
 
-                        <div className="card-meta">
-                          <span>پرونده: #{profile.case}</span>
-                          <span>
-                            سطح جرم: {relatedCase ? severityLabelMap[relatedCase.severity] || relatedCase.severity : '-'}
-                          </span>
-                        </div>
+                            <div className="card-meta">
+                              <span>پرونده: #{profile.case}</span>
+                              <span>
+                                سطح جرم: {relatedCase ? severityLabelMap[relatedCase.severity] || relatedCase.severity : '-'}
+                              </span>
+                            </div>
 
-                        <div className="score-status">
-                          <span className={detectiveDone ? 'ok' : 'warn'}>
-                            نمره کارآگاه: {detectiveDone ? 'ثبت شده' : 'ثبت نشده'}
-                          </span>
-                          <span className={sergeantDone ? 'ok' : 'warn'}>
-                            نمره گروهبان: {sergeantDone ? 'ثبت شده' : 'ثبت نشده'}
-                          </span>
-                        </div>
+                            <div className="score-status">
+                              <span className={detectiveDone ? 'ok' : 'warn'}>
+                                نمره کارآگاه: {detectiveDone ? 'ثبت شده' : 'ثبت نشده'}
+                              </span>
+                              <span className={sergeantDone ? 'ok' : 'warn'}>
+                                نمره گروهبان: {sergeantDone ? 'ثبت شده' : 'ثبت نشده'}
+                              </span>
+                            </div>
 
-                        <div className="score-form">
-                          <label>
-                            امتیاز گناهکاری (۱ تا ۱۰)
-                            <input
-                              type="number"
-                              min={1}
-                              max={10}
-                              value={scoreByProfile[profile.id] || ''}
-                              onChange={(event) =>
-                                setScoreByProfile((prev) => ({ ...prev, [profile.id]: event.target.value }))
-                              }
-                              placeholder="مثال: 7"
-                            />
-                          </label>
-                          <label>
-                            توضیح بازجویی
+                            <div className="score-form">
+                              <label>
+                                امتیاز گناهکاری (۱ تا ۱۰)
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={10}
+                                  value={scoreByProfile[profile.id] || ''}
+                                  onChange={(event) =>
+                                    setScoreByProfile((prev) => ({ ...prev, [profile.id]: event.target.value }))
+                                  }
+                                  placeholder="مثال: 7"
+                                />
+                              </label>
+                              <label>
+                                توضیح بازجویی
+                                <textarea
+                                  rows={3}
+                                  value={notesByProfile[profile.id] || ''}
+                                  onChange={(event) =>
+                                    setNotesByProfile((prev) => ({ ...prev, [profile.id]: event.target.value }))
+                                  }
+                                  placeholder="شرح استدلال بازجویی"
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                className="primary"
+                                disabled={actionProfileId === profile.id}
+                                onClick={() => handleSubmitScore(profile.id)}
+                              >
+                                {actionProfileId === profile.id ? 'در حال ثبت...' : 'ثبت نمره گروهبان'}
+                              </button>
+                            </div>
+
+                            <div className="bail-form">
+                              <h5>Bail Management</h5>
+                              {!likelyBailSeverity && (
+                                <p className="hint">
+                                  این سطح جرم عموما مشمول وثیقه نیست و ممکن است API تراکنش را رد کند.
+                                </p>
+                              )}
+                              <label>
+                                مبلغ (ریال)
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={bailAmountByProfile[profile.id] || ''}
+                                  onChange={(event) =>
+                                    setBailAmountByProfile((prev) => ({ ...prev, [profile.id]: event.target.value }))
+                                  }
+                                  placeholder="مثال: 50000000"
+                                />
+                              </label>
+                              <label>
+                                نوع پرداخت
+                                <select
+                                  value={bailTypeByProfile[profile.id] || 'bail'}
+                                  onChange={(event) =>
+                                    setBailTypeByProfile((prev) => ({
+                                      ...prev,
+                                      [profile.id]: event.target.value as 'bail' | 'fine',
+                                    }))
+                                  }
+                                >
+                                  <option value="bail">وثیقه</option>
+                                  <option value="fine">جریمه</option>
+                                </select>
+                              </label>
+                              <button
+                                type="button"
+                                className="secondary"
+                                disabled={actionProfileId === profile.id}
+                                onClick={() => handleInitiateBail(profile.id)}
+                              >
+                                {actionProfileId === profile.id ? 'در حال ایجاد...' : 'ایجاد تراکنش پرداخت'}
+                              </button>
+                              {paymentLinkByProfile[profile.id] && (
+                                <a
+                                  href={paymentLinkByProfile[profile.id]}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="payment-link"
+                                >
+                                  لینک پرداخت آنلاین
+                                </a>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                <section className="sub-section">
+                  <h3>مرحله ۳: Submit to Captain</h3>
+                  {captainCandidates.length === 0 ? (
+                    <div className="section-empty">پرونده بازداشت‌شده‌ای برای ارسال به کاپیتان وجود ندارد.</div>
+                  ) : (
+                    <div className="sergeant-grid">
+                      {captainCandidates.map((item) => (
+                        <article key={item.caseId} className="sergeant-card">
+                          <div className="card-title-row">
+                            <h4>
+                              پرونده #{item.caseId}
+                              {item.caseInfo ? ` - ${item.caseInfo.title}` : ''}
+                            </h4>
+                            <span className={`status-pill ${item.ready ? 'pill-ok' : 'pill-warn'}`}>
+                              {item.ready ? 'آماده ارسال' : 'ناقص'}
+                            </span>
+                          </div>
+                          <div className="card-meta">
+                            <span>تعداد مظنون بازداشت‌شده: {item.profileCount}</span>
+                            <span>وضعیت فعلی: {item.caseInfo ? statusLabelMap[item.caseInfo.status] || item.caseInfo.status : '-'}</span>
+                          </div>
+
+                          {!item.ready && (
+                            <div className="missing-box">
+                              <strong>پروفایل‌های ناقص:</strong>
+                              <ul>
+                                {item.missingProfiles.map((profile) => (
+                                  <li key={profile.id}>
+                                    #{profile.id} - {profile.suspect.first_name} {profile.suspect.last_name}
+                                    {!hasDetectiveScore(profile) ? ' | نمره کارآگاه ندارد' : ''}
+                                    {!hasSergeantScore(profile) ? ' | نمره گروهبان ندارد' : ''}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          <label className="field-label">
+                            پیام برای کاپیتان (اختیاری)
                             <textarea
                               rows={3}
-                              value={notesByProfile[profile.id] || ''}
+                              value={captainMessageByCase[item.caseId] || ''}
                               onChange={(event) =>
-                                setNotesByProfile((prev) => ({ ...prev, [profile.id]: event.target.value }))
-                              }
-                              placeholder="شرح استدلال بازجویی"
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className="primary"
-                            disabled={actionProfileId === profile.id}
-                            onClick={() => handleSubmitScore(profile.id)}
-                          >
-                            {actionProfileId === profile.id ? 'در حال ثبت...' : 'ثبت نمره گروهبان'}
-                          </button>
-                        </div>
-
-                        <div className="bail-form">
-                          <h5>Bail Management</h5>
-                          {!likelyBailSeverity && (
-                            <p className="hint">
-                              این سطح جرم عموما مشمول وثیقه نیست و ممکن است API تراکنش را رد کند.
-                            </p>
-                          )}
-                          <label>
-                            مبلغ (ریال)
-                            <input
-                              type="number"
-                              min={1}
-                              value={bailAmountByProfile[profile.id] || ''}
-                              onChange={(event) =>
-                                setBailAmountByProfile((prev) => ({ ...prev, [profile.id]: event.target.value }))
-                              }
-                              placeholder="مثال: 50000000"
-                            />
-                          </label>
-                          <label>
-                            نوع پرداخت
-                            <select
-                              value={bailTypeByProfile[profile.id] || 'bail'}
-                              onChange={(event) =>
-                                setBailTypeByProfile((prev) => ({
+                                setCaptainMessageByCase((prev) => ({
                                   ...prev,
-                                  [profile.id]: event.target.value as 'bail' | 'fine',
+                                  [item.caseId]: event.target.value,
                                 }))
                               }
-                            >
-                              <option value="bail">وثیقه</option>
-                              <option value="fine">جریمه</option>
-                            </select>
+                              placeholder="خلاصه‌ای از وضعیت بازجویی و مدارک"
+                            />
                           </label>
-                          <button
-                            type="button"
-                            className="secondary"
-                            disabled={actionProfileId === profile.id}
-                            onClick={() => handleInitiateBail(profile.id)}
-                          >
-                            {actionProfileId === profile.id ? 'در حال ایجاد...' : 'ایجاد تراکنش پرداخت'}
-                          </button>
-                          {paymentLinkByProfile[profile.id] && (
-                            <a
-                              href={paymentLinkByProfile[profile.id]}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="payment-link"
+
+                          <div className="card-actions">
+                            <button
+                              type="button"
+                              className="primary"
+                              disabled={!item.ready || actionCaseId === item.caseId}
+                              onClick={() => handleSubmitToCaptain(item.caseId)}
                             >
-                              لینک پرداخت آنلاین
-                            </a>
-                          )}
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
-            <section className="sub-section">
-              <h3>مرحله ۳: Submit to Captain</h3>
-              {captainCandidates.length === 0 ? (
-                <div className="section-empty">پرونده بازداشت‌شده‌ای برای ارسال به کاپیتان وجود ندارد.</div>
-              ) : (
-                <div className="sergeant-grid">
-                  {captainCandidates.map((item) => (
-                    <article key={item.caseId} className="sergeant-card">
-                      <div className="card-title-row">
-                        <h4>
-                          پرونده #{item.caseId}
-                          {item.caseInfo ? ` - ${item.caseInfo.title}` : ''}
-                        </h4>
-                        <span className={`status-pill ${item.ready ? 'pill-ok' : 'pill-warn'}`}>
-                          {item.ready ? 'آماده ارسال' : 'ناقص'}
-                        </span>
-                      </div>
-                      <div className="card-meta">
-                        <span>تعداد مظنون بازداشت‌شده: {item.profileCount}</span>
-                        <span>وضعیت فعلی: {item.caseInfo ? statusLabelMap[item.caseInfo.status] || item.caseInfo.status : '-'}</span>
-                      </div>
-
-                      {!item.ready && (
-                        <div className="missing-box">
-                          <strong>پروفایل‌های ناقص:</strong>
-                          <ul>
-                            {item.missingProfiles.map((profile) => (
-                              <li key={profile.id}>
-                                #{profile.id} - {profile.suspect.first_name} {profile.suspect.last_name}
-                                {!hasDetectiveScore(profile) ? ' | نمره کارآگاه ندارد' : ''}
-                                {!hasSergeantScore(profile) ? ' | نمره گروهبان ندارد' : ''}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      <label className="field-label">
-                        پیام برای کاپیتان (اختیاری)
-                        <textarea
-                          rows={3}
-                          value={captainMessageByCase[item.caseId] || ''}
-                          onChange={(event) =>
-                            setCaptainMessageByCase((prev) => ({
-                              ...prev,
-                              [item.caseId]: event.target.value,
-                            }))
-                          }
-                          placeholder="خلاصه‌ای از وضعیت بازجویی و مدارک"
-                        />
-                      </label>
-
-                      <div className="card-actions">
-                        <button
-                          type="button"
-                          className="primary"
-                          disabled={!item.ready || actionCaseId === item.caseId}
-                          onClick={() => handleSubmitToCaptain(item.caseId)}
-                        >
-                          {actionCaseId === item.caseId ? 'در حال ارسال...' : 'ارسال به صف کاپیتان'}
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
+                              {actionCaseId === item.caseId ? 'در حال ارسال...' : 'ارسال به صف کاپیتان'}
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </>
+            )}
           </section>
         )}
 

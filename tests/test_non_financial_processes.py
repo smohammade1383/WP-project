@@ -276,6 +276,73 @@ class NonFinancialProcessRegressionTests(APITestCase):
         )
         self.assertEqual(allowed_resp.status_code, status.HTTP_201_CREATED)
 
+    def test_sergeant_claim_workflow_enforces_case_ownership(self):
+        officer = self._create_user("nf_claim_officer", roles=["Police Officer"])
+        detective = self._create_user("nf_claim_detective", roles=["Detective"])
+        sergeant_a = self._create_user("nf_claim_sergeant_a", roles=["Sergeant"])
+        sergeant_b = self._create_user("nf_claim_sergeant_b", roles=["Sergeant"])
+        suspect = self._create_user("nf_claim_suspect", roles=["Suspect"])
+
+        case_obj = self._create_case(
+            officer,
+            severity=Case.Severity.LEVEL_2,
+            status_value=Case.Status.WARRANT_PENDING,
+            assigned_detective=detective,
+        )
+        SuspectCaseProfile.objects.create(case=case_obj, suspect=suspect)
+
+        self.client.force_authenticate(sergeant_a)
+        unassigned_a = self.client.get(reverse("case-unassigned-sergeant-list"))
+        self.assertEqual(unassigned_a.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(item["id"] == case_obj.id for item in unassigned_a.data))
+
+        self.client.force_authenticate(sergeant_b)
+        decision_before_claim = self.client.post(
+            reverse("sergeant-decision", kwargs={"case_id": case_obj.id}),
+            {"approved": True, "message": "Attempt without claim"},
+            format="json",
+        )
+        self.assertEqual(decision_before_claim.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(sergeant_a)
+        claim_a = self.client.post(
+            reverse("case-claim-sergeant", kwargs={"case_id": case_obj.id}),
+            {},
+            format="json",
+        )
+        self.assertEqual(claim_a.status_code, status.HTTP_200_OK)
+
+        owned_a = self.client.get(reverse("case-list-create"))
+        self.assertEqual(owned_a.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(item["id"] == case_obj.id for item in owned_a.data))
+
+        self.client.force_authenticate(sergeant_b)
+        owned_b = self.client.get(reverse("case-list-create"))
+        self.assertEqual(owned_b.status_code, status.HTTP_200_OK)
+        self.assertFalse(any(item["id"] == case_obj.id for item in owned_b.data))
+
+        claim_b = self.client.post(
+            reverse("case-claim-sergeant", kwargs={"case_id": case_obj.id}),
+            {},
+            format="json",
+        )
+        self.assertEqual(claim_b.status_code, status.HTTP_400_BAD_REQUEST)
+
+        decision_other_sergeant = self.client.post(
+            reverse("sergeant-decision", kwargs={"case_id": case_obj.id}),
+            {"approved": True, "message": "Still unauthorized"},
+            format="json",
+        )
+        self.assertEqual(decision_other_sergeant.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(sergeant_a)
+        decision_owner = self.client.post(
+            reverse("sergeant-decision", kwargs={"case_id": case_obj.id}),
+            {"approved": True, "message": "Owner decision"},
+            format="json",
+        )
+        self.assertEqual(decision_owner.status_code, status.HTTP_200_OK)
+
     def test_noncritical_operational_pipeline_to_closed_case(self):
         officer = self._create_user("nf_pipeline_officer", roles=["Police Officer"])
         detective = self._create_user("nf_pipeline_detective", roles=["Detective"])
@@ -301,6 +368,12 @@ class NonFinancialProcessRegressionTests(APITestCase):
         profile_id = nominate_resp.data[0]["id"]
 
         self.client.force_authenticate(sergeant)
+        claim_resp = self.client.post(
+            reverse("case-claim-sergeant", kwargs={"case_id": case_obj.id}),
+            {},
+            format="json",
+        )
+        self.assertEqual(claim_resp.status_code, status.HTTP_200_OK)
         sergeant_decision_resp = self.client.post(
             reverse("sergeant-decision", kwargs={"case_id": case_obj.id}),
             {"approved": True, "message": "Warrant issued"},
@@ -389,6 +462,12 @@ class NonFinancialProcessRegressionTests(APITestCase):
         profile_id = nominate_resp.data[0]["id"]
 
         self.client.force_authenticate(sergeant)
+        claim_resp = self.client.post(
+            reverse("case-claim-sergeant", kwargs={"case_id": case_obj.id}),
+            {},
+            format="json",
+        )
+        self.assertEqual(claim_resp.status_code, status.HTTP_200_OK)
         self.assertEqual(
             self.client.post(
                 reverse("sergeant-decision", kwargs={"case_id": case_obj.id}),

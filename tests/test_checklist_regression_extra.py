@@ -212,6 +212,8 @@ class ChecklistRegressionExtraTests(APITestCase):
             status_value=Case.Status.ARRESTED,
             assigned_detective=detective,
         )
+        case_obj.assigned_sergeant = sergeant
+        case_obj.save(update_fields=["assigned_sergeant", "updated_at"])
         profile = SuspectCaseProfile.objects.create(
             case=case_obj,
             suspect=suspect,

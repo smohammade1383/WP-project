@@ -406,6 +406,12 @@ class IntegrationScenarioTests(APITestCase):
         profile = SuspectCaseProfile.objects.get(case_id=case_id, suspect_id=suspect.id)
 
         self.client.force_authenticate(sergeant)
+        claim_sergeant = self.client.post(
+            reverse("case-claim-sergeant", kwargs={"case_id": case_id}),
+            {},
+            format="json",
+        )
+        self.assertEqual(claim_sergeant.status_code, status.HTTP_200_OK)
         sergeant_resp = self.client.post(
             reverse("sergeant-decision", kwargs={"case_id": case_id}),
             {"approved": True, "message": "Proceed with arrest."},

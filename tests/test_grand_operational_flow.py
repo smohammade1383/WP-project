@@ -188,6 +188,12 @@ class GrandOperationalFlowTests(APITestCase):
 
         # Stage 4: Sergeant decision, arrest, and both interrogation scores.
         self.client.force_authenticate(self.sergeant)
+        sergeant_claim = self.client.post(
+            reverse("case-claim-sergeant", kwargs={"case_id": case_id}),
+            {},
+            format="json",
+        )
+        self.assertEqual(sergeant_claim.status_code, status.HTTP_200_OK)
         sergeant_decision = self.client.post(
             reverse("sergeant-decision", kwargs={"case_id": case_id}),
             {"approved": True, "message": "Arrest warrant approved."},
