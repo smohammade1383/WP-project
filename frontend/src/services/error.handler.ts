@@ -4,12 +4,7 @@ export interface ApiError {
   message: string;
   status?: number;
   statusText?: string;
-  data?: unknown;
-  detail?: unknown;  // Preserve detail from response
-  response?: {   // Preserve full response for detailed error handling
-    status: number;
-    data: unknown;
-  };
+  data?: any;
 }
 
 /**
@@ -30,11 +25,6 @@ export class ErrorHandler {
         status,
         statusText,
         data,
-        detail: this.extractDetail(data),
-        response: {
-          status,
-          data,
-        },
       };
     } else if (error.request) {
       // Request was made but no response received
@@ -56,17 +46,14 @@ export class ErrorHandler {
   /**
    * Get appropriate error message based on status code
    */
-  private static getErrorMessage(status: number, data: unknown): string {
-    const payload =
-      typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : null;
-
+  private static getErrorMessage(status: number, data: any): string {
     // Try to get message from response data
-    if (typeof payload?.message === 'string' && payload.message.trim()) {
-      return payload.message;
+    if (data?.message) {
+      return data.message;
     }
 
-    if (typeof payload?.detail === 'string' && payload.detail.trim()) {
-      return payload.detail;
+    if (data?.detail) {
+      return data.detail;
     }
 
     // Default messages based on status code
@@ -86,13 +73,6 @@ export class ErrorHandler {
       default:
         return `خطا: ${status}`;
     }
-  }
-
-  private static extractDetail(data: unknown): unknown {
-    if (typeof data !== 'object' || data === null) {
-      return undefined;
-    }
-    return (data as Record<string, unknown>).detail;
   }
 
   /**
