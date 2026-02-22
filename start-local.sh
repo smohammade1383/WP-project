@@ -3,6 +3,8 @@
 # Local development startup script
 # Runs backend and frontend without Docker
 
+PROJECT_ROOT="/Users/wishuwerehere/Documents/daneshgah/term5/WEB/project/WP-project"
+
 echo "🚀 Starting WP-Project (Local Development Mode)"
 echo ""
 
