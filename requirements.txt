@@ -1,7 +1,6 @@
 asgiref==3.11.0
 attrs==25.4.0
-Django==5.1
-django-cors-headers==4.9.0
+Django==6.0
 djangorestframework==3.16.1
 drf-spectacular==0.29.0
 inflection==0.5.1
