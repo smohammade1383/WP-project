@@ -130,3 +130,60 @@ BoldItalicFont=XB ZarBdIt.TTF]{XB Zar.TTF}
 \end{tabular}
 
 \vspace{1cm}
+\section{قراردادهای توسعه}
+
+\subsection{قراردادهای نامگذاری}
+
+\begin{itemize}[rightmargin=1cm]
+  \item \textbf{بک‌اند (\lr{Django/Python}):}
+    \begin{itemize}
+      \item نام فایل‌ها و ماژول‌ها: \lr{snake\_case} (مثال: \lr{case\_views.py})
+      \item نام کلاس‌ها: \lr{PascalCase} (مثال: \lr{ComplaintReview})
+      \item نام متغیرها و توابع: \lr{snake\_case} (مثال: \lr{assigned\_detective})
+      \item نام ثابت‌ها: \lr{UPPER\_SNAKE\_CASE} (مثال: \lr{Status.PENDING\_CADET})
+      \item اپلیکیشن‌های \lr{Django}: نام کوتاه و جمع (مثال: \lr{cases}، \lr{users}، \lr{evidence})
+    \end{itemize}
+  \item \textbf{فرانت‌اند (\lr{React/TypeScript}):}
+    \begin{itemize}
+      \item نام کامپوننت‌ها: \lr{PascalCase} (مثال: \lr{CaseDetailPage})
+      \item نام \lr{hook}ها: پیشوند \lr{use} + \lr{camelCase} (مثال: \lr{useAuthStore})
+      \item نام فایل‌های کامپوننت: \lr{PascalCase.tsx}
+      \item نام فایل‌های ابزاری: \lr{camelCase.ts}
+      \item نام متغیرها و توابع: \lr{camelCase}
+    \end{itemize}
+\end{itemize}
+
+\subsection{قالب پیام‌های کامیت}
+
+پیام‌های کامیت از قرارداد \lr{Conventional Commits} پیروی می‌کنند:
+
+\begin{latin}
+\begin{lstlisting}
+<role(A/B/C)-task>: <short description>
+\end{lstlisting}
+\end{latin}
+
+
+نمونه‌ی پیام‌های کامیت:
+
+\begin{latin}
+\begin{lstlisting}
+roleC-task:Debugging and added a script for testing
+\end{lstlisting}
+\end{latin}
+
+\subsection{قراردادهای شاخه‌بندی}
+
+\begin{center}
+\begin{tabular}{ll}
+  \toprule
+  الگو & کاربرد \\
+  \midrule
+  \lr{main} & شاخه‌ی تولید (\lr{production}) \\
+  \lr{dev} & شاخه‌ی توسعه \\
+  \lr{feature/<name>} & قابلیت جدید \\
+  \lr{fix/<name>} & رفع اشکال \\
+  \lr{refactor/<name>} & بازآرایی \\
+  \bottomrule
+\end{tabular}
+\end{center}
