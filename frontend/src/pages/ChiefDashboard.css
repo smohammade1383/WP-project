@@ -11,10 +11,12 @@
   align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-1) 84%, transparent);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 14px;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
 }
 
 .chief-header h1 {
@@ -29,9 +31,9 @@
 }
 
 .chief-header button {
-  border: 1px solid #0f766e;
-  background: #ecfdf5;
-  color: #065f46;
+  border: 1px solid var(--tone-success-border);
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
   border-radius: 9px;
   padding: 8px 12px;
   font-weight: 600;
@@ -72,25 +74,26 @@
 }
 
 .chief-feedback.error {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger-text);
+  border: 1px solid var(--tone-danger-border);
 }
 
 .chief-feedback.success {
-  background: #ecfdf5;
-  color: #166534;
-  border: 1px solid #86efac;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
+  border: 1px solid var(--tone-success-border);
 }
 
 .chief-section {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-1) 90%, var(--surface-2));
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 12px;
+  backdrop-filter: blur(8px);
 }
 
 .section-top {
@@ -162,8 +165,8 @@
 }
 
 .queue-card.selected {
-  border-color: #0f766e;
-  background: #ecfdf5;
+  border-color: var(--tone-success-border);
+  background: var(--tone-success-bg);
 }
 
 .queue-top {
@@ -182,9 +185,9 @@
 
 .queue-top span {
   border-radius: 999px;
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
+  border: 1px solid var(--tone-success-border);
   padding: 2px 8px;
   font-size: 0.76rem;
 }
@@ -242,8 +245,9 @@
 }
 
 .chief-action-buttons .danger {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger-text);
+  border: 1px solid var(--tone-danger-border);
 }
 
 @media (max-width: 900px) {

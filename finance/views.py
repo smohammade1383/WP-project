@@ -17,6 +17,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from cases.notify import notify_roles, notify_users
 from cases.models import Case
 from evidence.models import Evidence
 from people.models import CitizenTip
@@ -42,6 +43,15 @@ POLICE_ROLES = {
     "Patrol Officer",
     "Cadet",
 }
+OFFICER_REVIEW_ROLES = {
+    "Police Officer",
+    "Patrol Officer",
+    "Sergeant",
+    "Captain",
+    "Chief",
+    "Administrator",
+}
+DETECTIVE_ROLES = {"Detective", "Administrator"}
 
 ZARINPAL_SANDBOX_REQUEST_URL = "https://sandbox.zarinpal.com/pg/v4/payment/request.json"
 ZARINPAL_SANDBOX_VERIFY_URL = "https://sandbox.zarinpal.com/pg/v4/payment/verify.json"
@@ -183,7 +193,13 @@ class RewardReportListCreateAPIView(generics.ListCreateAPIView):
         return RewardReport.objects.filter(reporter=self.request.user).select_related("reporter", "suspect_profile", "case")
 
     def perform_create(self, serializer):
-        serializer.save(reporter=self.request.user, status=RewardReport.Status.OFFICER_REVIEW)
+        report = serializer.save(reporter=self.request.user, status=RewardReport.Status.OFFICER_REVIEW)
+        notify_roles(
+            OFFICER_REVIEW_ROLES,
+            message=f"گزارش پاداش #{report.id} ثبت شد و در صف بررسی افسر پلیس قرار گرفت.",
+            case=report.case,
+            exclude_user_ids={self.request.user.id},
+        )
 
 
 @extend_schema_view(
@@ -236,9 +252,37 @@ class RewardOfficerReviewAPIView(APIView):
         report.reviewed_by_officer = request.user
         if action == "reject":
             report.status = RewardReport.Status.REJECTED
+            report.save(update_fields=["reviewed_by_officer", "status"])
+            notify_users(
+                [report.reporter],
+                message=f"گزارش پاداش #{report.id} در مرحله افسر پلیس رد شد.",
+                case=report.case,
+                exclude_user_ids={request.user.id},
+            )
         else:
             report.status = RewardReport.Status.DETECTIVE_REVIEW
-        report.save(update_fields=["reviewed_by_officer", "status"])
+            report.save(update_fields=["reviewed_by_officer", "status"])
+            target_case = report.case or (report.suspect_profile.case if report.suspect_profile_id else None)
+            if target_case and target_case.assigned_detective_id:
+                notify_users(
+                    [target_case.assigned_detective],
+                    message=f"گزارش پاداش #{report.id} توسط افسر تایید و برای شما ارسال شد.",
+                    case=target_case,
+                    exclude_user_ids={request.user.id},
+                )
+            else:
+                notify_roles(
+                    DETECTIVE_ROLES,
+                    message=f"گزارش پاداش #{report.id} به صف کارآگاه منتقل شد.",
+                    case=target_case or report.case,
+                    exclude_user_ids={request.user.id},
+                )
+            notify_users(
+                [report.reporter],
+                message=f"گزارش پاداش #{report.id} توسط افسر تایید و به کارآگاه ارجاع شد.",
+                case=target_case or report.case,
+                exclude_user_ids={request.user.id},
+            )
 
         return Response(RewardReportSerializer(report).data)
 
@@ -270,6 +314,12 @@ class RewardDetectiveReviewAPIView(APIView):
         if action == "reject":
             report.status = RewardReport.Status.REJECTED
             report.save(update_fields=["reviewed_by_detective", "status"])
+            notify_users(
+                [report.reporter],
+                message=f"گزارش پاداش #{report.id} توسط کارآگاه رد شد.",
+                case=report.case,
+                exclude_user_ids={request.user.id},
+            )
             return Response(RewardReportSerializer(report).data)
 
         if not report.suspect_profile:
@@ -292,6 +342,15 @@ class RewardDetectiveReviewAPIView(APIView):
             created_by=request.user,
         )
         report.refresh_from_db()
+        notify_users(
+            [report.reporter],
+            message=(
+                f"گزارش پاداش #{report.id} تایید شد. "
+                f"کد یکتا: {report.unique_code} | مبلغ: {report.reward_amount:,} ریال"
+            ),
+            case=related_case,
+            exclude_user_ids={request.user.id},
+        )
         return Response(RewardReportSerializer(report).data)
 
 
@@ -429,6 +488,15 @@ class PaymentInitiateAPIView(APIView):
             gateway_reference=f"SIM-{uuid.uuid4().hex[:16].upper()}",
             return_url=data.get("return_url", ""),
         )
+        notify_users(
+            [suspect_profile.suspect],
+            message=(
+                f"برای پرونده #{suspect_profile.case_id} تراکنش {tx.get_transaction_type_display()} "
+                f"به مبلغ {tx.amount:,} ریال ایجاد شد."
+            ),
+            case=suspect_profile.case,
+            exclude_user_ids={request.user.id},
+        )
 
         payment_url = resolve_payment_url(request, tx)
         return Response(
@@ -554,6 +622,15 @@ class BailPaymentRequestAPIView(APIView):
                 status=PaymentTransaction.Status.INITIATED,
                 return_url=data.get("return_url", ""),
             )
+            notify_users(
+                [suspect_profile.suspect],
+                message=(
+                    f"برای پرونده #{suspect_profile.case_id} درخواست پرداخت وثیقه "
+                    f"به مبلغ {amount:,} ریال ثبت شد."
+                ),
+                case=suspect_profile.case,
+                exclude_user_ids={request.user.id},
+            )
 
         callback_url = request.build_absolute_uri(reverse("bail-verify"))
         merchant_id = os.getenv("ZARINPAL_MERCHANT_ID", "00000000-0000-0000-0000-000000000000")
@@ -572,6 +649,12 @@ class BailPaymentRequestAPIView(APIView):
             tx.status = PaymentTransaction.Status.FAILED
             tx.callback_payload = {"provider_error": provider_message, "provider_payload": provider_payload}
             tx.save(update_fields=["status", "callback_payload"])
+            if tx.suspect_profile_id:
+                notify_users(
+                    [tx.suspect_profile.suspect],
+                    message=f"درخواست پرداخت وثیقه پرونده #{tx.suspect_profile.case_id} با خطا مواجه شد.",
+                    case=tx.suspect_profile.case,
+                )
             raise ValidationError(
                 {
                     "message": provider_message,
@@ -582,6 +665,12 @@ class BailPaymentRequestAPIView(APIView):
             tx.status = PaymentTransaction.Status.FAILED
             tx.callback_payload = {"provider_error": str(exc)}
             tx.save(update_fields=["status", "callback_payload"])
+            if tx.suspect_profile_id:
+                notify_users(
+                    [tx.suspect_profile.suspect],
+                    message=f"درخواست پرداخت وثیقه پرونده #{tx.suspect_profile.case_id} با خطا مواجه شد.",
+                    case=tx.suspect_profile.case,
+                )
             raise ValidationError({"message": "Could not reach ZarinPal sandbox endpoint."})
 
         data_block = provider_resp.get("data") or {}
@@ -597,6 +686,16 @@ class BailPaymentRequestAPIView(APIView):
         tx.gateway_reference = authority
         tx.callback_payload = provider_resp
         tx.save(update_fields=["gateway_reference", "callback_payload"])
+        if tx.suspect_profile_id:
+            notify_users(
+                [tx.suspect_profile.suspect],
+                message=(
+                    f"درگاه پرداخت پرونده #{tx.suspect_profile.case_id} آماده شد. "
+                    "می‌توانید پرداخت را نهایی کنید."
+                ),
+                case=tx.suspect_profile.case,
+                exclude_user_ids={request.user.id},
+            )
 
         return Response(
             {
@@ -640,6 +739,12 @@ class BailPaymentVerifyAPIView(APIView):
             }
             tx.paid_at = None
             tx.save(update_fields=["status", "callback_payload", "paid_at"])
+            if tx.suspect_profile_id:
+                notify_users(
+                    [tx.suspect_profile.suspect],
+                    message=f"پرداخت وثیقه/جریمه پرونده #{tx.suspect_profile.case_id} لغو شد.",
+                    case=tx.suspect_profile.case,
+                )
             return HttpResponseRedirect(_frontend_bail_result_url(False, tx=tx.id, authority=authority, reason="gateway-cancelled"))
 
         merchant_id = os.getenv("ZARINPAL_MERCHANT_ID", "00000000-0000-0000-0000-000000000000")
@@ -676,6 +781,11 @@ class BailPaymentVerifyAPIView(APIView):
                 profile.is_bail_allowed = False
                 profile.bail_amount = None
                 profile.save(update_fields=["is_arrested", "is_bail_allowed", "bail_amount"])
+                notify_users(
+                    [profile.suspect],
+                    message=f"پرداخت پرونده #{profile.case_id} موفق بود و وضعیت بازداشت رفع شد.",
+                    case=profile.case,
+                )
 
             return HttpResponseRedirect(
                 _frontend_bail_result_url(True, tx=tx.id, authority=authority, ref_id=ref_id)
@@ -726,9 +836,20 @@ class PaymentCallbackAPIView(APIView):
                 profile.is_bail_allowed = False
                 profile.bail_amount = None
                 profile.save(update_fields=["is_arrested", "is_bail_allowed", "bail_amount"])
+                notify_users(
+                    [profile.suspect],
+                    message=f"تراکنش پرونده #{profile.case_id} با موفقیت پرداخت شد.",
+                    case=profile.case,
+                )
         elif tx.status != PaymentTransaction.Status.PAID:
             tx.status = PaymentTransaction.Status.FAILED
             tx.paid_at = None
+            if tx.suspect_profile_id:
+                notify_users(
+                    [tx.suspect_profile.suspect],
+                    message=f"پرداخت پرونده #{tx.suspect_profile.case_id} ناموفق بود.",
+                    case=tx.suspect_profile.case,
+                )
         tx.save(update_fields=["status", "paid_at", "callback_payload"])
 
         return Response(PaymentTransactionSerializer(tx).data)

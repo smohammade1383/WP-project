@@ -41,15 +41,15 @@
 }
 
 .coroner-feedback.error {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #991b1b;
+  background: var(--tone-danger-bg);
+  border-color: var(--tone-danger-border);
+  color: var(--tone-danger-text);
 }
 
 .coroner-feedback.success {
-  background: #ecfdf5;
-  border-color: #bbf7d0;
-  color: #166534;
+  background: var(--tone-success-bg);
+  border-color: var(--tone-success-border);
+  color: var(--tone-success-text);
 }
 
 .coroner-filters {
@@ -92,9 +92,9 @@
 .coroner-card {
   border: 1px solid var(--border-soft);
   border-radius: 12px;
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-1) 90%, var(--surface-2));
   padding: 0.85rem;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-sm);
   display: grid;
   gap: 0.55rem;
 }
@@ -119,18 +119,18 @@
 }
 
 .badge.pending {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--tone-warning-bg);
+  color: var(--tone-warning-text);
 }
 
 .badge.accepted {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
 }
 
 .badge.rejected {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger-text);
 }
 
 .coroner-card p {
@@ -271,4 +271,3 @@
     grid-template-columns: 1fr;
   }
 }
-

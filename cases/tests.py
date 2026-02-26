@@ -537,6 +537,69 @@ class CaseFlowAPITests(APITestCase):
         self.assertEqual(submit_resp.data["submitted_profiles"], 1)
         self.assertEqual(submit_resp.data["case"]["status"], Case.Status.WAITING_CAPTAIN)
 
+    def test_detective_can_nominate_suspects_by_username(self):
+        detective = self._create_user("detective_nominate_username", roles=["Detective"])
+        sergeant = self._create_user("sergeant_nominate_username", roles=["Sergeant"])
+        officer = self._create_user("officer_nominate_username", roles=["Police Officer"])
+        suspect_by_username = self._create_user("suspect_nominate_username", roles=["Suspect"])
+        suspect_by_id = self._create_user("suspect_nominate_id", roles=["Suspect"])
+
+        case_obj = Case.objects.create(
+            title="Nomination by username",
+            description="Flow test",
+            location="Zone N",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.OPEN,
+            severity=Case.Severity.LEVEL_2,
+            created_by=officer,
+            assigned_detective=detective,
+            assigned_sergeant=sergeant,
+        )
+
+        self.client.force_authenticate(detective)
+        resp = self.client.post(
+            reverse("suspects-nominate", kwargs={"case_id": case_obj.id}),
+            {
+                "suspect_usernames": [suspect_by_username.username],
+                "suspect_ids": [suspect_by_id.id],
+                "summary": "Mixed nomination payload",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        case_obj.refresh_from_db()
+        self.assertEqual(case_obj.status, Case.Status.WARRANT_PENDING)
+        self.assertTrue(case_obj.suspects.filter(id=suspect_by_username.id).exists())
+        self.assertTrue(case_obj.suspects.filter(id=suspect_by_id.id).exists())
+        self.assertEqual(SuspectCaseProfile.objects.filter(case=case_obj).count(), 2)
+
+    def test_detective_nomination_rejects_unknown_username(self):
+        detective = self._create_user("detective_nominate_unknown", roles=["Detective"])
+        officer = self._create_user("officer_nominate_unknown", roles=["Police Officer"])
+
+        case_obj = Case.objects.create(
+            title="Nomination invalid username",
+            description="Flow test",
+            location="Zone U",
+            incident_datetime=timezone.now(),
+            source_type=Case.SourceType.CRIME_SCENE,
+            status=Case.Status.OPEN,
+            severity=Case.Severity.LEVEL_2,
+            created_by=officer,
+            assigned_detective=detective,
+        )
+
+        self.client.force_authenticate(detective)
+        resp = self.client.post(
+            reverse("suspects-nominate", kwargs={"case_id": case_obj.id}),
+            {"suspect_usernames": ["missing_username"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("suspect_usernames", resp.data)
+
     def test_captain_reject_returns_case_to_sergeant_queue(self):
         captain = self._create_user("captain_reject_case", roles=["Captain"])
         officer = self._create_user("officer_reject_case", roles=["Police Officer"])

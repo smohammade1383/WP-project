@@ -72,15 +72,15 @@
 }
 
 .detective-feedback.error {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #991b1b;
+  background: var(--tone-danger-bg);
+  border-color: var(--tone-danger-border);
+  color: var(--tone-danger-text);
 }
 
 .detective-feedback.success {
-  background: #ecfdf5;
-  border-color: #bbf7d0;
-  color: #166534;
+  background: var(--tone-success-bg);
+  border-color: var(--tone-success-border);
+  color: var(--tone-success-text);
 }
 
 .detective-layout {
@@ -385,9 +385,9 @@
 }
 
 .evidence-card-top span {
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
-  color: #3730a3;
+  background: var(--tone-info-bg);
+  border: 1px solid var(--tone-info-border);
+  color: var(--tone-info-text);
   border-radius: 999px;
   padding: 0.1rem 0.45rem;
   font-size: 0.72rem;
@@ -431,9 +431,9 @@
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  border: 1px solid #fca5a5;
-  background: #fee2e2;
-  color: #991b1b;
+  border: 1px solid var(--tone-danger-border);
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger-text);
   padding: 0.2rem 0.55rem;
   font-size: 0.75rem;
   font-weight: 600;
@@ -526,7 +526,7 @@
 }
 
 .bag-item {
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--tone-info-border);
   border-radius: 9px;
   background: var(--surface-1);
   padding: 0.55rem;
@@ -799,7 +799,7 @@
 }
 
 .interrogation-card {
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--tone-info-border);
   border-radius: 10px;
   background: var(--surface-2);
   padding: 0.75rem;
@@ -929,7 +929,7 @@
   max-height: 92vh;
   overflow: auto;
   border-radius: 12px;
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--border-soft);
   background: var(--surface-1);
 }
 

@@ -65,6 +65,7 @@ export interface DetectiveSuspectProfile {
 
 interface NominateSuspectsRequest {
   suspect_ids: number[];
+  suspect_usernames?: string[];
   summary?: string;
 }
 

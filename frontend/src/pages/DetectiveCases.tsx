@@ -252,13 +252,27 @@ const isEvidenceReadyForBoard = (evidence: EvidenceRecord): boolean => {
   return getBioValidationStatus(evidence) === 'accepted';
 };
 
-const parseIds = (raw: string): number[] => {
-  return raw
+const parseNomineeInput = (raw: string): { ids: number[]; usernames: string[] } => {
+  const idSet = new Set<number>();
+  const usernameSet = new Set<string>();
+
+  raw
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)
-    .map((item) => Number(item))
-    .filter((value) => Number.isInteger(value) && value > 0);
+    .forEach((token) => {
+      const asNumber = Number(token);
+      if (Number.isInteger(asNumber) && asNumber > 0) {
+        idSet.add(asNumber);
+        return;
+      }
+      usernameSet.add(token);
+    });
+
+  return {
+    ids: Array.from(idSet),
+    usernames: Array.from(usernameSet),
+  };
 };
 
 const getLatestScoreForRole = (
@@ -1299,8 +1313,11 @@ const DetectiveCases = () => {
       return;
     }
 
-    const mergedIds = Array.from(new Set([...selectedNomineeIds, ...parseIds(manualNomineeIds)]));
-    if (mergedIds.length === 0) {
+    const manualNominees = parseNomineeInput(manualNomineeIds);
+    const mergedIds = Array.from(new Set([...selectedNomineeIds, ...manualNominees.ids]));
+    const mergedUsernames = manualNominees.usernames;
+
+    if (mergedIds.length === 0 && mergedUsernames.length === 0) {
       setError('حداقل یک مظنون باید انتخاب یا وارد شود.');
       return;
     }
@@ -1319,6 +1336,7 @@ const DetectiveCases = () => {
       setSuccess('');
       await detectiveApi.nominateSuspects(selectedCase.id, {
         suspect_ids: mergedIds,
+        suspect_usernames: mergedUsernames,
         summary,
       });
       setSuccess('مظنونین با موفقیت به گروهبان ارسال شدند و وضعیت پرونده به در انتظار تایید گروهبان تغییر کرد.');
@@ -2033,14 +2051,14 @@ const DetectiveCases = () => {
 
                       <div>
                         <label htmlFor="manual-nominees">
-                          ورود دستی شناسه مظنون (جداشده با کاما)
+                          ورود دستی شناسه یا نام کاربری مظنون (جداشده با کاما)
                         </label>
                         <input
                           id="manual-nominees"
                           type="text"
                           value={manualNomineeIds}
                           onChange={(event) => setManualNomineeIds(event.target.value)}
-                          placeholder="مثال: 12, 34"
+                          placeholder="مثال: 12, suspect_user, 34"
                         />
                       </div>
 

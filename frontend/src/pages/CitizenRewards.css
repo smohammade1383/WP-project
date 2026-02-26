@@ -36,19 +36,20 @@
 
 .rewards-feedback.error {
   margin-bottom: 1rem;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
+  background: var(--tone-danger-bg);
+  border: 1px solid var(--tone-danger-border);
+  color: var(--tone-danger-text);
   border-radius: 12px;
   padding: 0.7rem 0.85rem;
 }
 
 .rewards-loading,
 .rewards-empty {
-  background: var(--surface-1);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: color-mix(in srgb, var(--surface-1) 86%, transparent);
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
   padding: 1rem 1.1rem;
+  backdrop-filter: blur(10px);
 }
 
 .rewards-empty h3 {
@@ -61,11 +62,11 @@
 }
 
 .reward-card {
-  background: var(--surface-1);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: color-mix(in srgb, var(--surface-1) 90%, var(--surface-2));
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
   padding: 1rem 1.1rem;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .reward-card-header {
@@ -87,23 +88,23 @@
 }
 
 .status-submitted {
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--tone-info-bg);
+  color: var(--tone-info-text);
 }
 
 .status-pending {
-  background: #fff7ed;
-  color: #c2410c;
+  background: var(--tone-warning-bg);
+  color: var(--tone-warning-text);
 }
 
 .status-approved {
-  background: #ecfdf5;
-  color: #166534;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
 }
 
 .status-rejected {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger-text);
 }
 
 .reward-description {
@@ -138,7 +139,7 @@
 .reward-token,
 .reward-amount {
   margin-top: 0.75rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border-soft);
   border-radius: 10px;
   padding: 0.6rem 0.7rem;
 }

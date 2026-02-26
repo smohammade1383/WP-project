@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from cases.models import Case
+from cases.notify import notify_roles, notify_users
 from evidence.serializers import EvidenceSerializer
 from .models import Trial
 from .serializers import CaseReportSerializer, TrialSerializer
@@ -39,6 +40,9 @@ ROLE_PRIORITY = (
 )
 
 
+COURT_AUDIENCE_ROLES = {"Captain", "Chief", "Administrator"}
+
+
 def _display_name(user):
     full = f"{user.first_name} {user.last_name}".strip()
     return full if full else user.username
@@ -67,6 +71,16 @@ def _track_involved_person(registry, user, action_date):
     existing = registry.get(user.id)
     if existing is None or action_date > existing["action_date"]:
         registry[user.id] = payload
+
+
+def _case_watchers(case_obj):
+    recipients = [case_obj.created_by]
+    recipients.extend(list(case_obj.complainants.all()))
+    if case_obj.assigned_detective_id:
+        recipients.append(case_obj.assigned_detective)
+    if case_obj.assigned_sergeant_id:
+        recipients.append(case_obj.assigned_sergeant)
+    return recipients
 
 
 @extend_schema(tags=["Judiciary"], summary="Create trial and verdict", request=TrialSerializer, responses={201: TrialSerializer})
@@ -112,9 +126,52 @@ class TrialCreateAPIView(APIView):
 
         trial = serializer.save(judge=request.user)
         tried_defendant_ids.add(defendant.id)
+        exclude_ids = {request.user.id}
+
+        verdict_label = trial.get_verdict_display()
+        notify_users(
+            [defendant],
+            message=(
+                f"برای پرونده #{case_obj.id} یک جلسه دادگاه ثبت شد. "
+                f"وضعیت رای فعلی: {verdict_label}."
+            ),
+            case=case_obj,
+            exclude_user_ids=exclude_ids,
+        )
+        notify_users(
+            _case_watchers(case_obj),
+            message=(
+                f"دادگاه پرونده #{case_obj.id} برای مظنون "
+                f"{_display_name(defendant)} ثبت شد (رای: {verdict_label})."
+            ),
+            case=case_obj,
+            exclude_user_ids=exclude_ids,
+        )
+        notify_roles(
+            COURT_AUDIENCE_ROLES,
+            message=(
+                f"به‌روزرسانی دادگاه: پرونده #{case_obj.id} برای "
+                f"{_display_name(defendant)} با رای {verdict_label} ثبت شد."
+            ),
+            case=case_obj,
+            exclude_user_ids=exclude_ids,
+        )
+
         if case_suspect_ids.issubset(tried_defendant_ids):
             case_obj.status = Case.Status.CLOSED
             case_obj.save(update_fields=["status", "updated_at"])
+            notify_users(
+                _case_watchers(case_obj),
+                message=f"پرونده #{case_obj.id} پس از تکمیل فرآیند دادگاه بسته شد.",
+                case=case_obj,
+                exclude_user_ids=exclude_ids,
+            )
+            notify_roles(
+                COURT_AUDIENCE_ROLES,
+                message=f"پرونده #{case_obj.id} پس از تکمیل دادگاه مختومه (Closed) شد.",
+                case=case_obj,
+                exclude_user_ids=exclude_ids,
+            )
         return Response(TrialSerializer(trial).data, status=status.HTTP_201_CREATED)
 
 

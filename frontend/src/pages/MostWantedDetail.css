@@ -20,20 +20,23 @@
 }
 
 .back-button {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: color-mix(in srgb, var(--surface-1) 86%, transparent);
+  border: 1px solid var(--border-soft);
+  color: var(--text-primary);
   border-radius: 10px;
   padding: 0.5rem 1rem;
   cursor: pointer;
   font-weight: 600;
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
 }
 
 .wanted-detail-card {
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-1) 90%, var(--surface-2));
   border-radius: 18px;
+  border: 1px solid var(--border-soft);
   padding: 1.5rem;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-md);
   display: grid;
   grid-template-columns: 260px 1fr;
   gap: 1.5rem;

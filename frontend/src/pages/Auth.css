@@ -45,12 +45,12 @@
 }
 
 .auth-error {
-  background-color: #fef2f2;
-  border: 1px solid #dc2626;
+  background-color: var(--tone-danger-bg);
+  border: 1px solid var(--tone-danger-border);
   border-radius: var(--radius-md);
   padding: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
-  color: #dc2626;
+  color: var(--tone-danger-text);
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
@@ -92,7 +92,7 @@
 }
 
 .required {
-  color: #dc2626;
+  color: var(--tone-danger-text);
   margin-right: 4px;
 }
 
@@ -117,7 +117,7 @@
 }
 
 .form-group input.input-error {
-  border-color: #dc2626;
+  border-color: var(--tone-danger-border);
 }
 
 .form-group input.input-error:focus {
@@ -125,7 +125,7 @@
 }
 
 .field-error {
-  color: #dc2626;
+  color: var(--tone-danger-text);
   font-size: 0.875rem;
   margin-top: -4px;
 }

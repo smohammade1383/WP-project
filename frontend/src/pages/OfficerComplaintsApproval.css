@@ -25,9 +25,9 @@
 }
 
 .officer-summary {
-  background: #ecfdf5;
-  color: #166534;
-  border: 1px solid #a7f3d0;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
+  border: 1px solid var(--tone-success-border);
   border-radius: 12px;
   padding: 0.65rem 0.9rem;
   font-weight: 700;
@@ -42,23 +42,24 @@
 }
 
 .officer-feedback.error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
+  background: var(--tone-danger-bg);
+  border: 1px solid var(--tone-danger-border);
+  color: var(--tone-danger-text);
 }
 
 .officer-feedback.success {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #166534;
+  background: var(--tone-success-bg);
+  border: 1px solid var(--tone-success-border);
+  color: var(--tone-success-text);
 }
 
 .officer-loading,
 .officer-empty {
-  background: var(--surface-1);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: color-mix(in srgb, var(--surface-1) 86%, transparent);
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
   padding: 1.1rem;
+  backdrop-filter: blur(10px);
 }
 
 .officer-empty h3 {
@@ -71,11 +72,11 @@
 }
 
 .officer-complaint-card {
-  background: var(--surface-1);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: color-mix(in srgb, var(--surface-1) 90%, var(--surface-2));
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
   padding: 1rem 1.1rem;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .officer-card-header {
@@ -94,8 +95,8 @@
   padding: 0.32rem 0.75rem;
   font-size: 0.78rem;
   font-weight: 700;
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--tone-info-bg);
+  color: var(--tone-info-text);
 }
 
 .officer-description {
@@ -231,7 +232,7 @@
 }
 
 .officer-return-form textarea {
-  border: 1px solid rgba(15, 23, 42, 0.16);
+  border: 1px solid var(--border-soft);
   border-radius: 10px;
   padding: 0.65rem 0.7rem;
   font-family: inherit;

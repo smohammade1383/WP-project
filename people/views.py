@@ -7,6 +7,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from cases.notify import notify_roles, notify_users
 from cases.models import Case, SuspectCaseProfile
 from evidence.models import Evidence
 from .models import CitizenTip
@@ -31,6 +32,15 @@ POLICE_ROLES = {
     "Patrol Officer",
     "Cadet",
 }
+OFFICER_REVIEW_ROLES = {
+    "Police Officer",
+    "Patrol Officer",
+    "Sergeant",
+    "Captain",
+    "Chief",
+    "Administrator",
+}
+DETECTIVE_ROLES = {"Detective", "Administrator"}
 
 DETECTIVE_RESTRICTED_ROLES = {
     "Administrator",
@@ -198,6 +208,12 @@ class CitizenTipListCreateAPIView(APIView):
             status=CitizenTip.Status.OFFICER_REVIEW,
             case=tip_case,
         )
+        notify_roles(
+            OFFICER_REVIEW_ROLES,
+            message=f"گزارش مردمی جدید #{tip.id} ثبت شد و نیازمند بررسی افسر پلیس است.",
+            case=tip.case,
+            exclude_user_ids={request.user.id},
+        )
         return Response(CitizenTipSerializer(tip).data, status=status.HTTP_201_CREATED)
 
 
@@ -242,9 +258,35 @@ class CitizenTipOfficerReviewAPIView(APIView):
             tip.case = target_case
             tip.status = CitizenTip.Status.DETECTIVE_REVIEW
             tip.save(update_fields=["officer_reviewer", "case", "status"])
+            if target_case.assigned_detective_id:
+                notify_users(
+                    [target_case.assigned_detective],
+                    message=f"گزارش مردمی #{tip.id} توسط افسر تایید و به شما ارجاع شد.",
+                    case=target_case,
+                    exclude_user_ids={request.user.id},
+                )
+            else:
+                notify_roles(
+                    DETECTIVE_ROLES,
+                    message=f"گزارش مردمی #{tip.id} تایید شد اما پرونده کارآگاه مسئول ندارد.",
+                    case=target_case,
+                    exclude_user_ids={request.user.id},
+                )
+            notify_users(
+                [tip.reporter],
+                message=f"گزارش شما #{tip.id} توسط افسر تایید و برای کارآگاه ارسال شد.",
+                case=target_case,
+                exclude_user_ids={request.user.id},
+            )
         else:
             tip.status = CitizenTip.Status.REJECTED
             tip.save(update_fields=["officer_reviewer", "status"])
+            notify_users(
+                [tip.reporter],
+                message=f"گزارش مردمی #{tip.id} توسط افسر پلیس رد شد.",
+                case=tip.case,
+                exclude_user_ids={request.user.id},
+            )
         return Response(CitizenTipSerializer(tip).data)
 
 
@@ -276,6 +318,20 @@ class CitizenTipDetectiveReviewAPIView(APIView):
         # Detective "approve" keeps item in detective queue until it is formally linked to a case.
         tip.status = CitizenTip.Status.DETECTIVE_REVIEW if approved else CitizenTip.Status.REJECTED
         tip.save(update_fields=["detective_reviewer", "status"])
+        if approved:
+            notify_users(
+                [tip.reporter],
+                message=f"گزارش مردمی #{tip.id} توسط کارآگاه بررسی شد و در صف لینک به پرونده قرار دارد.",
+                case=tip.case,
+                exclude_user_ids={request.user.id},
+            )
+        else:
+            notify_users(
+                [tip.reporter],
+                message=f"گزارش مردمی #{tip.id} توسط کارآگاه رد شد.",
+                case=tip.case,
+                exclude_user_ids={request.user.id},
+            )
         return Response(CitizenTipSerializer(tip).data)
 
 
@@ -338,4 +394,14 @@ class CitizenTipLinkCaseAPIView(APIView):
             ]
         )
         tip.refresh_from_db()
+        notify_users(
+            [tip.reporter],
+            message=(
+                f"گزارش مردمی #{tip.id} مفید تشخیص داده شد. "
+                f"کد رهگیری: {tip.unique_tracking_code} | مبلغ پاداش: {tip.reward_amount:,} ریال"
+            ),
+            case=case_obj,
+            evidence=evidence,
+            exclude_user_ids={request.user.id},
+        )
         return Response(CitizenTipSerializer(tip).data)

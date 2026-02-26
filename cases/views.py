@@ -8,6 +8,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .notify import notify_roles, notify_users
 from .models import (
     BoardItem,
     BoardLink,
@@ -84,6 +85,21 @@ SERGEANT_RESTRICTED_ROLES = {
     "Cadet",
 }
 
+OFFICER_REVIEW_ROLES = {
+    "Police Officer",
+    "Patrol Officer",
+    "Sergeant",
+    "Captain",
+    "Chief",
+    "Administrator",
+}
+
+DETECTIVE_ROLES = {"Detective", "Administrator"}
+SERGEANT_ROLES = {"Sergeant", "Administrator"}
+CAPTAIN_ROLES = {"Captain", "Administrator"}
+CHIEF_ROLES = {"Chief", "Administrator"}
+JUDGE_ROLES = {"Judge", "Administrator"}
+
 
 def has_any_role(user, *roles):
     if not user or not user.is_authenticated:
@@ -144,6 +160,21 @@ def can_list_cases(user):
         "Witness",
         "Suspect",
         "Criminal",
+    )
+
+
+def notify_case_watchers(case_obj, message: str, *, exclude_user_ids=None):
+    recipients = [case_obj.created_by]
+    recipients.extend(list(case_obj.complainants.all()))
+    if case_obj.assigned_detective_id:
+        recipients.append(case_obj.assigned_detective)
+    if case_obj.assigned_sergeant_id:
+        recipients.append(case_obj.assigned_sergeant)
+    notify_users(
+        recipients,
+        message=message,
+        case=case_obj,
+        exclude_user_ids=exclude_user_ids,
     )
 
 
@@ -279,6 +310,18 @@ class CaseClaimAPIView(APIView):
                 if board.detective_id != request.user.id:
                     board.detective = request.user
                     board.save(update_fields=["detective"])
+            notify_case_watchers(
+                case_obj,
+                message=f"پرونده #{case_obj.id} توسط کارآگاه {request.user.username} پذیرش شد.",
+                exclude_user_ids={request.user.id},
+            )
+            if case_obj.assigned_sergeant_id:
+                notify_users(
+                    [case_obj.assigned_sergeant],
+                    message=f"کارآگاه پرونده #{case_obj.id} تعیین شد: {request.user.username}.",
+                    case=case_obj,
+                    exclude_user_ids={request.user.id},
+                )
 
         return Response(CaseSerializer(case_obj, context={"request": request}).data)
 
@@ -329,6 +372,18 @@ class CaseSergeantClaimAPIView(APIView):
                 action="case_claimed_sergeant",
                 description="Sergeant claimed this case.",
             )
+            notify_case_watchers(
+                case_obj,
+                message=f"پرونده #{case_obj.id} توسط گروهبان {request.user.username} پذیرش شد.",
+                exclude_user_ids={request.user.id},
+            )
+            if case_obj.assigned_detective_id:
+                notify_users(
+                    [case_obj.assigned_detective],
+                    message=f"گروهبان پرونده #{case_obj.id} تعیین شد: {request.user.username}.",
+                    case=case_obj,
+                    exclude_user_ids={request.user.id},
+                )
 
         return Response(CaseSerializer(case_obj, context={"request": request}).data)
 
@@ -362,6 +417,15 @@ class ComplaintListCreateAPIView(generics.ListCreateAPIView):
     def get_queryset(self):
         return complaint_queryset_for_user(self.request.user)
 
+    def perform_create(self, serializer):
+        complaint = serializer.save()
+        notify_roles(
+            ["Cadet", "Administrator"],
+            message=f"شکایت جدید #{complaint.id} ثبت شد و نیازمند بررسی کارآموز است.",
+            case=complaint.case,
+            exclude_user_ids={self.request.user.id},
+        )
+
 
 @extend_schema_view(
     get=extend_schema(tags=["Complaints"], summary="Retrieve complaint"),
@@ -389,6 +453,12 @@ class ComplaintRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
         if complaint.submitter_id == user.id and complaint.status in {Complaint.Status.RETURNED, Complaint.Status.SUBMITTED}:
             updated.status = Complaint.Status.SUBMITTED
             updated.save(update_fields=["status", "updated_at"])
+            notify_roles(
+                ["Cadet", "Administrator"],
+                message=f"شکایت #{updated.id} توسط شاکی اصلاح و دوباره ارسال شد.",
+                case=updated.case,
+                exclude_user_ids={user.id},
+            )
 
 
 @extend_schema(
@@ -432,6 +502,19 @@ class ComplaintAddComplainantsAPIView(APIView):
                     ]
                 )
             entries.append(entry)
+
+        if entries:
+            notify_roles(
+                ["Cadet", "Administrator"],
+                message=f"درخواست افزودن شاکی ثانویه برای شکایت #{complaint.id} ثبت شد.",
+                case=complaint.case,
+                exclude_user_ids={request.user.id},
+            )
+            notify_users(
+                [entry.user for entry in entries],
+                message=f"شما به عنوان شاکی ثانویه برای شکایت #{complaint.id} پیشنهاد شده‌اید و منتظر تایید هستید.",
+                case=complaint.case,
+            )
 
         return Response(SecondaryComplainantSerializer(entries, many=True).data)
 
@@ -493,6 +576,19 @@ class ComplaintSecondaryComplainantRequestAPIView(APIView):
                 )
             results.append(entry)
 
+        if results:
+            notify_roles(
+                ["Cadet", "Administrator"],
+                message=f"درخواست جدید شاکیان ثانویه برای شکایت #{complaint.id} ثبت شد.",
+                case=complaint.case,
+                exclude_user_ids={request.user.id},
+            )
+            notify_users(
+                [entry.user for entry in results],
+                message=f"برای شما درخواست شاکی ثانویه در شکایت #{complaint.id} ثبت شده است.",
+                case=complaint.case,
+            )
+
         return Response(SecondaryComplainantSerializer(results, many=True).data)
 
 
@@ -534,6 +630,21 @@ class ComplaintSecondaryComplainantReviewAPIView(APIView):
         entry.reviewed_by = request.user
         entry.review_message = message
         entry.save(update_fields=["status", "reviewed_by", "review_message", "updated_at"])
+
+        if decision == "approved":
+            notify_users(
+                [complaint.submitter, entry.user],
+                message=f"شاکی ثانویه برای شکایت #{complaint.id} توسط کارآموز تایید شد.",
+                case=complaint.case,
+                exclude_user_ids={request.user.id},
+            )
+        else:
+            notify_users(
+                [complaint.submitter, entry.user],
+                message=f"درخواست شاکی ثانویه برای شکایت #{complaint.id} رد شد. {message}".strip(),
+                case=complaint.case,
+                exclude_user_ids={request.user.id},
+            )
 
         return Response(
             {
@@ -584,12 +695,28 @@ class ComplaintCadetReviewAPIView(APIView):
                     Case.Status.VOID if complaint.status == Complaint.Status.VOID else Case.Status.NEEDS_COMPLAINANT_UPDATE
                 )
                 complaint.case.save(update_fields=["status", "updated_at"])
+            notify_users(
+                [complaint.submitter],
+                message=(
+                    f"شکایت #{complaint.id} برای اصلاح برگشت داده شد. {message}".strip()
+                    if complaint.status != Complaint.Status.VOID
+                    else f"شکایت #{complaint.id} پس از ۳ بار نقص اطلاعات باطل شد."
+                ),
+                case=complaint.case,
+                exclude_user_ids={request.user.id},
+            )
         elif decision == ComplaintReview.Decision.REJECTED:
             complaint.status = Complaint.Status.REJECTED
             complaint.save(update_fields=["status", "updated_at"])
             if complaint.case_id:
                 complaint.case.status = Case.Status.VOID
                 complaint.case.save(update_fields=["status", "updated_at"])
+            notify_users(
+                [complaint.submitter, *list(complaint.complainants.all())],
+                message=f"شکایت #{complaint.id} در مرحله کارآموز رد شد. {message}".strip(),
+                case=complaint.case,
+                exclude_user_ids={request.user.id},
+            )
         else:
             # Cadet approval only advances the complaint to officer review.
             # Case creation must happen only after officer approval.
@@ -598,6 +725,18 @@ class ComplaintCadetReviewAPIView(APIView):
             if complaint.case_id:
                 complaint.case.status = Case.Status.PENDING_OFFICER
                 complaint.case.save(update_fields=["status", "updated_at"])
+            notify_roles(
+                OFFICER_REVIEW_ROLES,
+                message=f"شکایت #{complaint.id} توسط کارآموز تایید شد و در صف افسر پلیس قرار گرفت.",
+                case=complaint.case,
+                exclude_user_ids={request.user.id},
+            )
+            notify_users(
+                [complaint.submitter],
+                message=f"شکایت #{complaint.id} توسط کارآموز تایید و برای افسر پلیس ارسال شد.",
+                case=complaint.case,
+                exclude_user_ids={request.user.id},
+            )
 
         return Response(
             {
@@ -666,18 +805,48 @@ class ComplaintOfficerReviewAPIView(APIView):
             case_obj.status = Case.Status.OPEN
             case_obj.approved_by = request.user
             case_obj.save(update_fields=["status", "approved_by", "updated_at"])
+            notify_users(
+                [complaint.submitter, *list(complaint.complainants.all())],
+                message=f"شکایت #{complaint.id} تایید شد و پرونده #{case_obj.id} تشکیل شد.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+            notify_roles(
+                DETECTIVE_ROLES,
+                message=f"پرونده جدید #{case_obj.id} پس از تایید افسر پلیس باز شد و آماده پذیرش کارآگاه است.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
         elif decision == ComplaintReview.Decision.RETURNED:
             complaint.status = Complaint.Status.RETURNED
             complaint.save(update_fields=["status", "updated_at"])
             if case_obj:
                 case_obj.status = Case.Status.PENDING_CADET
                 case_obj.save(update_fields=["status", "updated_at"])
+            notify_users(
+                [complaint.submitter, *list(complaint.complainants.all())],
+                message=f"شکایت #{complaint.id} توسط افسر برای بررسی مجدد برگشت داده شد. {message}".strip(),
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+            notify_roles(
+                ["Cadet", "Administrator"],
+                message=f"شکایت #{complaint.id} توسط افسر برگشت خورده و نیازمند بررسی مجدد کارآموز است.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
         else:
             complaint.status = Complaint.Status.REJECTED
             complaint.save(update_fields=["status", "updated_at"])
             if case_obj:
                 case_obj.status = Case.Status.VOID
                 case_obj.save(update_fields=["status", "updated_at"])
+            notify_users(
+                [complaint.submitter, *list(complaint.complainants.all())],
+                message=f"شکایت #{complaint.id} توسط افسر پلیس رد شد. {message}".strip(),
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
 
         return Response(
             {
@@ -732,6 +901,21 @@ class CrimeSceneCaseCreateAPIView(APIView):
                 defaults={"full_name": witness_data.get("full_name", "")},
             )
 
+        if case_obj.status == Case.Status.PENDING_OFFICER:
+            notify_roles(
+                OFFICER_REVIEW_ROLES,
+                message=f"پرونده صحنه‌جرم #{case_obj.id} ثبت شد و منتظر تایید مافوق است.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+        else:
+            notify_roles(
+                DETECTIVE_ROLES,
+                message=f"پرونده صحنه‌جرم #{case_obj.id} توسط رئیس/ادمین تایید مستقیم شد و آماده پذیرش کارآگاه است.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+
         return Response(CaseSerializer(case_obj, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 
@@ -762,6 +946,17 @@ class CrimeSceneCaseApproveAPIView(APIView):
         case_obj.status = Case.Status.OPEN
         case_obj.approved_by = request.user
         case_obj.save(update_fields=["status", "approved_by", "updated_at"])
+        notify_roles(
+            DETECTIVE_ROLES,
+            message=f"پرونده صحنه‌جرم #{case_obj.id} تایید شد و آماده پذیرش کارآگاه است.",
+            case=case_obj,
+            exclude_user_ids={request.user.id},
+        )
+        notify_case_watchers(
+            case_obj,
+            message=f"پرونده #{case_obj.id} توسط مافوق تایید شد و وارد مرحله رسیدگی شد.",
+            exclude_user_ids={request.user.id},
+        )
         return Response(CaseSerializer(case_obj, context={"request": request}).data)
 
 
@@ -949,18 +1144,37 @@ class SuspectNominationAPIView(APIView):
         ensure_assigned_detective(request.user, case_obj)
         serializer = SuspectNominationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        suspect_ids = serializer.validated_data["suspect_ids"]
+        suspects = serializer.validated_data["suspects"]
         summary = serializer.validated_data.get("summary", "")
 
-        case_obj.suspects.add(*suspect_ids)
+        case_obj.suspects.add(*suspects)
         profiles = []
-        for suspect in suspect_ids:
+        for suspect in suspects:
             profile, _ = SuspectCaseProfile.objects.get_or_create(case=case_obj, suspect=suspect)
             profiles.append(profile)
 
         case_obj.status = Case.Status.WARRANT_PENDING
         case_obj.save(update_fields=["status", "updated_at"])
         CaseLog.objects.create(case=case_obj, actor=request.user, action="suspects_nominated", description=summary)
+        if case_obj.assigned_sergeant_id:
+            notify_users(
+                [case_obj.assigned_sergeant],
+                message=f"پرونده #{case_obj.id}: کارآگاه مظنونین را برای تصمیم‌گیری ارسال کرد.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+        else:
+            notify_roles(
+                SERGEANT_ROLES,
+                message=f"پرونده #{case_obj.id} در صف تصمیم‌گیری گروهبان قرار گرفت.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+        notify_case_watchers(
+            case_obj,
+            message=f"پرونده #{case_obj.id}: مظنونین توسط کارآگاه معرفی شدند.",
+            exclude_user_ids={request.user.id},
+        )
 
         return Response(SuspectCaseProfileSerializer(profiles, many=True).data)
 
@@ -998,6 +1212,33 @@ class SergeantDecisionAPIView(APIView):
             action="sergeant_decision",
             description=message or ("approved" if approved else "rejected"),
         )
+        if case_obj.assigned_detective_id:
+            notify_users(
+                [case_obj.assigned_detective],
+                message=(
+                    f"پرونده #{case_obj.id}: تصمیم گروهبان تایید شد."
+                    if approved
+                    else f"پرونده #{case_obj.id}: تصمیم گروهبان رد شد. {message}".strip()
+                ),
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+        if approved:
+            notify_roles(
+                ["Police Officer", "Patrol Officer", "Administrator"],
+                message=f"پرونده #{case_obj.id}: حکم جلب تایید شد و آماده عملیات دستگیری است.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+        notify_case_watchers(
+            case_obj,
+            message=(
+                f"پرونده #{case_obj.id}: نتیجه بررسی گروهبان = تایید."
+                if approved
+                else f"پرونده #{case_obj.id}: نتیجه بررسی گروهبان = رد."
+            ),
+            exclude_user_ids={request.user.id},
+        )
         return Response({"case_id": case_obj.id, "approved": approved, "message": message})
 
 
@@ -1024,6 +1265,17 @@ class SuspectArrestAPIView(APIView):
         case_obj = profile.case
         case_obj.status = Case.Status.ARRESTED
         case_obj.save(update_fields=["status", "updated_at"])
+        notify_case_watchers(
+            case_obj,
+            message=f"پرونده #{case_obj.id}: مظنون {profile.suspect.username} دستگیر شد.",
+            exclude_user_ids={request.user.id},
+        )
+        notify_users(
+            [profile.suspect],
+            message=f"برای شما در پرونده #{case_obj.id} وضعیت دستگیری ثبت شد.",
+            case=case_obj,
+            exclude_user_ids={request.user.id},
+        )
         return Response(SuspectCaseProfileSerializer(profile).data)
 
 
@@ -1054,6 +1306,20 @@ class InterrogationScoreCreateAPIView(APIView):
             ensure_assigned_sergeant(request.user, profile.case)
 
         score = serializer.save(suspect_profile=profile, scorer=request.user)
+        if scorer_role == InterrogationScore.ScorerRole.DETECTIVE and profile.case.assigned_sergeant_id:
+            notify_users(
+                [profile.case.assigned_sergeant],
+                message=f"برای مظنون {profile.suspect.username} در پرونده #{profile.case_id} امتیاز کارآگاه ثبت شد.",
+                case=profile.case,
+                exclude_user_ids={request.user.id},
+            )
+        if scorer_role == InterrogationScore.ScorerRole.SERGEANT and profile.case.assigned_detective_id:
+            notify_users(
+                [profile.case.assigned_detective],
+                message=f"برای مظنون {profile.suspect.username} در پرونده #{profile.case_id} امتیاز گروهبان ثبت شد.",
+                case=profile.case,
+                exclude_user_ids={request.user.id},
+            )
         return Response(InterrogationScoreSerializer(score).data, status=status.HTTP_201_CREATED)
 
 
@@ -1135,6 +1401,43 @@ class CaptainDecisionCreateAPIView(APIView):
             )
         case_obj.save(update_fields=["status", "updated_at"])
 
+        if case_obj.status == Case.Status.WAITING_CHIEF:
+            notify_roles(
+                CHIEF_ROLES,
+                message=f"پرونده بحرانی #{case_obj.id} توسط کاپیتان برای تایید نهایی رئیس پلیس ارسال شد.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+        elif case_obj.status == Case.Status.IN_COURT:
+            notify_roles(
+                JUDGE_ROLES,
+                message=f"پرونده #{case_obj.id} پس از تصمیم کاپیتان به دادگاه ارجاع شد.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+            notify_case_watchers(
+                case_obj,
+                message=f"پرونده #{case_obj.id} وارد مرحله دادگاه شد.",
+                exclude_user_ids={request.user.id},
+            )
+        else:
+            recipients = []
+            if case_obj.assigned_detective_id:
+                recipients.append(case_obj.assigned_detective)
+            if case_obj.assigned_sergeant_id:
+                recipients.append(case_obj.assigned_sergeant)
+            notify_users(
+                recipients,
+                message=f"پرونده #{case_obj.id} توسط کاپیتان رد شد و برای بررسی مجدد برگشت خورد.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+            notify_case_watchers(
+                case_obj,
+                message=f"تصمیم کاپیتان برای پرونده #{case_obj.id} رد شد و پرونده بازگشت داده شد.",
+                exclude_user_ids={request.user.id},
+            )
+
         return Response(CaptainDecisionSerializer(decision).data, status=status.HTTP_201_CREATED)
 
 
@@ -1186,6 +1489,31 @@ class ChiefDecisionAPIView(APIView):
             )
         case_obj.save(update_fields=["status", "updated_at"])
 
+        if case_obj.status == Case.Status.IN_COURT:
+            notify_roles(
+                JUDGE_ROLES,
+                message=f"پرونده بحرانی #{case_obj.id} توسط رئیس پلیس تایید و به دادگاه ارجاع شد.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+            notify_case_watchers(
+                case_obj,
+                message=f"پرونده #{case_obj.id} پس از تایید رئیس پلیس وارد دادگاه شد.",
+                exclude_user_ids={request.user.id},
+            )
+        else:
+            notify_users(
+                [decision.captain, case_obj.assigned_sergeant, case_obj.assigned_detective],
+                message=f"پرونده #{case_obj.id} توسط رئیس پلیس رد شد و به چرخه بررسی بازگشت.",
+                case=case_obj,
+                exclude_user_ids={request.user.id},
+            )
+            notify_case_watchers(
+                case_obj,
+                message=f"پرونده #{case_obj.id} توسط رئیس پلیس رد شد و به مرحله قبل برگشت.",
+                exclude_user_ids={request.user.id},
+            )
+
         return Response(CaptainDecisionSerializer(decision).data)
 
 
@@ -1212,6 +1540,23 @@ class SuspectWantedUpdateAPIView(APIView):
         if "public_details" in data:
             profile.public_details = data["public_details"]
         profile.save()
+        CaseLog.objects.create(
+            case=profile.case,
+            actor=request.user,
+            action="wanted_profile_updated",
+            description=f"Wanted profile updated for suspect #{profile.suspect_id}.",
+        )
+        notify_users(
+            [profile.suspect],
+            message=f"وضعیت تحت‌تعقیب شما در پرونده #{profile.case_id} به‌روزرسانی شد.",
+            case=profile.case,
+            exclude_user_ids={request.user.id},
+        )
+        notify_case_watchers(
+            profile.case,
+            message=f"اطلاعات تحت‌تعقیب مظنون در پرونده #{profile.case_id} به‌روزرسانی شد.",
+            exclude_user_ids={request.user.id},
+        )
         return Response(SuspectCaseProfileSerializer(profile).data)
 
 
@@ -1271,6 +1616,20 @@ class SuspectBailPolicyUpdateAPIView(APIView):
             description=(
                 f"is_bail_allowed={profile.is_bail_allowed}, bail_amount={profile.bail_amount or 0}"
             ),
+        )
+        notify_users(
+            [profile.suspect],
+            message=(
+                f"برای پرونده #{profile.case_id} وضعیت وثیقه شما به‌روزرسانی شد: "
+                f"{'مجاز' if profile.is_bail_allowed else 'غیرمجاز'}."
+            ),
+            case=profile.case,
+            exclude_user_ids={request.user.id},
+        )
+        notify_case_watchers(
+            profile.case,
+            message=f"پرونده #{profile.case_id}: سیاست وثیقه توسط گروهبان به‌روزرسانی شد.",
+            exclude_user_ids={request.user.id},
         )
 
         return Response(SuspectCaseProfileSerializer(profile).data)
@@ -1410,6 +1769,17 @@ class SergeantSubmitToCaptainAPIView(APIView):
             actor=request.user,
             action="submitted_to_captain",
             description=message or "Submitted by sergeant to captain queue.",
+        )
+        notify_roles(
+            CAPTAIN_ROLES,
+            message=f"پرونده #{case_obj.id} توسط گروهبان برای تصمیم‌گیری کاپیتان ارسال شد.",
+            case=case_obj,
+            exclude_user_ids={request.user.id},
+        )
+        notify_case_watchers(
+            case_obj,
+            message=f"پرونده #{case_obj.id} وارد صف تصمیم‌گیری کاپیتان شد.",
+            exclude_user_ids={request.user.id},
         )
 
         return Response(

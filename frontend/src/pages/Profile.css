@@ -27,10 +27,12 @@
 }
 
 .profile-section {
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-1) 84%, transparent);
   border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-soft);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
 }
 
 .profile-section h2 {
@@ -68,7 +70,7 @@
   padding: 0.75rem;
   background: var(--surface-2);
   border-radius: 6px;
-  border-right: 3px solid #3498db;
+  border-right: 3px solid var(--color-primary);
 }
 
 .info-value.empty {
@@ -84,18 +86,19 @@
 }
 
 .role-tag {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--tone-info-bg);
+  color: var(--tone-info-text);
+  border: 1px solid var(--tone-info-border);
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-size: 0.875rem;
   font-weight: 500;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
 }
 
 .role-tag.empty {
   background: var(--surface-3);
-  color: var(--text-strong);
+  color: var(--text-primary);
   border: 1px solid var(--border-soft);
 }
 

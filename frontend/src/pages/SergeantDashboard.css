@@ -11,10 +11,12 @@
   align-items: flex-start;
   gap: 16px;
   flex-wrap: wrap;
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-1) 84%, transparent);
   border: 1px solid var(--border-soft);
   border-radius: 14px;
   padding: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
 }
 
 .sergeant-header h1 {
@@ -29,9 +31,9 @@
 }
 
 .sergeant-header button {
-  border: 1px solid #0ea5e9;
-  background: #e0f2fe;
-  color: #0369a1;
+  border: 1px solid var(--tone-info-border);
+  background: var(--tone-info-bg);
+  color: var(--tone-info-text);
   border-radius: 10px;
   padding: 8px 14px;
   cursor: pointer;
@@ -82,9 +84,9 @@
 }
 
 .assignment-tabs button.active {
-  border-color: #0284c7;
-  background: #e0f2fe;
-  color: #0c4a6e;
+  border-color: var(--tone-info-border);
+  background: var(--tone-info-bg);
+  color: var(--tone-info-text);
 }
 
 .sergeant-feedback {
@@ -94,15 +96,15 @@
 }
 
 .sergeant-feedback.error {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger-text);
+  border: 1px solid var(--tone-danger-border);
 }
 
 .sergeant-feedback.success {
-  background: #ecfdf5;
-  color: #166534;
-  border: 1px solid #86efac;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
+  border: 1px solid var(--tone-success-border);
 }
 
 .sergeant-section {
@@ -170,8 +172,8 @@
 }
 
 .sergeant-card.claim-card {
-  border-color: #bae6fd;
-  background: #f8fcff;
+  border-color: var(--tone-info-border);
+  background: color-mix(in srgb, var(--tone-info-bg) 70%, var(--surface-1));
 }
 
 .card-title-row {
@@ -198,13 +200,13 @@
 }
 
 .status-pill.pill-ok {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
 }
 
 .status-pill.pill-warn {
-  background: #fff7ed;
-  color: #b45309;
+  background: var(--tone-warning-bg);
+  color: var(--tone-warning-text);
 }
 
 .card-meta {
@@ -246,8 +248,9 @@
 }
 
 .card-actions .danger {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger-text);
+  border: 1px solid var(--tone-danger-border);
 }
 
 .suspect-list {
@@ -294,13 +297,13 @@
 }
 
 .score-status .ok {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
 }
 
 .score-status .warn {
-  background: #fff7ed;
-  color: #9a3412;
+  background: var(--tone-warning-bg);
+  color: var(--tone-warning-text);
 }
 
 .score-form,
@@ -339,7 +342,7 @@
 
 .hint {
   margin: 0;
-  color: #b45309;
+  color: var(--tone-warning-text);
   font-size: 0.84rem;
 }
 
@@ -352,11 +355,11 @@
 }
 
 .missing-box {
-  border: 1px dashed #fdba74;
-  background: #fff7ed;
+  border: 1px dashed var(--tone-warning-border);
+  background: var(--tone-warning-bg);
   border-radius: 8px;
   padding: 8px;
-  color: #9a3412;
+  color: var(--tone-warning-text);
 }
 
 .missing-box ul {
@@ -431,10 +434,10 @@
 }
 
 .operation-evidence-card {
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--tone-info-border);
   border-radius: 12px;
   padding: 10px;
-  background: #f8fbff;
+  background: color-mix(in srgb, var(--tone-info-bg) 70%, var(--surface-1));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -456,7 +459,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-top: 1px dashed #bfdbfe;
+  border-top: 1px dashed var(--tone-info-border);
   padding-top: 8px;
 }
 

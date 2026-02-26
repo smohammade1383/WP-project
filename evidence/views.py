@@ -7,6 +7,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from cases.models import Case
+from cases.notify import notify_users
 from .models import (
     BioMedicalEvidence,
     BioMedicalImage,
@@ -80,6 +81,16 @@ def can_submit_evidence(user, case_obj):
     if is_police_staff(user):
         return True
     return case_obj.created_by_id == user.id or case_obj.complainants.filter(id=user.id).exists()
+
+
+def evidence_watchers(case_obj):
+    recipients = [case_obj.created_by]
+    recipients.extend(list(case_obj.complainants.all()))
+    if case_obj.assigned_detective_id:
+        recipients.append(case_obj.assigned_detective)
+    if case_obj.assigned_sergeant_id:
+        recipients.append(case_obj.assigned_sergeant)
+    return recipients
 
 
 def create_evidence_details(evidence, validated_data, files, user):
@@ -305,6 +316,25 @@ class EvidenceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
             evidence.save(update_fields=changed_fields)
 
         update_evidence_details(evidence, validated, request.FILES, request.user)
+        if (
+            evidence.type == Evidence.Type.BIO_MEDICAL
+            and can_set_lab_result(request.user)
+            and ("bio_validation_status" in validated or "lab_result" in validated)
+            and hasattr(evidence, "bio_medical")
+        ):
+            bio = evidence.bio_medical
+            status_text = bio.get_validation_status_display()
+            notify_users(
+                evidence_watchers(evidence.case),
+                message=(
+                    f"نتیجه بررسی پزشکی/آزمایشگاهی برای مدرک #{evidence.id} "
+                    f"در پرونده #{evidence.case_id} به وضعیت «{status_text}» به‌روزرسانی شد."
+                ),
+                case=evidence.case,
+                evidence=evidence,
+                exclude_user_ids={request.user.id},
+            )
+
         return Response(EvidenceSerializer(evidence, context={"request": request}).data)
 
     def perform_destroy(self, instance):

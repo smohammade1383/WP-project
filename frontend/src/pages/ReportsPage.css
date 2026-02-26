@@ -11,10 +11,12 @@
   align-items: flex-start;
   gap: 10px;
   flex-wrap: wrap;
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-1) 84%, transparent);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 14px;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
 }
 
 .reports-header h1 {
@@ -29,9 +31,9 @@
 }
 
 .reports-header button {
-  border: 1px solid #16a085;
-  background: #ecfdf5;
-  color: #065f46;
+  border: 1px solid var(--tone-success-border);
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
   border-radius: 9px;
   padding: 8px 12px;
   font-weight: 600;
@@ -50,9 +52,9 @@
 }
 
 .reports-feedback.error {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger-text);
+  border: 1px solid var(--tone-danger-border);
 }
 
 .reports-filters {
@@ -128,8 +130,8 @@
 }
 
 .reports-case-item.selected {
-  border-color: #16a085;
-  background: #ecfdf5;
+  border-color: var(--tone-success-border);
+  background: var(--tone-success-bg);
 }
 
 .reports-case-top {
@@ -148,9 +150,9 @@
 
 .reports-case-top span {
   border-radius: 999px;
-  border: 1px solid #a7f3d0;
-  background: #d1fae5;
-  color: #065f46;
+  border: 1px solid var(--tone-success-border);
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
   font-size: 0.72rem;
   padding: 2px 8px;
 }

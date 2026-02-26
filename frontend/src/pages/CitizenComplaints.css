@@ -43,23 +43,24 @@
 }
 
 .citizen-feedback.error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
+  background: var(--tone-danger-bg);
+  border: 1px solid var(--tone-danger-border);
+  color: var(--tone-danger-text);
 }
 
 .citizen-feedback.success {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #166534;
+  background: var(--tone-success-bg);
+  border: 1px solid var(--tone-success-border);
+  color: var(--tone-success-text);
 }
 
 .citizen-loading,
 .citizen-empty {
-  background: var(--surface-1);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: color-mix(in srgb, var(--surface-1) 86%, transparent);
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
   padding: 1.1rem;
+  backdrop-filter: blur(10px);
 }
 
 .citizen-empty h3 {
@@ -72,11 +73,11 @@
 }
 
 .complaint-card {
-  background: var(--surface-1);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: color-mix(in srgb, var(--surface-1) 90%, var(--surface-2));
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
   padding: 1rem 1.1rem;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .complaint-card-header {
@@ -99,23 +100,23 @@
 }
 
 .status-submitted {
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--tone-info-bg);
+  color: var(--tone-info-text);
 }
 
 .status-returned {
-  background: #fff7ed;
-  color: #c2410c;
+  background: var(--tone-warning-bg);
+  color: var(--tone-warning-text);
 }
 
 .status-approved {
-  background: #ecfdf5;
-  color: #166534;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
 }
 
 .status-rejected {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger-text);
 }
 
 .status-void {
@@ -151,8 +152,8 @@
 
 .complaint-reason {
   margin-top: 0.75rem;
-  background: #fefce8;
-  border: 1px solid #fde68a;
+  background: var(--tone-warning-bg);
+  border: 1px solid var(--tone-warning-border);
   border-radius: 10px;
   padding: 0.65rem 0.75rem;
 }
@@ -171,11 +172,11 @@
 
 .complaint-risk {
   margin-top: 0.7rem;
-  background: #fff1f2;
-  border: 1px solid #fecdd3;
+  background: var(--tone-danger-bg);
+  border: 1px solid var(--tone-danger-border);
   border-radius: 10px;
   padding: 0.6rem 0.7rem;
-  color: #be123c;
+  color: var(--tone-danger-text);
   font-size: 0.85rem;
 }
 
@@ -270,7 +271,7 @@
 
 .edit-form input,
 .edit-form textarea {
-  border: 1px solid rgba(15, 23, 42, 0.16);
+  border: 1px solid var(--border-soft);
   border-radius: 10px;
   padding: 0.6rem 0.7rem;
   font-family: inherit;

@@ -11,10 +11,12 @@
   align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-1) 84%, transparent);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 14px;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
 }
 
 .judge-header h1 {
@@ -29,9 +31,9 @@
 }
 
 .judge-header button {
-  border: 1px solid #10b981;
-  background: #ecfdf5;
-  color: #065f46;
+  border: 1px solid var(--tone-success-border);
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
   border-radius: 9px;
   padding: 8px 12px;
   font-weight: 600;
@@ -50,15 +52,15 @@
 }
 
 .judge-feedback.error {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger-text);
+  border: 1px solid var(--tone-danger-border);
 }
 
 .judge-feedback.success {
-  background: #ecfdf5;
-  color: #166534;
-  border: 1px solid #86efac;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
+  border: 1px solid var(--tone-success-border);
 }
 
 .judge-section {
@@ -113,8 +115,8 @@
 }
 
 .queue-card.selected {
-  border-color: #10b981;
-  background: #ecfdf5;
+  border-color: var(--tone-success-border);
+  background: var(--tone-success-bg);
 }
 
 .queue-top {
@@ -133,9 +135,9 @@
 
 .queue-top span {
   border-radius: 999px;
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
+  border: 1px solid var(--tone-success-border);
   padding: 2px 8px;
   font-size: 0.76rem;
 }
@@ -175,9 +177,9 @@
 }
 
 .judge-inline-note {
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
-  color: #1e3a8a;
+  border: 1px solid var(--tone-info-border);
+  background: var(--tone-info-bg);
+  color: var(--tone-info-text);
   border-radius: 8px;
   padding: 8px;
   font-size: 0.82rem;

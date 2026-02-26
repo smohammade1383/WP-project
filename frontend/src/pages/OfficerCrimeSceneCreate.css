@@ -25,23 +25,24 @@
 }
 
 .crime-scene-feedback.error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
+  background: var(--tone-danger-bg);
+  border: 1px solid var(--tone-danger-border);
+  color: var(--tone-danger-text);
 }
 
 .crime-scene-feedback.success {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #166534;
+  background: var(--tone-success-bg);
+  border: 1px solid var(--tone-success-border);
+  color: var(--tone-success-text);
 }
 
 .crime-scene-form {
-  background: var(--surface-1);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
   padding: 1rem 1.1rem;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
@@ -56,7 +57,7 @@
 .crime-scene-form input,
 .crime-scene-form textarea,
 .crime-scene-form select {
-  border: 1px solid rgba(15, 23, 42, 0.16);
+  border: 1px solid var(--border-soft);
   border-radius: 10px;
   padding: 0.65rem 0.7rem;
   font-family: inherit;
@@ -155,8 +156,8 @@
 .crime-scene-result {
   margin-top: 1rem;
   border-radius: 12px;
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
+  border: 1px solid var(--tone-info-border);
+  background: var(--tone-info-bg);
   padding: 0.85rem 0.95rem;
 }
 

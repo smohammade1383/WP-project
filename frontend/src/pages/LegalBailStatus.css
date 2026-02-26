@@ -24,23 +24,24 @@
 }
 
 .legal-bail-feedback.error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
+  background: var(--tone-danger-bg);
+  border: 1px solid var(--tone-danger-border);
+  color: var(--tone-danger-text);
 }
 
 .legal-bail-feedback.success {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #166534;
+  background: var(--tone-success-bg);
+  border: 1px solid var(--tone-success-border);
+  color: var(--tone-success-text);
 }
 
 .legal-bail-loading,
 .legal-bail-empty {
-  background: var(--surface-1);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: color-mix(in srgb, var(--surface-1) 86%, transparent);
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
   padding: 1rem 1.1rem;
+  backdrop-filter: blur(10px);
 }
 
 .legal-bail-grid {
@@ -49,11 +50,11 @@
 }
 
 .legal-bail-card {
-  background: var(--surface-1);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: color-mix(in srgb, var(--surface-1) 90%, var(--surface-2));
+  border: 1px solid var(--border-soft);
   border-radius: 14px;
   padding: 1rem 1.1rem;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .legal-bail-card-header {
@@ -75,18 +76,18 @@
 }
 
 .legal-state-badge.free {
-  background: #ecfdf5;
-  color: #166534;
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
 }
 
 .legal-state-badge.detained {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger-text);
 }
 
 .legal-state-badge.pending_bail {
-  background: #fff7ed;
-  color: #c2410c;
+  background: var(--tone-warning-bg);
+  color: var(--tone-warning-text);
 }
 
 .legal-bail-meta {

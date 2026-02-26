@@ -14,6 +14,18 @@
   --color-warning: #d97706;
   --color-success: #16a34a;
   --color-info: #2563eb;
+  --tone-info-bg: #eaf2ff;
+  --tone-info-border: #b9cffc;
+  --tone-info-text: #1e40af;
+  --tone-success-bg: #e9f9f1;
+  --tone-success-border: #9ee7c4;
+  --tone-success-text: #166534;
+  --tone-warning-bg: #fff4e6;
+  --tone-warning-border: #f9c891;
+  --tone-warning-text: #9a3412;
+  --tone-danger-bg: #fdecec;
+  --tone-danger-border: #f6b0b0;
+  --tone-danger-text: #b91c1c;
 
   /* Surfaces & Text (light defaults) */
   --surface-1: #ffffff;
@@ -107,6 +119,18 @@
   --shadow-sm: 0 2px 10px rgba(2, 6, 23, 0.45);
   --shadow-md: 0 10px 28px rgba(2, 6, 23, 0.5);
   --shadow-lg: 0 22px 46px rgba(2, 6, 23, 0.56);
+  --tone-info-bg: rgba(37, 99, 235, 0.16);
+  --tone-info-border: rgba(96, 165, 250, 0.42);
+  --tone-info-text: #bfdbfe;
+  --tone-success-bg: rgba(22, 163, 74, 0.18);
+  --tone-success-border: rgba(74, 222, 128, 0.4);
+  --tone-success-text: #bbf7d0;
+  --tone-warning-bg: rgba(217, 119, 6, 0.22);
+  --tone-warning-border: rgba(251, 191, 36, 0.4);
+  --tone-warning-text: #fde68a;
+  --tone-danger-bg: rgba(220, 38, 38, 0.2);
+  --tone-danger-border: rgba(248, 113, 113, 0.42);
+  --tone-danger-text: #fecaca;
 }
 
 /* Reset & Base Styles */

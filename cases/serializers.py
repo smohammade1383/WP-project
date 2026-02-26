@@ -420,8 +420,50 @@ class SuspectCaseProfileSerializer(serializers.ModelSerializer):
 
 
 class SuspectNominationSerializer(serializers.Serializer):
-    suspect_ids = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
+    suspect_ids = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all(), required=False)
+    suspect_usernames = serializers.ListField(
+        child=serializers.CharField(max_length=150),
+        required=False,
+        write_only=True,
+    )
     summary = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_suspect_usernames(self, value):
+        normalized = []
+        for raw_username in value:
+            username = raw_username.strip()
+            if username:
+                normalized.append(username)
+        return normalized
+
+    def validate(self, attrs):
+        users_from_ids = list(attrs.get("suspect_ids", []))
+        usernames = attrs.get("suspect_usernames", [])
+
+        if not users_from_ids and not usernames:
+            raise serializers.ValidationError(
+                {"non_field_errors": ["At least one suspect id or username must be provided."]}
+            )
+
+        users_from_usernames = []
+        missing_usernames = []
+        for username in usernames:
+            user_obj = User.objects.filter(username__iexact=username).first()
+            if user_obj is None:
+                missing_usernames.append(username)
+            else:
+                users_from_usernames.append(user_obj)
+
+        if missing_usernames:
+            raise serializers.ValidationError(
+                {"suspect_usernames": [f"Unknown usernames: {', '.join(missing_usernames)}"]}
+            )
+
+        merged = {}
+        for user_obj in users_from_ids + users_from_usernames:
+            merged[user_obj.id] = user_obj
+        attrs["suspects"] = list(merged.values())
+        return attrs
 
 
 class SergeantDecisionSerializer(serializers.Serializer):
