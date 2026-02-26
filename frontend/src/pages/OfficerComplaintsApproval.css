@@ -16,12 +16,12 @@
 
 .officer-complaints-header h1 {
   margin: 0 0 0.4rem;
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .officer-complaints-header p {
   margin: 0;
-  color: #4b5563;
+  color: var(--text-primary);
 }
 
 .officer-summary {
@@ -55,7 +55,7 @@
 
 .officer-loading,
 .officer-empty {
-  background: #fff;
+  background: var(--surface-1);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 14px;
   padding: 1.1rem;
@@ -71,7 +71,7 @@
 }
 
 .officer-complaint-card {
-  background: #fff;
+  background: var(--surface-1);
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 14px;
   padding: 1rem 1.1rem;
@@ -100,7 +100,7 @@
 
 .officer-description {
   margin: 0.75rem 0;
-  color: #374151;
+  color: var(--text-primary);
   line-height: 1.7;
 }
 
@@ -108,7 +108,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 0.7rem;
-  background: #f9fafb;
+  background: var(--surface-2);
   border-radius: 12px;
   padding: 0.75rem;
 }
@@ -116,11 +116,11 @@
 .officer-meta span {
   display: block;
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .officer-meta strong {
-  color: #111827;
+  color: var(--text-strong);
   font-size: 0.9rem;
 }
 
@@ -143,8 +143,8 @@
 }
 
 .details-btn {
-  background: #e5e7eb;
-  color: #1f2937;
+  background: var(--border-soft);
+  color: var(--text-strong);
 }
 
 .approve-btn {
@@ -177,7 +177,7 @@
 
 .officer-modal {
   width: min(700px, 100%);
-  background: #fff;
+  background: var(--surface-1);
   border-radius: 14px;
   padding: 1rem 1.1rem;
 }
@@ -198,7 +198,7 @@
   background: transparent;
   font-size: 1.4rem;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .officer-modal-content {
@@ -209,12 +209,12 @@
 .officer-modal-content span {
   display: block;
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .officer-modal-content p {
   margin: 0.2rem 0 0;
-  color: #111827;
+  color: var(--text-strong);
   line-height: 1.7;
 }
 
@@ -226,7 +226,7 @@
 
 .officer-return-form label {
   font-size: 0.85rem;
-  color: #374151;
+  color: var(--text-primary);
   font-weight: 700;
 }
 

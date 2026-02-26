@@ -11,21 +11,21 @@
   align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-1);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 16px;
 }
 
 .captain-header h1 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-strong);
   font-size: 1.4rem;
 }
 
 .captain-header p {
   margin: 8px 0 0;
-  color: #475569;
+  color: var(--text-primary);
 }
 
 .captain-header button {
@@ -77,18 +77,18 @@
 
 .section-top h2 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-strong);
 }
 
 .section-top span {
-  color: #334155;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
 .section-empty {
-  border: 1px dashed #cbd5e1;
-  background: #f8fafc;
-  color: #475569;
+  border: 1px dashed var(--border-soft);
+  background: var(--surface-2);
+  color: var(--text-primary);
   border-radius: 10px;
   padding: 14px;
 }
@@ -103,8 +103,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-1);
   border-radius: 12px;
   padding: 12px;
 }
@@ -118,15 +118,15 @@
 
 .card-title-row h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-strong);
   font-size: 1rem;
 }
 
 .status-pill {
   border-radius: 999px;
   padding: 4px 10px;
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--surface-2);
+  color: var(--text-primary);
   font-size: 0.8rem;
   white-space: nowrap;
 }
@@ -136,12 +136,12 @@
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
-  color: #475569;
+  color: var(--text-primary);
   font-size: 0.9rem;
 }
 
 .decision-support {
-  border-top: 1px dashed #cbd5e1;
+  border-top: 1px dashed var(--border-soft);
   padding-top: 10px;
   display: flex;
   flex-direction: column;
@@ -150,12 +150,12 @@
 
 .decision-support h4 {
   margin: 0;
-  color: #1e293b;
+  color: var(--text-strong);
 }
 
 .muted {
   margin: 0;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .score-grid {
@@ -165,7 +165,7 @@
 }
 
 .score-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-soft);
   border-radius: 10px;
   padding: 8px;
   display: flex;
@@ -174,11 +174,11 @@
 }
 
 .score-card strong {
-  color: #0f172a;
+  color: var(--text-strong);
 }
 
 .score-card > span {
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 0.84rem;
 }
 
@@ -190,11 +190,11 @@
 }
 
 .score-row label {
-  color: #475569;
+  color: var(--text-primary);
 }
 
 .score-row span {
-  color: #0f172a;
+  color: var(--text-strong);
   font-weight: 700;
 }
 
@@ -206,11 +206,11 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #334155;
+  color: var(--text-primary);
 }
 
 .field-label textarea {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   padding: 8px;
   font: inherit;
@@ -248,8 +248,8 @@
 }
 
 .read-only-link .secondary {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: var(--border-soft);
+  color: var(--text-strong);
 }
 
 .captain-modal-overlay {
@@ -267,9 +267,9 @@
   width: min(900px, 100%);
   max-height: 86vh;
   overflow: auto;
-  background: #ffffff;
+  background: var(--surface-1);
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-soft);
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -285,13 +285,13 @@
 
 .modal-header h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-strong);
 }
 
 .modal-header button {
   border: none;
   background: transparent;
-  color: #334155;
+  color: var(--text-primary);
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
@@ -304,7 +304,7 @@
 }
 
 .evidence-item {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-soft);
   border-radius: 10px;
   padding: 10px;
   display: flex;
@@ -314,12 +314,12 @@
 
 .evidence-item h4 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-strong);
 }
 
 .evidence-item p {
   margin: 0;
-  color: #334155;
+  color: var(--text-primary);
 }
 
 @media (max-width: 900px) {

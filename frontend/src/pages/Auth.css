@@ -7,7 +7,7 @@
 }
 
 .auth-container {
-  background: white;
+  background: var(--surface-1);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-2xl);
   padding: var(--spacing-2xl);
@@ -112,7 +112,7 @@
 }
 
 .form-group input:disabled {
-  background-color: #f3f4f6;
+  background-color: var(--surface-2);
   cursor: not-allowed;
 }
 

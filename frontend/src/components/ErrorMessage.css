@@ -45,7 +45,7 @@
 
 .error-text {
   margin: 0 0 1rem 0;
-  color: #ccc;
+  color: var(--text-muted);
   line-height: 1.5;
 }
 
@@ -76,7 +76,7 @@
 
 .btn-dismiss {
   background-color: rgba(255, 255, 255, 0.1);
-  color: #ccc;
+  color: var(--text-muted);
 }
 
 .btn-dismiss:hover {

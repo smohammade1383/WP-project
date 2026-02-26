@@ -16,12 +16,12 @@
 .coroner-header h1 {
   margin: 0;
   font-size: 1.5rem;
-  color: #0f172a;
+  color: var(--text-strong);
 }
 
 .coroner-header p {
   margin: 0.4rem 0 0;
-  color: #475569;
+  color: var(--text-primary);
 }
 
 .coroner-header button {
@@ -60,9 +60,9 @@
 }
 
 .coroner-filters button {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #334155;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-1);
+  color: var(--text-primary);
   border-radius: 999px;
   padding: 0.38rem 0.75rem;
   font-size: 0.8rem;
@@ -76,11 +76,11 @@
 }
 
 .coroner-empty {
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--border-soft);
   border-radius: 10px;
   text-align: center;
   padding: 1rem;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .coroner-grid {
@@ -90,9 +90,9 @@
 }
 
 .coroner-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface-1);
   padding: 0.85rem;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
   display: grid;
@@ -108,7 +108,7 @@
 
 .coroner-card-top h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-strong);
   font-size: 0.92rem;
 }
 
@@ -135,7 +135,7 @@
 
 .coroner-card p {
   margin: 0;
-  color: #334155;
+  color: var(--text-primary);
   font-size: 0.84rem;
 }
 
@@ -143,12 +143,12 @@
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 0.74rem;
 }
 
 .coroner-details {
-  border-top: 1px dashed #e2e8f0;
+  border-top: 1px dashed var(--border-soft);
   padding-top: 0.55rem;
   display: grid;
   gap: 0.45rem;
@@ -156,12 +156,12 @@
 
 .coroner-details strong {
   font-size: 0.76rem;
-  color: #334155;
+  color: var(--text-primary);
 }
 
 .coroner-details p {
   margin: 0.2rem 0 0;
-  color: #475569;
+  color: var(--text-primary);
   font-size: 0.78rem;
 }
 
@@ -190,22 +190,22 @@
   width: min(620px, 96vw);
   max-height: 92vh;
   overflow: auto;
-  background: #fff;
+  background: var(--surface-1);
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-soft);
 }
 
 .coroner-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-soft);
   padding: 0.8rem 0.9rem;
 }
 
 .coroner-modal-header h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-strong);
 }
 
 .coroner-modal-header button {
@@ -222,7 +222,7 @@
 }
 
 .coroner-modal-form label {
-  color: #334155;
+  color: var(--text-primary);
   font-size: 0.82rem;
   display: grid;
   gap: 0.35rem;
@@ -231,7 +231,7 @@
 .coroner-modal-form input,
 .coroner-modal-form select,
 .coroner-modal-form textarea {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   padding: 0.5rem 0.6rem;
   font-family: inherit;
@@ -240,7 +240,7 @@
 
 .evidence-title {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-strong);
   font-weight: 600;
 }
 
@@ -262,8 +262,8 @@
 
 .coroner-modal-actions button.cancel {
   border-color: #94a3b8;
-  background: #fff;
-  color: #334155;
+  background: var(--surface-1);
+  color: var(--text-primary);
 }
 
 @media (max-width: 900px) {

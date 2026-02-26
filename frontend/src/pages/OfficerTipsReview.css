@@ -16,12 +16,12 @@
 
 .officer-tips-header h1 {
   margin: 0 0 0.45rem;
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .officer-tips-header p {
   margin: 0;
-  color: #4b5563;
+  color: var(--text-primary);
 }
 
 .tips-summary {
@@ -55,7 +55,7 @@
 
 .tips-loading,
 .tips-empty {
-  background: #fff;
+  background: var(--surface-1);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 14px;
   padding: 1rem 1.1rem;
@@ -71,7 +71,7 @@
 }
 
 .tip-card {
-  background: #fff;
+  background: var(--surface-1);
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 14px;
   padding: 1rem 1.1rem;
@@ -100,7 +100,7 @@
 
 .tip-description {
   margin: 0.75rem 0;
-  color: #374151;
+  color: var(--text-primary);
   line-height: 1.65;
 }
 
@@ -108,7 +108,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 0.7rem;
-  background: #f9fafb;
+  background: var(--surface-2);
   border-radius: 12px;
   padding: 0.7rem;
 }
@@ -116,11 +116,11 @@
 .tip-meta span {
   display: block;
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .tip-meta strong {
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .tip-actions {

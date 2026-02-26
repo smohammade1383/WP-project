@@ -17,12 +17,12 @@
 
 .admin-panel-header h1 {
   margin: 0 0 0.4rem 0;
-  color: #1f2937;
+  color: var(--text-strong);
 }
 
 .admin-panel-header p {
   margin: 0;
-  color: #4b5563;
+  color: var(--text-primary);
 }
 
 .refresh-btn {
@@ -73,14 +73,14 @@
 
 .roles-form h3 {
   margin: 0;
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .roles-form label {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  color: #4b5563;
+  color: var(--text-primary);
   font-size: 0.85rem;
 }
 
@@ -97,11 +97,11 @@
 
 .roles-list-header h3 {
   margin: 0;
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .roles-list-header span {
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
@@ -115,7 +115,7 @@
 }
 
 .role-item {
-  background: #f9fafb;
+  background: var(--surface-2);
   border-radius: 12px;
   padding: 0.75rem 1rem;
   border: 1px solid rgba(15, 23, 42, 0.06);
@@ -128,7 +128,7 @@
 .role-item p {
   margin: 0.35rem 0 0;
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .role-actions {
@@ -148,7 +148,7 @@
 
 .secondary-btn {
   background: rgba(15, 23, 42, 0.08);
-  color: #374151;
+  color: var(--text-primary);
   border: 1px solid rgba(15, 23, 42, 0.12);
   padding: 0.55rem 0.95rem;
   border-radius: 10px;
@@ -176,7 +176,7 @@
 }
 
 .modal-card {
-  background: #ffffff;
+  background: var(--surface-1);
   border-radius: 18px;
   width: min(620px, 100%);
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.2);
@@ -194,7 +194,7 @@
 
 .modal-header h3 {
   margin: 0;
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .close-btn {
@@ -209,14 +209,14 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  color: #4b5563;
+  color: var(--text-primary);
 }
 
 .modal-body label {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  color: #4b5563;
+  color: var(--text-primary);
   font-size: 0.85rem;
 }
 
@@ -228,16 +228,16 @@
 
 .empty-state {
   text-align: center;
-  color: #6b7280;
+  color: var(--text-muted);
   padding: 1rem;
   border-radius: 10px;
-  background: #f9fafb;
+  background: var(--surface-2);
 }
 
 .skeleton-list {
-  color: #6b7280;
+  color: var(--text-muted);
   padding: 1rem;
-  background: #f3f4f6;
+  background: var(--surface-2);
   border-radius: 10px;
 }
 

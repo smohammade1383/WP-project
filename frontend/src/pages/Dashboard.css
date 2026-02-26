@@ -14,14 +14,14 @@
 
 .dashboard-header h1 {
   font-size: 2.5rem;
-  color: #2c3e50;
+  color: var(--text-strong);
   margin-bottom: 0.5rem;
   font-weight: 700;
 }
 
 .welcome-text {
   font-size: 1.25rem;
-  color: #7f8c8d;
+  color: var(--text-muted);
   margin-bottom: 1rem;
 }
 
@@ -36,7 +36,7 @@
 
 .roles-label {
   font-weight: 600;
-  color: #34495e;
+  color: var(--text-strong);
   font-size: 1rem;
 }
 
@@ -78,7 +78,7 @@
 }
 
 .module-card {
-  background: white;
+  background: var(--surface-1);
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -132,7 +132,7 @@
 
 .module-title {
   font-size: 1.5rem;
-  color: #2c3e50;
+  color: var(--text-strong);
   margin-bottom: 0.5rem;
   font-weight: 600;
   position: relative;
@@ -140,7 +140,7 @@
 }
 
 .module-description {
-  color: #7f8c8d;
+  color: var(--text-muted);
   font-size: 0.95rem;
   line-height: 1.5;
   margin-bottom: 1rem;
@@ -154,24 +154,24 @@
   justify-content: flex-start;
   align-items: center;
   padding-top: 1rem;
-  border-top: 1px solid #ecf0f1;
+  border-top: 1px solid var(--surface-2);
   position: relative;
   z-index: 1;
 }
 
 .module-link {
-  color: #3498db;
+  color: var(--color-primary);
   font-weight: 600;
   font-size: 0.95rem;
   transition: color 0.2s ease;
 }
 
 .module-card:hover .module-link {
-  color: #2980b9;
+  color: var(--color-primary-hover);
 }
 
 .no-modules-message {
-  background: white;
+  background: var(--surface-1);
   border-radius: 12px;
   padding: 3rem;
   text-align: center;
@@ -180,7 +180,7 @@
 
 .no-modules-message p {
   font-size: 1.1rem;
-  color: #7f8c8d;
+  color: var(--text-muted);
   margin: 0.5rem 0;
 }
 
@@ -272,4 +272,3 @@
     font-size: 0.85rem;
   }
 }
-

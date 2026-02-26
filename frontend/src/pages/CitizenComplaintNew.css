@@ -8,12 +8,12 @@
 
 .citizen-new-complaint-header h1 {
   margin: 0 0 0.45rem;
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .citizen-new-complaint-header p {
   margin: 0 0 1rem;
-  color: #4b5563;
+  color: var(--text-primary);
 }
 
 .new-complaint-feedback {
@@ -35,7 +35,7 @@
 }
 
 .new-complaint-form {
-  background: #fff;
+  background: var(--surface-1);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 14px;
   padding: 1rem 1.1rem;
@@ -47,7 +47,7 @@
 
 .new-complaint-form label {
   font-size: 0.86rem;
-  color: #374151;
+  color: var(--text-primary);
   font-weight: 700;
 }
 
@@ -62,7 +62,7 @@
 .secondary-help-text {
   margin: -0.2rem 0 0.35rem;
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .new-complaint-actions {
@@ -82,8 +82,8 @@
 }
 
 .secondary-btn {
-  background: #e5e7eb;
-  color: #1f2937;
+  background: var(--border-soft);
+  color: var(--text-strong);
 }
 
 .primary-btn {

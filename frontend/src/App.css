@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #4f46e5 50%, #3b82f6 75%, #06b6d4 100%);
+  background: var(--app-background);
   background-attachment: fixed;
 }
 
@@ -28,9 +28,9 @@
 .app-header h1 {
   margin: 0;
   font-size: 1.75rem;
-  color: white;
+  color: var(--text-strong);
   font-weight: 700;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
   letter-spacing: 0.5px;
 }
 
@@ -45,7 +45,8 @@
 
 .nav-links a,
 .nav-links .user-name,
-.nav-links .logout-button {
+.nav-links .logout-button,
+.nav-links .theme-toggle-btn {
   padding: 0.65rem 1.35rem;
   border-radius: 10px;
   font-weight: 600;
@@ -55,23 +56,36 @@
 }
 
 .nav-links a {
-  color: white;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: var(--text-strong);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(10px);
 }
 
 .nav-links a:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: color-mix(in srgb, var(--glass-bg) 75%, var(--surface-1));
+  border-color: var(--border-strong);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-md);
+}
+
+.theme-toggle-btn {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-strong);
+  backdrop-filter: blur(10px);
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--glass-bg) 75%, var(--surface-1));
+  transform: translateY(-2px);
 }
 
 .user-name {
-  color: white;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: var(--text-strong);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -84,8 +98,8 @@
 
 .logout-button {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
+  border: 1px solid color-mix(in srgb, var(--glass-border) 70%, #dc2626);
+  color: var(--text-inverse);
   cursor: pointer;
   font-family: inherit;
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
@@ -108,6 +122,10 @@
   background: transparent;
 }
 
+.app-main--wide {
+  max-width: 1600px;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -124,16 +142,14 @@
   background: transparent;
   padding: var(--spacing-xl) var(--spacing-lg);
   text-align: center;
-  /* color: white; */
-  display: transparent;
-
   border-top: none;
 }
 
 .app-footer p {
   margin: 0;
   font-size: 0.95rem;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  color: var(--text-primary);
+  text-shadow: none;
 }
 
 /* Home Page */

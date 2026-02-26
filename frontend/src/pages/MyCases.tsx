@@ -192,16 +192,9 @@ const MyCases = () => {
       )}
 
       {/* Info Message */}
-      <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        borderRadius: '12px',
-        padding: '1.5rem',
-        color: 'white',
-        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-        marginTop: '2rem',
-      }}>
-        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>ℹ️ راهنما</h3>
-        <p style={{ margin: 0, fontSize: '0.95rem', opacity: 0.95 }}>
+      <div className="my-cases-info-box">
+        <h3 className="my-cases-info-title">ℹ️ راهنما</h3>
+        <p className="my-cases-info-text">
           این صفحه نمایش نمونه است. داده‌های واقعی از API دریافت خواهند شد.
         </p>
       </div>

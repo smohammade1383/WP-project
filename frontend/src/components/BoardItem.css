@@ -4,6 +4,7 @@
   border-radius: 10px;
   border: 1px solid #e4d9c4;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+  color: #1f2937;
   cursor: grab;
   user-select: none;
   transition: box-shadow 0.2s, transform 0.1s, border-color 0.2s;
@@ -61,10 +62,11 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.55);
-  border-bottom: 1px dashed rgba(0, 0, 0, 0.14);
+  background: rgba(255, 255, 255, 0.72);
+  border-bottom: 1px dashed rgba(15, 23, 42, 0.2);
   font-weight: 600;
   font-size: 14px;
+  color: #1f2937;
 }
 
 .item-icon {
@@ -76,6 +78,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: #1f2937;
 }
 
 .item-delete-btn {
@@ -84,7 +87,7 @@
   cursor: pointer;
   font-size: 24px;
   line-height: 1;
-  color: #666;
+  color: #475569;
   padding: 0;
   width: 24px;
   height: 24px;
@@ -108,20 +111,20 @@
   white-space: pre-wrap;
   max-height: 200px;
   overflow-y: auto;
-  color: #1e293b;
+  color: #1f2937;
   display: grid;
   gap: 8px;
 }
 
 .item-content-text {
-  color: #1e293b;
+  color: #1f2937;
 }
 
 .board-item-evidence-preview {
   border: 1px solid rgba(15, 23, 42, 0.14);
   border-radius: 8px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .board-item-evidence-preview img {

@@ -87,7 +87,7 @@ const API_ORIGIN = (() => {
   }
 })();
 const IMAGE_FILE_PATTERN = /\.(png|jpe?g|gif|webp|bmp|svg)$/i;
-const MIN_BOARD_SCALE = 0.5;
+const MIN_BOARD_SCALE = 0.2;
 const MAX_BOARD_SCALE = 2;
 const MIN_BOARD_WIDTH = 1240;
 const MIN_BOARD_HEIGHT = 860;

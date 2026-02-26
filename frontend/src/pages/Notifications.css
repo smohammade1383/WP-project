@@ -13,14 +13,14 @@
   align-items: center;
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;
-  border-bottom: 2px solid #e1e8ed;
+  border-bottom: 2px solid var(--border-soft);
   flex-wrap: wrap;
   gap: 1rem;
 }
 
 .notifications-header h1 {
   font-size: 2rem;
-  color: #2c3e50;
+  color: var(--text-strong);
   margin: 0;
 }
 
@@ -40,7 +40,7 @@
 }
 
 .no-notifications {
-  background: white;
+  background: var(--surface-1);
   border-radius: 12px;
   padding: 4rem 2rem;
   text-align: center;
@@ -54,13 +54,13 @@
 }
 
 .no-notifications h2 {
-  color: #7f8c8d;
+  color: var(--text-muted);
   margin-bottom: 0.5rem;
   font-size: 1.5rem;
 }
 
 .no-notifications p {
-  color: #95a5a6;
+  color: var(--text-muted);
   font-size: 1rem;
 }
 
@@ -71,7 +71,7 @@
 }
 
 .notification-card {
-  background: white;
+  background: var(--surface-1);
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -87,7 +87,7 @@
 }
 
 .notification-card.unread {
-  background: #f8f9fa;
+  background: var(--surface-2);
   border-right-color: #3498db;
 }
 
@@ -127,19 +127,19 @@
 
 .notification-content h3 {
   font-size: 1.25rem;
-  color: #2c3e50;
+  color: var(--text-strong);
   margin: 0;
   font-weight: 600;
 }
 
 .notification-date {
   font-size: 0.875rem;
-  color: #7f8c8d;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
 .notification-content p {
-  color: #555;
+  color: var(--text-muted);
   margin: 0;
   line-height: 1.6;
 }

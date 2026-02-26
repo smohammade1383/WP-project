@@ -17,12 +17,12 @@
 
 .users-header h1 {
   margin: 0 0 0.4rem 0;
-  color: #1f2937;
+  color: var(--text-strong);
 }
 
 .users-header p {
   margin: 0;
-  color: #4b5563;
+  color: var(--text-primary);
 }
 
 .refresh-btn {
@@ -66,8 +66,8 @@
 }
 
 .users-search button {
-  background: #111827;
-  color: white;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: var(--text-inverse);
   border: none;
   padding: 0.6rem 1.2rem;
   border-radius: 10px;
@@ -95,7 +95,7 @@
 .users-list h3,
 .roles-section h3 {
   margin: 0;
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .roles-section {
@@ -104,14 +104,14 @@
 
 .roles-subtitle {
   margin: 0;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
 .user-card {
   width: 100%;
   text-align: right;
-  background: #f9fafb;
+  background: var(--surface-2);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 12px;
   padding: 0.9rem 1rem;
@@ -129,12 +129,12 @@
 
 .user-info strong {
   display: block;
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .user-info span {
   display: block;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
@@ -194,7 +194,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  color: #4b5563;
+  color: var(--text-primary);
   font-size: 0.85rem;
 }
 
@@ -216,7 +216,7 @@
 }
 
 .role-item {
-  background: #f9fafb;
+  background: var(--surface-2);
   border-radius: 12px;
   padding: 0.75rem 1rem;
   border: 1px solid rgba(15, 23, 42, 0.06);
@@ -229,7 +229,7 @@
 .role-item p {
   margin: 0.35rem 0 0;
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .role-actions {
@@ -249,7 +249,7 @@
 
 .secondary-btn {
   background: rgba(15, 23, 42, 0.08);
-  color: #374151;
+  color: var(--text-primary);
   border: 1px solid rgba(15, 23, 42, 0.12);
   padding: 0.55rem 0.95rem;
   border-radius: 10px;
@@ -258,16 +258,16 @@
 
 .empty-state {
   text-align: center;
-  color: #6b7280;
+  color: var(--text-muted);
   padding: 1rem;
   border-radius: 10px;
-  background: #f9fafb;
+  background: var(--surface-2);
 }
 
 .skeleton-list {
-  color: #6b7280;
+  color: var(--text-muted);
   padding: 1rem;
-  background: #f3f4f6;
+  background: var(--surface-2);
   border-radius: 10px;
 }
 
@@ -283,7 +283,7 @@
 }
 
 .modal-card {
-  background: #ffffff;
+  background: var(--surface-1);
   border-radius: 18px;
   width: min(760px, 94vw);
   max-width: 760px;
@@ -304,7 +304,7 @@
 
 .modal-header h3 {
   margin: 0;
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .close-btn {
@@ -334,7 +334,7 @@
   flex-direction: column;
   gap: 0.4rem;
   font-size: 0.85rem;
-  color: #4b5563;
+  color: var(--text-primary);
 }
 
 .toggle-row {
@@ -342,11 +342,11 @@
   align-items: center;
   gap: 0.6rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .roles-checkboxes {
-  background: #f9fafb;
+  background: var(--surface-2);
   border-radius: 12px;
   padding: 0.9rem;
   border: 1px solid rgba(15, 23, 42, 0.06);
@@ -357,7 +357,7 @@
 
 .roles-checkboxes h4 {
   margin: 0 0 0.4rem;
-  color: #111827;
+  color: var(--text-strong);
 }
 
 .roles-checkboxes-grid {
@@ -370,12 +370,12 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: #ffffff;
+  background: var(--surface-1);
   border-radius: 10px;
   padding: 0.45rem 0.65rem;
   border: 1px solid rgba(15, 23, 42, 0.06);
   font-size: 0.85rem;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .modal-footer {

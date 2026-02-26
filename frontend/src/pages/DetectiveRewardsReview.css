@@ -11,21 +11,21 @@
   align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-1);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 14px;
 }
 
 .detective-rewards-header h1 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-strong);
   font-size: 1.3rem;
 }
 
 .detective-rewards-header p {
   margin: 8px 0 0;
-  color: #475569;
+  color: var(--text-primary);
 }
 
 .queue-count {
@@ -55,11 +55,11 @@
 }
 
 .detective-rewards-empty {
-  border: 1px dashed #cbd5e1;
-  background: #f8fafc;
+  border: 1px dashed var(--border-soft);
+  background: var(--surface-2);
   border-radius: 12px;
   padding: 18px;
-  color: #475569;
+  color: var(--text-primary);
 }
 
 .detective-rewards-grid {
@@ -69,9 +69,9 @@
 }
 
 .detective-reward-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--surface-1);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -87,20 +87,20 @@
 
 .detective-reward-head h3 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-strong);
 }
 
 .status-chip {
   border-radius: 999px;
   padding: 4px 10px;
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--surface-2);
+  color: var(--text-primary);
   font-size: 0.82rem;
 }
 
 .detective-reward-card p {
   margin: 0;
-  color: #334155;
+  color: var(--text-primary);
   line-height: 1.5;
 }
 
@@ -108,7 +108,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #475569;
+  color: var(--text-primary);
   font-size: 0.9rem;
 }
 
@@ -142,22 +142,22 @@
 }
 
 .detective-reward-note {
-  border-top: 1px dashed #cbd5e1;
+  border-top: 1px dashed var(--border-soft);
   padding-top: 8px;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 0.84rem;
 }
 
 .detective-approved-section {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-1);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 12px;
 }
 
 .detective-approved-section h2 {
   margin: 0 0 10px;
-  color: #0f172a;
+  color: var(--text-strong);
   font-size: 1.05rem;
 }
 
@@ -172,14 +172,14 @@
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   padding: 8px 10px;
-  color: #334155;
+  color: var(--text-primary);
 }
 
 .approved-row strong {
-  color: #1d4ed8;
+  color: var(--text-strong);
 }
 
 @media (max-width: 900px) {
@@ -191,4 +191,3 @@
     grid-template-columns: 1fr;
   }
 }
-

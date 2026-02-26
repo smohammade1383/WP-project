@@ -115,7 +115,7 @@ const ComponentsDemo = () => {
             <span>Flex Between</span>
             <button>دکمه</button>
           </div>
-          <div className="flex-center" style={{ padding: '2rem', background: 'rgba(255,255,255,0.05)' }}>
+          <div className="flex-center" style={{ padding: '2rem', background: 'var(--surface-2)', border: '1px solid var(--border-soft)', borderRadius: '12px' }}>
             <span>Flex Center</span>
           </div>
         </div>
