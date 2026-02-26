@@ -4,6 +4,11 @@ from django.db import models
 
 
 class Evidence(models.Model):
+    class OfficerReviewStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
     class Type(models.TextChoices):
         TRANSCRIPTION = "transcription", "Transcription"
         BIO_MEDICAL = "bio_medical", "Bio/Medical"
@@ -17,6 +22,20 @@ class Evidence(models.Model):
     type = models.CharField(max_length=30, choices=Type.choices)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
+    officer_review_status = models.CharField(
+        max_length=20,
+        choices=OfficerReviewStatus.choices,
+        default=OfficerReviewStatus.PENDING,
+    )
+    officer_review_message = models.TextField(blank=True, default="")
+    officer_reviewed_at = models.DateTimeField(null=True, blank=True)
+    officer_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="officer_reviewed_evidences",
+    )
 
     class Meta:
         ordering = ["-created_at"]

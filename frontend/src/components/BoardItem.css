@@ -108,6 +108,27 @@
   white-space: pre-wrap;
   max-height: 200px;
   overflow-y: auto;
+  color: #1e293b;
+  display: grid;
+  gap: 8px;
+}
+
+.item-content-text {
+  color: #1e293b;
+}
+
+.board-item-evidence-preview {
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.board-item-evidence-preview img {
+  display: block;
+  width: 100%;
+  max-height: 125px;
+  object-fit: cover;
 }
 
 .board-item::before {
@@ -136,12 +157,60 @@
   transition: opacity 0.2s, transform 0.2s;
   cursor: crosshair;
   z-index: 10;
+  pointer-events: none;
+}
+
+.connection-edge {
+  position: absolute;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 8;
+  cursor: crosshair;
+  pointer-events: none;
+}
+
+.connection-edge-top,
+.connection-edge-bottom {
+  left: -8px;
+  right: -8px;
+  height: 14px;
+}
+
+.connection-edge-top {
+  top: -10px;
+}
+
+.connection-edge-bottom {
+  bottom: -10px;
+}
+
+.connection-edge-left,
+.connection-edge-right {
+  top: -8px;
+  bottom: -8px;
+  width: 14px;
+}
+
+.connection-edge-left {
+  left: -10px;
+}
+
+.connection-edge-right {
+  right: -10px;
 }
 
 .board-item:hover .connection-point,
 .board-item.selected .connection-point,
 .board-item.connect-source .connection-point {
   opacity: 1;
+  pointer-events: auto;
+}
+
+.board-item:hover .connection-edge,
+.board-item.selected .connection-edge,
+.board-item.connect-source .connection-edge {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .connection-point-top {

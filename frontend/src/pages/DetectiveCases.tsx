@@ -4,7 +4,12 @@ import html2canvas from 'html2canvas';
 import BoardItem from '../components/BoardItem';
 import BoardLinks from '../components/BoardLinks';
 import ProtectedModule from '../components/ProtectedModule';
-import { boardApi, type BoardItem as BoardItemType, type BoardLink as BoardLinkType } from '../services/board.api';
+import {
+  boardApi,
+  type BoardAnchor,
+  type BoardItem as BoardItemType,
+  type BoardLink as BoardLinkType,
+} from '../services/board.api';
 import {
   detectiveApi,
   evidenceApi,
@@ -71,6 +76,132 @@ const evidenceTypeLabelMap: Record<EvidenceType, string> = {
   vehicle: 'وسیله نقلیه',
   identity_document: 'مدارک شناسایی',
   other: 'سایر موارد',
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_ORIGIN = (() => {
+  try {
+    return new URL(API_BASE_URL, window.location.origin).origin;
+  } catch {
+    return window.location.origin;
+  }
+})();
+const IMAGE_FILE_PATTERN = /\.(png|jpe?g|gif|webp|bmp|svg)$/i;
+const MIN_BOARD_SCALE = 0.5;
+const MAX_BOARD_SCALE = 2;
+const MIN_BOARD_WIDTH = 1240;
+const MIN_BOARD_HEIGHT = 860;
+
+const resolveMediaUrlCandidates = (raw: unknown): string[] => {
+  if (typeof raw !== 'string' || !raw.trim()) return [];
+  const value = raw.trim();
+  if (value.startsWith('data:image/')) return [value];
+
+  const safeEncode = (url: string) => {
+    try {
+      return encodeURI(url);
+    } catch {
+      return url;
+    }
+  };
+  const pushUnique = (list: string[], candidate: string) => {
+    if (candidate && !list.includes(candidate)) {
+      list.push(candidate);
+    }
+  };
+
+  const candidates: string[] = [];
+  if (/^https?:\/\//i.test(value)) {
+    pushUnique(candidates, value);
+    pushUnique(candidates, safeEncode(value));
+    return candidates;
+  }
+
+  if (value.startsWith('/')) {
+    pushUnique(candidates, `${API_ORIGIN}${value}`);
+    pushUnique(candidates, safeEncode(`${API_ORIGIN}${value}`));
+    pushUnique(candidates, value);
+    pushUnique(candidates, safeEncode(value));
+    return candidates;
+  }
+
+  if (value.startsWith('media/')) {
+    pushUnique(candidates, `${API_ORIGIN}/${value}`);
+    pushUnique(candidates, safeEncode(`${API_ORIGIN}/${value}`));
+    pushUnique(candidates, `${API_ORIGIN}/media/${value.replace(/^media\//, '')}`);
+    pushUnique(candidates, safeEncode(`${API_ORIGIN}/media/${value.replace(/^media\//, '')}`));
+    return candidates;
+  }
+
+  pushUnique(candidates, `${API_ORIGIN}/media/${value}`);
+  pushUnique(candidates, safeEncode(`${API_ORIGIN}/media/${value}`));
+  pushUnique(candidates, `${API_ORIGIN}/${value}`);
+  pushUnique(candidates, safeEncode(`${API_ORIGIN}/${value}`));
+  return candidates;
+};
+
+const isImageLikePath = (value: string): boolean => {
+  if (!value) return false;
+  if (value.startsWith('data:image/')) return true;
+  const normalized = value.split('?')[0].split('#')[0];
+  return IMAGE_FILE_PATTERN.test(normalized);
+};
+
+const pickFirstImagePathDeep = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    return isImageLikePath(value) ? value : null;
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const found = pickFirstImagePathDeep(entry);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (value && typeof value === 'object') {
+    for (const entry of Object.values(value as Record<string, unknown>)) {
+      const found = pickFirstImagePathDeep(entry);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
+const extractEvidencePreviewUrls = (evidence: EvidenceRecord): string[] => {
+  const details = evidence.details || {};
+  const urls: string[] = [];
+  const appendUniqueUrls = (candidates: string[]) => {
+    candidates.forEach((url) => {
+      if (!urls.includes(url)) urls.push(url);
+    });
+  };
+
+  if (evidence.type === 'bio_medical') {
+    const images = Array.isArray((details as { images?: unknown }).images)
+      ? ((details as { images: unknown[] }).images as unknown[])
+      : [];
+    for (const imagePath of images) {
+      appendUniqueUrls(resolveMediaUrlCandidates(imagePath));
+    }
+  }
+
+  if (evidence.type === 'transcription') {
+    const mediaFiles = Array.isArray((details as { media_files?: unknown }).media_files)
+      ? ((details as { media_files: unknown[] }).media_files as unknown[])
+      : [];
+    for (const mediaPath of mediaFiles) {
+      if (typeof mediaPath !== 'string' || !isImageLikePath(mediaPath)) continue;
+      appendUniqueUrls(resolveMediaUrlCandidates(mediaPath));
+    }
+  }
+
+  // Fallback: if backend returns image paths under any other key, still show preview on board.
+  const deepImagePath = pickFirstImagePathDeep(details);
+  if (deepImagePath) {
+    appendUniqueUrls(resolveMediaUrlCandidates(deepImagePath));
+  }
+
+  return urls;
 };
 
 const resolveInitialTab = (pathname: string, queryTab: string | null): DetectiveTab => {
@@ -184,10 +315,13 @@ const DetectiveCases = () => {
   const [selectedBoardItemId, setSelectedBoardItemId] = useState<number | null>(null);
   const [connectingFromId, setConnectingFromId] = useState<number | null>(null);
   const [isConnectingDrag, setIsConnectingDrag] = useState(false);
+  const [connectionStartPoint, setConnectionStartPoint] = useState<{ x: number; y: number } | null>(null);
+  const [connectionStartAnchor, setConnectionStartAnchor] = useState<BoardAnchor>('center');
   const [connectionDraftPoint, setConnectionDraftPoint] = useState<{ x: number; y: number } | null>(null);
   const [boardScale, setBoardScale] = useState(1);
   const [newBoardNote, setNewBoardNote] = useState('');
   const [savingBoard, setSavingBoard] = useState(false);
+  const boardViewportRef = useRef<HTMLDivElement>(null);
   const boardCanvasRef = useRef<HTMLDivElement>(null);
   const draftPointRef = useRef<{ x: number; y: number } | null>(null);
   const draftFrameRef = useRef<number | null>(null);
@@ -312,6 +446,17 @@ const DetectiveCases = () => {
     return evidenceItems.find((item) => item.id === selectedBoardItem.evidence) || null;
   }, [selectedBoardItem, evidenceItems]);
 
+  const evidencePreviewById = useMemo(() => {
+    const map: Record<number, string[]> = {};
+    evidenceItems.forEach((evidence) => {
+      const previews = extractEvidencePreviewUrls(evidence);
+      if (previews.length > 0) {
+        map[evidence.id] = previews;
+      }
+    });
+    return map;
+  }, [evidenceItems]);
+
   const boardItemLabelMap = useMemo(() => {
     const labels: Record<number, string> = {};
     boardItems.forEach((item) => {
@@ -335,11 +480,102 @@ const DetectiveCases = () => {
     return labels;
   }, [boardItems]);
 
+  const normalizeAnchor = useCallback((value: string | null | undefined): BoardAnchor | null => {
+    if (value === 'top' || value === 'right' || value === 'bottom' || value === 'left' || value === 'center') {
+      return value;
+    }
+    return null;
+  }, []);
+
+  const clampBoardScale = useCallback((value: number) => {
+    return Math.min(MAX_BOARD_SCALE, Math.max(MIN_BOARD_SCALE, value));
+  }, []);
+
+  const getItemAnchorPoint = useCallback(
+    (itemId: number, anchor: BoardAnchor = 'center') => {
+      const item = boardItems.find((entry) => entry.id === itemId);
+      if (!item) return null;
+
+      const safeX = Math.max(12, item.position_x);
+      const safeY = Math.max(12, item.position_y);
+      const centerX = safeX + item.width / 2;
+      const centerY = safeY + item.height / 2;
+      switch (anchor) {
+        case 'top':
+          return { x: centerX, y: safeY };
+        case 'right':
+          return { x: safeX + item.width, y: centerY };
+        case 'bottom':
+          return { x: centerX, y: safeY + item.height };
+        case 'left':
+          return { x: safeX, y: centerY };
+        case 'center':
+        default:
+          return { x: centerX, y: centerY };
+      }
+    },
+    [boardItems]
+  );
+
+  const inferNearestAnchor = useCallback(
+    (clientX: number, clientY: number, elementRect: DOMRect): BoardAnchor => {
+      const distances: Array<{ anchor: BoardAnchor; distance: number }> = [
+        { anchor: 'top', distance: Math.abs(clientY - elementRect.top) },
+        { anchor: 'right', distance: Math.abs(elementRect.right - clientX) },
+        { anchor: 'bottom', distance: Math.abs(elementRect.bottom - clientY) },
+        { anchor: 'left', distance: Math.abs(clientX - elementRect.left) },
+      ];
+
+      distances.sort((a, b) => a.distance - b.distance);
+      return distances[0]?.anchor || 'center';
+    },
+    []
+  );
+
+  const boardCanvasSize = useMemo(() => {
+    let maxX = MIN_BOARD_WIDTH;
+    let maxY = MIN_BOARD_HEIGHT;
+
+    boardItems.forEach((item) => {
+      maxX = Math.max(maxX, item.position_x + item.width + 120);
+      maxY = Math.max(maxY, item.position_y + item.height + 120);
+    });
+
+    boardLinks.forEach((link) => {
+      const from = getItemAnchorPoint(link.from_item, link.from_point || 'center');
+      const to = getItemAnchorPoint(link.to_item, link.to_point || 'center');
+      if (from) {
+        maxX = Math.max(maxX, from.x + 120);
+        maxY = Math.max(maxY, from.y + 120);
+      }
+      if (to) {
+        maxX = Math.max(maxX, to.x + 120);
+        maxY = Math.max(maxY, to.y + 120);
+      }
+    });
+
+    if (connectionDraftPoint) {
+      maxX = Math.max(maxX, connectionDraftPoint.x + 120);
+      maxY = Math.max(maxY, connectionDraftPoint.y + 120);
+    }
+
+    return {
+      width: Math.ceil(maxX),
+      height: Math.ceil(maxY),
+    };
+  }, [boardItems, boardLinks, connectionDraftPoint, getItemAnchorPoint]);
+
+  useEffect(() => {
+    if (connectingFromId === null) {
+      setConnectionStartPoint(null);
+      setConnectionStartAnchor('center');
+    }
+  }, [connectingFromId]);
+
   const getBoardPointFromClient = useCallback(
     (clientX: number, clientY: number) => {
-      const canvas = boardCanvasRef.current;
-      const wrapper = canvas?.parentElement;
-      if (!canvas || !wrapper) return null;
+      const wrapper = boardViewportRef.current;
+      if (!wrapper) return null;
       const rect = wrapper.getBoundingClientRect();
       return {
         x: (clientX - rect.left + wrapper.scrollLeft) / boardScale,
@@ -462,6 +698,7 @@ const DetectiveCases = () => {
         window.cancelAnimationFrame(draftFrameRef.current);
         draftFrameRef.current = null;
       }
+      setConnectionStartPoint(null);
       setConnectionDraftPoint(null);
       setSelectedNomineeIds([]);
       return;
@@ -715,6 +952,8 @@ const DetectiveCases = () => {
   const handleStartConnection = () => {
     if (selectedBoardItemId) {
       setIsConnectingDrag(false);
+      setConnectionStartPoint(null);
+      setConnectionStartAnchor('center');
       setConnectionDraftPoint(null);
       setConnectingFromId(selectedBoardItemId);
       setSuccess(`آیتم #${selectedBoardItemId} به عنوان مبدا اتصال انتخاب شد. مقصد را انتخاب کنید.`);
@@ -723,7 +962,11 @@ const DetectiveCases = () => {
   };
 
   const handleCreateBoardLink = useCallback(
-    async (fromItem: number, toItem: number) => {
+    async (
+      fromItem: number,
+      toItem: number,
+      anchors: { from: BoardAnchor; to: BoardAnchor } = { from: 'center', to: 'center' }
+    ) => {
       if (!selectedCase || fromItem === toItem) {
         setConnectingFromId(null);
         setIsConnectingDrag(false);
@@ -768,6 +1011,8 @@ const DetectiveCases = () => {
         const link = await boardApi.createBoardLink(selectedCase.id, {
           from_item: fromItem,
           to_item: toItem,
+          from_point: anchors.from,
+          to_point: anchors.to,
         });
         setBoardLinks((prev) => [...prev, link]);
         setConnectingFromId(null);
@@ -797,21 +1042,29 @@ const DetectiveCases = () => {
 
   const handleConnectRequest = (
     itemId: number,
-    options?: { clientX?: number; clientY?: number; dragStart?: boolean }
+    options?: { clientX?: number; clientY?: number; dragStart?: boolean; anchor?: BoardAnchor }
   ) => {
     if (isCaseLocked) {
       setError('ویرایش تخته برای این پرونده قفل است.');
       return;
     }
     if (options?.dragStart) {
+      const startAnchor = options.anchor || 'center';
       const point =
         typeof options.clientX === 'number' && typeof options.clientY === 'number'
           ? getBoardPointFromClient(options.clientX, options.clientY)
           : null;
+      const anchorPoint = getItemAnchorPoint(itemId, startAnchor);
       setConnectingFromId(itemId);
       setSelectedBoardItemId(itemId);
       setIsConnectingDrag(true);
-      if (point) {
+      setConnectionStartAnchor(startAnchor);
+      if (anchorPoint) {
+        setConnectionStartPoint(anchorPoint);
+        draftPointRef.current = anchorPoint;
+        setConnectionDraftPoint(anchorPoint);
+      } else if (point) {
+        setConnectionStartPoint(point);
         draftPointRef.current = point;
         setConnectionDraftPoint(point);
       }
@@ -821,6 +1074,8 @@ const DetectiveCases = () => {
     if (connectingFromId === null) {
       setConnectingFromId(itemId);
       setIsConnectingDrag(false);
+      setConnectionStartPoint(null);
+      setConnectionStartAnchor('center');
       draftPointRef.current = null;
       if (draftFrameRef.current !== null) {
         window.cancelAnimationFrame(draftFrameRef.current);
@@ -844,7 +1099,7 @@ const DetectiveCases = () => {
       setSuccess('حالت اتصال لغو شد.');
       return;
     }
-    handleCreateBoardLink(connectingFromId, itemId);
+    handleCreateBoardLink(connectingFromId, itemId, { from: 'center', to: 'center' });
   };
 
   const handleSelectBoardItem = (
@@ -860,7 +1115,7 @@ const DetectiveCases = () => {
       setSelectedBoardItemId(itemId);
       return;
     }
-    handleCreateBoardLink(connectingFromId, itemId);
+    handleCreateBoardLink(connectingFromId, itemId, { from: 'center', to: 'center' });
   };
 
   useEffect(() => {
@@ -887,14 +1142,21 @@ const DetectiveCases = () => {
         window.cancelAnimationFrame(draftFrameRef.current);
         draftFrameRef.current = null;
       }
-      const targetElement = document
-        .elementFromPoint(event.clientX, event.clientY)
-        ?.closest('[data-board-item-id]') as HTMLElement | null;
+      const pointElement = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      const targetElement = pointElement?.closest('[data-board-item-id]') as HTMLElement | null;
+      const explicitTargetAnchor = normalizeAnchor(
+        pointElement?.closest('[data-connection-anchor]')?.getAttribute('data-connection-anchor')
+      );
 
       const rawId = targetElement?.getAttribute('data-board-item-id');
       const targetId = rawId ? Number(rawId) : null;
       if (targetId && targetId !== connectingFromId) {
-        handleCreateBoardLink(connectingFromId, targetId);
+        const inferredAnchor =
+          explicitTargetAnchor || (targetElement ? inferNearestAnchor(event.clientX, event.clientY, targetElement.getBoundingClientRect()) : 'center');
+        handleCreateBoardLink(connectingFromId, targetId, {
+          from: connectionStartAnchor,
+          to: inferredAnchor,
+        });
         return;
       }
 
@@ -915,7 +1177,34 @@ const DetectiveCases = () => {
         draftFrameRef.current = null;
       }
     };
-  }, [connectingFromId, getBoardPointFromClient, handleCreateBoardLink, isConnectingDrag]);
+  }, [
+    connectingFromId,
+    connectionStartAnchor,
+    getBoardPointFromClient,
+    handleCreateBoardLink,
+    inferNearestAnchor,
+    isConnectingDrag,
+    normalizeAnchor,
+  ]);
+
+  const handleZoomStep = (delta: number) => {
+    setBoardScale((prev) => clampBoardScale(prev + delta));
+  };
+
+  const handleZoomSlider = (rawValue: number) => {
+    setBoardScale(clampBoardScale(rawValue / 100));
+  };
+
+  const handleZoomReset = () => {
+    setBoardScale(1);
+  };
+
+  const handleBoardWheelZoom = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    const delta = event.deltaY < 0 ? 0.08 : -0.08;
+    setBoardScale((prev) => clampBoardScale(prev + delta));
+  };
 
   const handleSaveBoard = async () => {
     if (!selectedCase) return;
@@ -1330,12 +1619,23 @@ const DetectiveCases = () => {
                         {connectingFromId && <span className="connect-source-pill">مبدا: #{connectingFromId}</span>}
                       </div>
                       <div className="zoom-controls">
-                        <button type="button" onClick={() => setBoardScale((prev) => Math.max(0.5, prev - 0.1))}>
+                        <button type="button" onClick={() => handleZoomStep(-0.1)} title="کوچک‌نمایی">
                           -
                         </button>
                         <span>{Math.round(boardScale * 100)}%</span>
-                        <button type="button" onClick={() => setBoardScale((prev) => Math.min(2, prev + 0.1))}>
+                        <button type="button" onClick={() => handleZoomStep(0.1)} title="بزرگ‌نمایی">
                           +
+                        </button>
+                        <input
+                          className="zoom-range"
+                          type="range"
+                          min={Math.round(MIN_BOARD_SCALE * 100)}
+                          max={Math.round(MAX_BOARD_SCALE * 100)}
+                          value={Math.round(boardScale * 100)}
+                          onChange={(event) => handleZoomSlider(Number(event.target.value))}
+                        />
+                        <button type="button" className="zoom-reset" onClick={handleZoomReset}>
+                          100%
                         </button>
                       </div>
                     </div>
@@ -1357,7 +1657,7 @@ const DetectiveCases = () => {
                           <div className="board-bag-list">
                             {readyEvidenceBagItems.map((item) => (
                               <div key={item.id} className="bag-item">
-                                <div>
+                                <div className="bag-item-content">
                                   <strong>{item.title}</strong>
                                   <small>
                                     {evidenceTypeLabelMap[item.type]}
@@ -1386,7 +1686,7 @@ const DetectiveCases = () => {
                             <h5>مدارک زیستی در انتظار تایید پزشک قانونی</h5>
                             {pendingBioEvidenceBagItems.map((item) => (
                               <div key={item.id} className="bag-item">
-                                <div>
+                                <div className="bag-item-content">
                                   <strong>{item.title}</strong>
                                   <small>{evidenceTypeLabelMap[item.type]} • منتظر آزمایش</small>
                                 </div>
@@ -1403,7 +1703,7 @@ const DetectiveCases = () => {
                             <h5>مدارک زیستی رد شده توسط پزشک قانونی</h5>
                             {rejectedBioEvidenceBagItems.map((item) => (
                               <div key={item.id} className="bag-item">
-                                <div>
+                                <div className="bag-item-content">
                                   <strong>{item.title}</strong>
                                   <small>{evidenceTypeLabelMap[item.type]} • رد شده</small>
                                 </div>
@@ -1527,55 +1827,72 @@ const DetectiveCases = () => {
                         </div>
                       </aside>
 
-                      <div className="board-canvas-wrapper">
-                        {loadingBoard ? (
-                          <div className="panel-empty">در حال بارگذاری تخته...</div>
-                        ) : (
-                          <div
-                            ref={boardCanvasRef}
-                            className="detective-board-canvas"
-                            style={{
-                              transform: `scale(${boardScale})`,
-                              transformOrigin: 'top left',
-                            }}
-                          >
-                            <BoardLinks
-                              links={boardLinks}
-                              items={boardItems}
-                              scale={boardScale}
-                              onDeleteLink={handleDeleteBoardLink}
-                              draftLink={
-                                connectingFromId !== null && connectionDraftPoint
-                                  ? {
-                                      from_item: connectingFromId,
-                                      to_x: connectionDraftPoint.x,
-                                      to_y: connectionDraftPoint.y,
-                                    }
-                                  : null
-                              }
-                            />
-
-                            {boardItems.map((item) => (
-                              <BoardItem
-                                key={item.id}
-                                item={item}
-                                onUpdate={handleUpdateBoardItemPosition}
-                                onDelete={handleDeleteBoardItem}
-                                onSelect={handleSelectBoardItem}
-                                onConnectRequest={handleConnectRequest}
-                                isSelected={item.id === selectedBoardItemId}
-                                isConnectionSource={item.id === connectingFromId}
+                      <div className="board-canvas-shell">
+                        <div className="board-frame-title">فضای تخته کارآگاه</div>
+                        <div
+                          ref={boardViewportRef}
+                          className="board-canvas-wrapper"
+                          onWheel={handleBoardWheelZoom}
+                        >
+                          {loadingBoard ? (
+                            <div className="panel-empty">در حال بارگذاری تخته...</div>
+                          ) : (
+                            <div
+                              ref={boardCanvasRef}
+                              className="detective-board-canvas"
+                              style={{
+                                width: `${boardCanvasSize.width}px`,
+                                height: `${boardCanvasSize.height}px`,
+                                transform: `scale(${boardScale})`,
+                                transformOrigin: 'top left',
+                              }}
+                            >
+                              <BoardLinks
+                                links={boardLinks}
+                                items={boardItems}
                                 scale={boardScale}
+                                onDeleteLink={handleDeleteBoardLink}
+                                draftLink={
+                                  connectingFromId !== null && connectionDraftPoint
+                                    ? {
+                                        from_item: connectingFromId,
+                                        from_x: connectionStartPoint?.x,
+                                        from_y: connectionStartPoint?.y,
+                                        from_point: connectionStartAnchor,
+                                        to_x: connectionDraftPoint.x,
+                                        to_y: connectionDraftPoint.y,
+                                      }
+                                    : null
+                                }
                               />
-                            ))}
 
-                            {boardItems.length === 0 && (
-                              <div className="panel-empty floating">
-                                تخته خالی است. از کیسه مدارک یا یادداشت آزاد شروع کنید.
-                              </div>
-                            )}
-                          </div>
-                        )}
+                              {boardItems.map((item) => (
+                                <BoardItem
+                                  key={item.id}
+                                  item={item}
+                                  onUpdate={handleUpdateBoardItemPosition}
+                                  onDelete={handleDeleteBoardItem}
+                                  onSelect={handleSelectBoardItem}
+                                  onConnectRequest={handleConnectRequest}
+                                  isSelected={item.id === selectedBoardItemId}
+                                  isConnectionSource={item.id === connectingFromId}
+                                  scale={boardScale}
+                                  evidencePreviewUrls={
+                                    item.item_type === 'evidence' && typeof item.evidence === 'number'
+                                      ? (evidencePreviewById[item.evidence] ?? [])
+                                      : []
+                                  }
+                                />
+                              ))}
+
+                              {boardItems.length === 0 && (
+                                <div className="panel-empty floating">
+                                  تخته خالی است. از کیسه مدارک یا یادداشت آزاد شروع کنید.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </section>

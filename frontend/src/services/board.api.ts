@@ -1,5 +1,7 @@
 import apiClient from './api.client';
 
+export type BoardAnchor = 'top' | 'right' | 'bottom' | 'left' | 'center';
+
 export interface BoardItem {
   id: number;
   board: number;
@@ -20,6 +22,8 @@ export interface BoardLink {
   board: number;
   from_item: number;
   to_item: number;
+  from_point: BoardAnchor;
+  to_point: BoardAnchor;
   description?: string;
 }
 
@@ -66,6 +70,8 @@ export interface UpdateBoardItemRequest {
 export interface CreateBoardLinkRequest {
   from_item: number;
   to_item: number;
+  from_point?: BoardAnchor;
+  to_point?: BoardAnchor;
   description?: string;
 }
 

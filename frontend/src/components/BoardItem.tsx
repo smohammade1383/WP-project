@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import type { BoardItem as BoardItemType } from '../services/board.api';
+import type { BoardAnchor, BoardItem as BoardItemType } from '../services/board.api';
 import './BoardItem.css';
 
 interface BoardItemProps {
@@ -9,11 +9,12 @@ interface BoardItemProps {
   onSelect: (id: number, options?: { shiftKey?: boolean; metaKey?: boolean; doubleClick?: boolean }) => void;
   onConnectRequest: (
     id: number,
-    options?: { clientX?: number; clientY?: number; dragStart?: boolean }
+    options?: { clientX?: number; clientY?: number; dragStart?: boolean; anchor?: BoardAnchor }
   ) => void;
   isSelected: boolean;
   isConnectionSource: boolean;
   scale: number;
+  evidencePreviewUrls?: string[];
 }
 
 const BoardItem = ({
@@ -25,9 +26,12 @@ const BoardItem = ({
   isSelected,
   isConnectionSource,
   scale,
+  evidencePreviewUrls = [],
 }: BoardItemProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [imageLoadError, setImageLoadError] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const hasMovedRef = useRef(false);
   const itemRef = useRef<HTMLDivElement>(null);
@@ -70,8 +74,14 @@ const BoardItem = ({
       }
 
       const containerRect = container.getBoundingClientRect();
-      const newX = (e.clientX - containerRect.left + container.scrollLeft) / scale - dragOffset.x;
-      const newY = (e.clientY - containerRect.top + container.scrollTop) / scale - dragOffset.y;
+      const newX = Math.max(
+        12,
+        (e.clientX - containerRect.left + container.scrollLeft) / scale - dragOffset.x
+      );
+      const newY = Math.max(
+        12,
+        (e.clientY - containerRect.top + container.scrollTop) / scale - dragOffset.y
+      );
 
       // Update position immediately for smooth dragging
       itemRef.current.style.left = `${newX}px`;
@@ -85,8 +95,14 @@ const BoardItem = ({
       if (!container) return;
 
       const containerRect = container.getBoundingClientRect();
-      const newX = (e.clientX - containerRect.left + container.scrollLeft) / scale - dragOffset.x;
-      const newY = (e.clientY - containerRect.top + container.scrollTop) / scale - dragOffset.y;
+      const newX = Math.max(
+        12,
+        (e.clientX - containerRect.left + container.scrollLeft) / scale - dragOffset.x
+      );
+      const newY = Math.max(
+        12,
+        (e.clientY - containerRect.top + container.scrollTop) / scale - dragOffset.y
+      );
 
       if (hasMovedRef.current) {
         onUpdate(item.id, { x: newX, y: newY });
@@ -107,6 +123,24 @@ const BoardItem = ({
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [dragOffset, isDragging, item.id, onSelect, onUpdate, scale]);
+
+  useEffect(() => {
+    setImageLoadError(false);
+    setPreviewIndex(0);
+  }, [evidencePreviewUrls]);
+
+  const activePreviewUrl = evidencePreviewUrls[previewIndex] || null;
+
+  const startConnectionDrag = (event: React.MouseEvent, anchor: BoardAnchor) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onConnectRequest(item.id, {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      dragStart: true,
+      anchor,
+    });
+  };
 
   const getItemIcon = () => {
     switch (item.item_type) {
@@ -159,8 +193,8 @@ const BoardItem = ({
       data-board-item-id={item.id}
       className={`board-item ${item.item_type} ${isSelected ? 'selected' : ''} ${isConnectionSource ? 'connect-source' : ''} ${isDragging ? 'dragging' : ''}`}
       style={{
-        left: `${item.position_x}px`,
-        top: `${item.position_y}px`,
+        left: `${Math.max(12, item.position_x)}px`,
+        top: `${Math.max(12, item.position_y)}px`,
         width: `${item.width}px`,
         minHeight: `${item.height}px`,
       }}
@@ -182,64 +216,74 @@ const BoardItem = ({
         </button>
       </div>
       <div className="item-content">
-        {getItemContent()}
+        {item.item_type === 'evidence' && activePreviewUrl && !imageLoadError ? (
+          <div className="board-item-evidence-preview">
+            <img
+              src={activePreviewUrl}
+              alt={item.evidence_title || 'evidence preview'}
+              loading="lazy"
+              onError={() => {
+                if (previewIndex + 1 < evidencePreviewUrls.length) {
+                  setPreviewIndex((prev) => prev + 1);
+                } else {
+                  setImageLoadError(true);
+                }
+              }}
+            />
+          </div>
+        ) : null}
+        <div className="item-content-text">{getItemContent()}</div>
       </div>
+      {/* Edge drag zones: allow starting connection from any point around card */}
+      <div
+        className="connection-edge connection-edge-top"
+        data-connection-anchor="top"
+        onMouseDown={(event) => startConnectionDrag(event, 'top')}
+      />
+      <div
+        className="connection-edge connection-edge-right"
+        data-connection-anchor="right"
+        onMouseDown={(event) => startConnectionDrag(event, 'right')}
+      />
+      <div
+        className="connection-edge connection-edge-bottom"
+        data-connection-anchor="bottom"
+        onMouseDown={(event) => startConnectionDrag(event, 'bottom')}
+      />
+      <div
+        className="connection-edge connection-edge-left"
+        data-connection-anchor="left"
+        onMouseDown={(event) => startConnectionDrag(event, 'left')}
+      />
+
       {/* Connection point indicators */}
       <div
         className="connection-point connection-point-top"
         data-item-id={item.id}
         data-point="top"
-        onMouseDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onConnectRequest(item.id, {
-            clientX: event.clientX,
-            clientY: event.clientY,
-            dragStart: true,
-          });
-        }}
+        data-connection-anchor="top"
+        onMouseDown={(event) => startConnectionDrag(event, 'top')}
       />
       <div
         className="connection-point connection-point-right"
         data-item-id={item.id}
         data-point="right"
-        onMouseDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onConnectRequest(item.id, {
-            clientX: event.clientX,
-            clientY: event.clientY,
-            dragStart: true,
-          });
-        }}
+        data-connection-anchor="right"
+        onMouseDown={(event) => startConnectionDrag(event, 'right')}
       />
       <div
         className="connection-point connection-point-bottom"
         data-item-id={item.id}
         data-point="bottom"
-        onMouseDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onConnectRequest(item.id, {
-            clientX: event.clientX,
-            clientY: event.clientY,
-            dragStart: true,
-          });
-        }}
+        data-connection-anchor="bottom"
+        onMouseDown={(event) => startConnectionDrag(event, 'bottom')}
       />
       <div
         className="connection-point connection-point-left"
         data-item-id={item.id}
         data-point="left"
-        onMouseDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onConnectRequest(item.id, {
-            clientX: event.clientX,
-            clientY: event.clientY,
-            dragStart: true,
-          });
-        }}
+        data-connection-anchor="left"
+        onMouseDown={(event) => startConnectionDrag(event, 'left')}
       />
     </div>
   );

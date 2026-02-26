@@ -295,9 +295,18 @@ class BoardItem(models.Model):
 
 
 class BoardLink(models.Model):
+    class PointAnchor(models.TextChoices):
+        TOP = "top", _("Top")
+        RIGHT = "right", _("Right")
+        BOTTOM = "bottom", _("Bottom")
+        LEFT = "left", _("Left")
+        CENTER = "center", _("Center")
+
     board = models.ForeignKey(DetectiveBoard, on_delete=models.CASCADE, related_name="links")
     from_item = models.ForeignKey(BoardItem, on_delete=models.CASCADE, related_name="out_links")
     to_item = models.ForeignKey(BoardItem, on_delete=models.CASCADE, related_name="in_links")
+    from_point = models.CharField(max_length=10, choices=PointAnchor.choices, default=PointAnchor.CENTER)
+    to_point = models.CharField(max_length=10, choices=PointAnchor.choices, default=PointAnchor.CENTER)
     description = models.TextField(blank=True)
 
     def clean(self):

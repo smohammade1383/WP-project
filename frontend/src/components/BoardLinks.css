@@ -4,11 +4,13 @@
   left: 0;
   width: 100%;
   height: 100%;
+  overflow: visible;
   pointer-events: none;
   z-index: 0;
 }
 
 .board-link-path {
+  vector-effect: non-scaling-stroke;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.18));
   stroke-linecap: round;
   stroke-linejoin: round;

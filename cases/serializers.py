@@ -323,7 +323,7 @@ class BoardItemSerializer(serializers.ModelSerializer):
 class BoardLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = BoardLink
-        fields = ("id", "board", "from_item", "to_item", "description")
+        fields = ("id", "board", "from_item", "to_item", "from_point", "to_point", "description")
         read_only_fields = ("board",)
 
     def validate(self, attrs):

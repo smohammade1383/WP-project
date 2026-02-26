@@ -1,4 +1,4 @@
-import type { BoardLink as BoardLinkType, BoardItem } from '../services/board.api';
+import type { BoardAnchor, BoardLink as BoardLinkType, BoardItem } from '../services/board.api';
 import './BoardLinks.css';
 
 interface BoardLinksProps {
@@ -6,68 +6,61 @@ interface BoardLinksProps {
   items: BoardItem[];
   scale: number;
   onDeleteLink: (linkId: number) => void;
-  draftLink?: { from_item: number; to_x: number; to_y: number } | null;
+  draftLink?:
+    | {
+        from_item: number;
+        to_x: number;
+        to_y: number;
+        from_x?: number;
+        from_y?: number;
+        from_point?: BoardAnchor;
+      }
+    | null;
 }
 
 const BoardLinks = ({ links, items, onDeleteLink, draftLink }: BoardLinksProps) => {
-  const getItemCenter = (itemId: number) => {
+  const getAnchorPoint = (itemId: number, anchor: BoardAnchor | undefined) => {
     const item = items.find((i) => i.id === itemId);
     if (!item) return { x: 0, y: 0 };
 
-    return {
-      x: item.position_x + item.width / 2,
-      y: item.position_y + item.height / 2,
-    };
-  };
+    const safeX = Math.max(12, item.position_x);
+    const safeY = Math.max(12, item.position_y);
+    const centerX = safeX + item.width / 2;
+    const centerY = safeY + item.height / 2;
+    const normalized = anchor || 'center';
 
-  const calculatePathFromPoints = (from: { x: number; y: number }, to: { x: number; y: number }) => {
-    const midX = (from.x + to.x) / 2;
-    const midY = (from.y + to.y) / 2;
-
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const safeDistance = distance || 1;
-
-    const offsetX = (-dy / safeDistance) * 30;
-    const offsetY = (dx / safeDistance) * 30;
-
-    const controlX = midX + offsetX;
-    const controlY = midY + offsetY;
-
-    return `M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`;
+    switch (normalized) {
+      case 'top':
+        return { x: centerX, y: safeY };
+      case 'right':
+        return { x: safeX + item.width, y: centerY };
+      case 'bottom':
+        return { x: centerX, y: safeY + item.height };
+      case 'left':
+        return { x: safeX, y: centerY };
+      case 'center':
+      default:
+        return { x: centerX, y: centerY };
+    }
   };
 
   return (
     <svg className="board-links-svg" style={{ pointerEvents: 'none' }}>
-      <defs>
-        <marker
-          id="arrowhead"
-          markerWidth="10"
-          markerHeight="10"
-          refX="9"
-          refY="3"
-          orient="auto"
-        >
-          <polygon points="0 0, 10 3, 0 6" fill="#dc2626" />
-        </marker>
-      </defs>
       {links.map((link) => {
-        const fromPoint = getItemCenter(link.from_item);
-        const toPoint = getItemCenter(link.to_item);
-        const path = calculatePathFromPoints(fromPoint, toPoint);
-        const midPoint = getItemCenter(link.from_item);
-        const deleteX = (midPoint.x + toPoint.x) / 2;
-        const deleteY = (midPoint.y + toPoint.y) / 2;
+        const fromPoint = getAnchorPoint(link.from_item, link.from_point);
+        const toPoint = getAnchorPoint(link.to_item, link.to_point);
+        const deleteX = (fromPoint.x + toPoint.x) / 2;
+        const deleteY = (fromPoint.y + toPoint.y) / 2;
 
         return (
           <g key={link.id}>
-            <path
-              d={path}
+            <line
+              x1={fromPoint.x}
+              y1={fromPoint.y}
+              x2={toPoint.x}
+              y2={toPoint.y}
               stroke="#dc2626"
-              strokeWidth="3"
-              fill="none"
-              markerEnd="url(#arrowhead)"
+              strokeWidth="2.8"
               className="board-link-path"
             />
             {/* Delete button for link */}
@@ -100,15 +93,21 @@ const BoardLinks = ({ links, items, onDeleteLink, draftLink }: BoardLinksProps) 
         );
       })}
       {draftLink && (
-        <path
-          d={calculatePathFromPoints(getItemCenter(draftLink.from_item), {
-            x: draftLink.to_x,
-            y: draftLink.to_y,
-          })}
+        <line
+          x1={
+            typeof draftLink.from_x === 'number'
+              ? draftLink.from_x
+              : getAnchorPoint(draftLink.from_item, draftLink.from_point).x
+          }
+          y1={
+            typeof draftLink.from_y === 'number'
+              ? draftLink.from_y
+              : getAnchorPoint(draftLink.from_item, draftLink.from_point).y
+          }
+          x2={draftLink.to_x}
+          y2={draftLink.to_y}
           stroke="#ef4444"
           strokeWidth="2.5"
-          fill="none"
-          markerEnd="url(#arrowhead)"
           className="board-link-path draft"
         />
       )}

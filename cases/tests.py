@@ -415,6 +415,23 @@ class CaseFlowAPITests(APITestCase):
             format="json",
         )
         self.assertEqual(ok_resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(ok_resp.data["from_point"], "center")
+        self.assertEqual(ok_resp.data["to_point"], "center")
+
+        anchored_resp = self.client.post(
+            reverse("board-link-list-create", kwargs={"case_id": case_a.id}),
+            {
+                "from_item": item_a2,
+                "to_item": item_a1,
+                "from_point": "top",
+                "to_point": "left",
+                "description": "anchored",
+            },
+            format="json",
+        )
+        self.assertEqual(anchored_resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(anchored_resp.data["from_point"], "top")
+        self.assertEqual(anchored_resp.data["to_point"], "left")
 
         bad_resp = self.client.post(
             reverse("board-link-list-create", kwargs={"case_id": case_a.id}),
