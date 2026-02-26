@@ -1,0 +1,116 @@
+%Document--------------------------------------------------------------------------------------
+\documentclass[12pt]{article} % استفاده از article برای اسناد تمرین بهتر است
+
+%Packages--------------------------------------------------------------------------------------
+\usepackage{float}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{tikzit}
+ \input{Homework.tikzstyles} % اگر این فایل را ندارید، این خط را کامنت کنید
+\usepackage{hyperref}
+\usepackage{polyglossia}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{graphics}
+\usepackage{graphicx}
+\usepackage{yfonts}
+\usepackage{float}
+\usepackage{dsfont}
+\usepackage[textwidth=17cm, textheight=23cm]{geometry}
+\usepackage[nottoc]{tocbibind}
+\setcounter{tocdepth}{3}
+\setcounter{secnumdepth}{3}
+\usepackage{url}
+\usepackage{multirow}
+\usepackage{subcaption}
+\usepackage{ctable}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{pifont}
+\usepackage{listings}
+\usepackage{array}
+\usepackage{adjustbox}
+\usepackage{booktabs}
+\usepackage{xepersian}
+\settextfont[
+BoldFont=XB ZarBd.TTF,
+ItalicFont=XB ZarIt.TTF,
+BoldItalicFont=XB ZarBdIt.TTF]{XB Zar.TTF}
+\ExplSyntaxOn \cs_set_eq:NN \etex_iffontchar:D \tex_iffontchar:D \ExplSyntaxOff
+\setdigitfont[
+BoldFont=XB ZarBd.TTF,
+ItalicFont=XB ZarIt.TTF,
+BoldItalicFont=XB ZarBdIt.TTF]{XB Zar.TTF}
+
+\setdefaultlanguage{farsi}
+\setotherlanguage{english}
+
+%Theorems--------------------------------------------------------------------------------------
+\theoremstyle{definition}
+\newtheorem{prob}{مسئله}
+\renewcommand{\baselinestretch}{1.25}
+
+% محیط اصلاح شده برای راه‌حل‌ها
+\newenvironment{solution}{%
+  \renewcommand{\proofname}{\bfseries پاسخ}%  <--- تغییر اصلی اینجاست
+  \begin{proof}\renewcommand{\qedsymbol}{}}
+  {\end{proof}}
+% دستورات سفارشی برای نمادهای ریاضی
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\Lop}{\mathcal{L}}
+\newcommand{\pcal}{\mathcal{P}}
+
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+
+
+
+
+
+% ─── Code listing style ──────────────────────────────────────────────────────
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{gray!10},
+  frame=single,
+  breaklines=true,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{green!60!black},
+  stringstyle=\color{orange},
+  showstringspaces=false,
+  tabsize=2,
+}
+
+% ─── Header / Footer ─────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{گزارش پروژه \lr{WP-Project}}
+\lhead{برنامه‌نویسی وب}
+\cfoot{\thepage}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\Huge\bfseries گزارش پروژه}\\[0.5cm]
+  {\Large سامانه مدیریت پرونده‌های پلیس}\\[0.3cm]
+  {\large \lr{WP-Project — Police Case Management System}}\\[2cm]
+  \rule{\linewidth}{0.4pt}\\[1cm]
+  {\large درس: برنامه‌نویسی وب}\\[0.5cm]
+  {\large تاریخ تحویل: اسفند ۱۴۰۴}\\[2cm]
+  \vfill
+\end{titlepage}
+
+\tableofcontents
+\newpage
