@@ -271,3 +271,110 @@ roleC-task:Debugging and added a script for testing
 \textbf{دلیل وجود:}
 جریان مستقل برای دریافت سرنخ از شهروندان در مورد مظنونین تحت تعقیب است.
 کد رهگیری یکتا (\lr{unique\_tracking\_code}) پس از مفید شناخته شدن اطلاعیه صادر می‌شود تا شهروند بتواند وضعیت پاداش خود را پیگیری کند.
+
+\section{پکیج‌های \lr{NPM} استفاده‌شده در پروژه}
+
+\subsection{\lr{React} (\lr{v19})}
+\textbf{کارکرد:} کتابخانه‌ی اصلی ساخت رابط کاربری مبتنی بر کامپوننت.\\
+\textbf{توجیه:} اکوسیستم بزرگ، رندر اعلانی (\lr{declarative rendering})، پشتیبانی قوی از \lr{TypeScript}، و تناسب کامل با معماری تک‌صفحه‌ای (\lr{SPA}) که این پروژه نیاز دارد.
+
+\subsection{\lr{React Router DOM} (\lr{v7})}
+\textbf{کارکرد:} مسیریابی سمت کلاینت؛ تعریف مسیرها، پارامترهای پویا، و ریدایرکت‌ها.\\
+\textbf{توجیه:} با داشتن بیش از ۱۰ نقش کاربری و صفحات متفاوت برای هر نقش، نیاز به یک سیستم مسیریابی اعلانی قوی اجتناب‌ناپذیر بود. نسخه ۷ قابلیت \lr{lazy loading} را نیز بهتر پشتیبانی می‌کند.
+
+\subsection{\lr{Axios} (\lr{v1})}
+\textbf{کارکرد:} کلاینت \lr{HTTP} برای ارتباط با \lr{REST API} بک‌اند.\\
+\textbf{توجیه:} در مقایسه با \lr{fetch} بومی، \lr{interceptor}های \lr{Axios} مدیریت خودکار توکن \lr{JWT} و خطاهای \lr{401} را بسیار ساده‌تر می‌کنند.
+
+\subsection{\lr{Zustand} (\lr{v5})}
+\textbf{کارکرد:} مدیریت وضعیت سراسری سبک‌وزن.\\
+\textbf{توجیه:} وضعیت احراز هویت و اطلاعات کاربر جاری باید در تمام کامپوننت‌ها در دسترس باشند. \lr{Zustand} بدون \lr{boilerplate} زیاد (در مقایسه با \lr{Redux}) این کار را انجام می‌دهد و با \lr{TypeScript} نیز به‌خوبی کار می‌کند.
+
+\subsection{\lr{Vite} (\lr{v7})}
+\textbf{کارکرد:} ابزار \lr{build} و سرور توسعه.\\
+\textbf{توجیه:} سرعت بالای \lr{Hot Module Replacement}، زمان راه‌اندازی فوری، و پیکربندی ساده آن را به انتخاب پیش‌فرض اکثر پروژه‌های جدید \lr{React} تبدیل کرده است.
+
+\subsection{\lr{Vitest} (\lr{v4})}
+\textbf{کارکرد:} فریم‌ورک تست یکپارچه با \lr{Vite}.\\
+\textbf{توجیه:} چون پروژه از \lr{Vite} استفاده می‌کند، \lr{Vitest} بدون تنظیمات اضافه در همان محیط \lr{build} اجرا می‌شود و سرعت اجرای تست‌ها را به‌طور قابل‌توجهی بالا می‌برد.
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{نمونه کدهای تولیدشده توسط هوش مصنوعی}
+
+\subsection{نمونه ۱ — سرویس احراز هویت در فرانت‌اند}
+
+کد زیر توسط هوش مصنوعی تولید شده است و مدیریت توکن \lr{JWT} با \lr{Axios interceptor} را نشان می‌دهد:
+
+\begin{latin}
+\begin{lstlisting}[language=Java, caption={auth interceptor (TypeScript)}]
+// src/services/api.ts
+import axios from 'axios';
+import { useAuthStore } from '../store/authStore';
+
+const api = axios.create({ baseURL: '/api' });
+
+api.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().accessToken;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    if (error.response?.status === 401) {
+      await useAuthStore.getState().refresh();
+      return api(error.config);
+    }
+    return Promise.reject(error);
+  },
+);
+
+export default api;
+\end{lstlisting}
+\end{latin}
+
+\subsection{نمونه ۲ — منطق سه ضربه در بک‌اند}
+
+کد زیر توسط هوش مصنوعی پیشنهاد شد و منطق باطل‌شدن خودکار شکایت را پیاده‌سازی می‌کند:
+
+\begin{latin}
+\begin{lstlisting}[language=Python, caption={Complaint three-strike logic (Python)}]
+# cases/models.py
+def register_invalid_attempt(self):
+    self.invalid_attempt_count += 1
+    if self.invalid_attempt_count >= 3:
+        self.status = self.Status.VOID
+    else:
+        self.status = self.Status.RETURNED
+    self.save(update_fields=[
+        "invalid_attempt_count", "status", "updated_at"
+    ])
+\end{lstlisting}
+\end{latin}
+
+\subsection{نمونه ۳ — کامپوننت محافظ مسیر بر اساس نقش}
+
+\begin{latin}
+\begin{lstlisting}[language=Java, caption={RoleGuard component (TypeScript/React)}]
+// src/components/RoleGuard.tsx
+import { Navigate } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
+
+interface Props {
+  allowedRoles: string[];
+  children: React.ReactNode;
+}
+
+export function RoleGuard({ allowedRoles, children }: Props) {
+  const { user } = useAuthStore();
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  const hasRole = user.roles.some((r) => allowedRoles.includes(r));
+  if (!hasRole) return <Navigate to="/403" replace />;
+
+  return <>{children}</>;
+}
+\end{lstlisting}
+\end{latin}
