@@ -15,6 +15,11 @@ def _has_column(schema_editor, table_name, column_name):
 def _add_missing_officer_review_columns(apps, schema_editor):
     evidence_table = apps.get_model("evidence", "Evidence")._meta.db_table
     qn = schema_editor.quote_name
+    datetime_sql_type = (
+        "timestamp with time zone"
+        if schema_editor.connection.vendor == "postgresql"
+        else "datetime"
+    )
 
     if not _has_column(schema_editor, evidence_table, "officer_review_status"):
         schema_editor.execute(
@@ -31,7 +36,7 @@ def _add_missing_officer_review_columns(apps, schema_editor):
     if not _has_column(schema_editor, evidence_table, "officer_reviewed_at"):
         schema_editor.execute(
             f"ALTER TABLE {qn(evidence_table)} "
-            f"ADD COLUMN {qn('officer_reviewed_at')} datetime NULL"
+            f"ADD COLUMN {qn('officer_reviewed_at')} {datetime_sql_type} NULL"
         )
 
     if not _has_column(schema_editor, evidence_table, "officer_reviewer_id"):
@@ -93,4 +98,3 @@ class Migration(migrations.Migration):
             ],
         ),
     ]
-
